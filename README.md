@@ -1,21 +1,98 @@
+# 🌌 Insight Launcher (インサイト・ランチャー)
+
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+  <p><b>Gemini API を搭載した、AI世代のAndroid向け近未来型ホームランチャー</b></p>
+  <a href="https://github.com/dma-cmyk/insight-launcher/releases">
+    <img src="https://img.shields.io/github/v/release/dma-cmyk/insight-launcher?style=for-the-badge&color=6B5B95" alt="Latest Release" />
+  </a>
+  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Platform" />
+  <img src="https://img.shields.io/badge/Language-Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Language" />
 </div>
 
-# Run and deploy your AI Studio app
+---
 
-This contains everything you need to run your app locally.
+**Insight Launcher** は、Google Gemini API を活用し、インストールされているアプリの「意味」や「用途」を自動で解析・スマートに分類する、全く新しいAndroid用ランチャーアプリです。
+美しい宇宙空間のダイナミック背景（Space Background）に包まれたUIと、AIアシスタント機能があなたのスマートフォンライフをスマートに彩ります。
 
-View your app in AI Studio: https://ai.studio/apps/56c5aa91-770a-409c-a9d3-57814b978afd
+---
 
-## Run Locally
+## 📸 スクリーンショット
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+<div align="center">
+  <table border="0">
+    <tr>
+      <td align="center"><b>リストビュー (List View)</b><br>アプリ詳細とAIの解析結果を表示</td>
+      <td align="center"><b>グリッドビュー (Grid View)</b><br>スッキリ並ぶ3列レイアウト（解析バッジ付）</td>
+    </tr>
+    <tr>
+      <td valign="top"><img src="docs/images/screenshot_list.png" width="300" alt="List View" /></td>
+      <td valign="top"><img src="docs/images/screenshot_grid.png" width="300" alt="Grid View" /></td>
+    </tr>
+  </table>
+</div>
 
+---
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+## ✨ 主な機能
+
+* **🤖 AIによるアプリの自動分類**
+  * Gemini API がアプリの名前やパッケージ情報を解析し、「仕事効率化」「ツール」「エンタメ」などのカテゴリに自動でスマート分類します。
+* **🔍 セマンティックアプリ検索 (AI意図解析)**
+  * 「カレンダー」のようなアプリ名での検索はもちろん、「予定を管理したい」「ネットサーフィンしたい」といった自然言語の意図を入力して、最適なアプリをAIが探し出します。
+* **🌌 SFチックな宇宙テーマ UI**
+  * 美しくまたたく星々と、滑らかなアニメーションで近未来感を演出するダイナミックな宇宙背景。
+* **🔄 切り替え可能なレイアウト**
+  * アプリの詳細説明とAI解析バッジが表示される「リストビュー」と、スッキリとスマートに並ぶ「グリッドビュー」をワンタップで切り替え可能です。
+* **⚙️ モデル＆エンジンの自由なカスタマイズ**
+  * 設定画面から、解析に使用する `LLM (Gemini)` のモデルや `Embedding` モデルを自由に変更可能です。
+
+---
+
+## 🛠️ ローカルでの開発 & ビルド方法
+
+### 前提条件
+* **Android Studio** (最新版推奨)
+* **JDK 17** (ビルドに必要です。`mise` 等での管理を推奨)
+* **Android SDK** (API 24以上、Target API 36)
+
+### セットアップ手順
+
+1. **プロジェクトのインポート**
+   Android Studio を開き、本プロジェクトのルートディレクトリをインポートします。
+
+2. **APIキーの設定 (`.env` ファイルの作成)**
+   プロジェクトのルートディレクトリに `.env` ファイルを作成し、Gemini APIキーを設定してください。
+   ```bash
+   cp .env.example .env
+   ```
+   `.env` ファイルを開き、以下のようにキーを入力します：
+   ```env
+   GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+   ```
+
+3. **SDKパスの確認 (`local.properties`)**
+   `local.properties` を作成または編集し、お使いの環境の Android SDK のパスを指定してください。
+   ```properties
+   sdk.dir=/path/to/your/Android/Sdk
+   ```
+
+4. **ビルド & 実行**
+   ```bash
+   # デバッグビルド (APKの生成)
+   ./gradlew assembleDebug
+   ```
+
+---
+
+## 📲 インストール方法 (APK)
+
+すぐにスマホで使ってみたい場合は、[Releases](https://github.com/dma-cmyk/insight-launcher/releases) ページから最新のコンパイル済み APK ファイル（`app-debug.apk`）をダウンロードしてインストールしてください。
+
+1. **[リリースページ](https://github.com/dma-cmyk/insight-launcher/releases) にアクセス**
+2. 最新リリースの `Assets` から `app-debug.apk` をダウンロード
+3. スマホに転送し、「不明なソースからのアプリ」のインストールを許可してインストール
+
+---
+
+## 🛡️ ライセンス & 免責事項
+このプロジェクトは Google AI Studio のコード生成をベースに構築されています。
