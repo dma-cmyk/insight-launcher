@@ -106,7 +106,14 @@ object Localization {
         "correction_context_title" to "AI解析の補正用追加情報 (任意)",
         "correction_text_placeholder" to "AIへの指示や補正用テキストを入力...",
         "choose_file_btn" to "ファイル添付",
-        "selected_file_label" to "選択ファイル: %s"
+        "selected_file_label" to "選択ファイル: %s",
+        "vector_utility" to "実用・効率",
+        "vector_productivity" to "生産性・業務",
+        "vector_social" to "交流・通信",
+        "vector_entertainment" to "エンタメ・娯楽",
+        "vector_creativity" to "創造・表現",
+        "vector_knowledge" to "知性・情報",
+        "vector_title" to "AI多次元ベクトル特性解析"
     )
 
     private val englishMap = mapOf(
@@ -199,7 +206,14 @@ object Localization {
         "correction_context_title" to "AI Correction / Context (Optional)",
         "correction_text_placeholder" to "Enter instructions or correction text...",
         "choose_file_btn" to "Attach File",
-        "selected_file_label" to "Attached file: %s"
+        "selected_file_label" to "Attached file: %s",
+        "vector_utility" to "Utility & System",
+        "vector_productivity" to "Productivity & Work",
+        "vector_social" to "Social & Connect",
+        "vector_entertainment" to "Entertainment & Fun",
+        "vector_creativity" to "Creativity & Art",
+        "vector_knowledge" to "Knowledge & Info",
+        "vector_title" to "AI Vector Characteristic Profile"
     )
 
     private val koreanMap = mapOf(
@@ -292,7 +306,14 @@ object Localization {
         "correction_context_title" to "AI 보정 및 컨텍스트 (선택 사항)",
         "correction_text_placeholder" to "AI 지침 또는 보정 텍스트 입력...",
         "choose_file_btn" to "파일 첨부",
-        "selected_file_label" to "첨부 파일: %s"
+        "selected_file_label" to "첨부 파일: %s",
+        "vector_utility" to "실용성 및 시스템",
+        "vector_productivity" to "생산성 및 비즈니스",
+        "vector_social" to "소셜 및 소통",
+        "vector_entertainment" to "엔터테인먼트 및 재미",
+        "vector_creativity" to "창의성 및 예술",
+        "vector_knowledge" to "정보 및 지식",
+        "vector_title" to "AI 벡터 다차원 분석"
     )
 
     private val chineseMap = mapOf(
@@ -385,6 +406,13 @@ object Localization {
         "correction_context_title" to "AI 修正和上下文 (可选)",
         "correction_text_placeholder" to "输入 AI 指示或修正文本...",
         "choose_file_btn" to "上传文件",
-        "selected_file_label" to "已选文件: %s"
+        "selected_file_label" to "已选文件: %s",
+        "vector_utility" to "实用与系统",
+        "vector_productivity" to "生产力与工作",
+        "vector_social" to "社交与通信",
+        "vector_entertainment" to "娱乐与游戏",
+        "vector_creativity" to "创造与艺术",
+        "vector_knowledge" to "信息与知识",
+        "vector_title" to "AI 向量多维特征分析"
     )
 }

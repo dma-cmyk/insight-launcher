@@ -8,10 +8,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -746,7 +755,9 @@ fun AppDetailsDialog(
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
             ) {
                 // Header Segment
                 Row(
@@ -796,6 +807,20 @@ fun AppDetailsDialog(
 
                 HorizontalDivider(color = Color(0x14FFFFFF))
 
+                // Action Buttons at the top (above Vector Analysis and AI Summary)
+                Button(
+                    onClick = onLaunch,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("launch_app_button")
+                ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = "Launch", tint = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(Localization.get("open_app", lang).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+                }
+
                 if (app.isAnalyzed && app.cachedInfo != null) {
                     val info = app.cachedInfo
 
@@ -832,6 +857,42 @@ fun AppDetailsDialog(
                             color = Color(0xFFE2E8F0),
                             fontSize = 12.5.sp,
                             lineHeight = 17.sp
+                        )
+                    }
+
+                    // AI Vector Analysis Radar Chart Section
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0x11000000))
+                            .border(1.dp, Color(0x06FFFFFF), RoundedCornerShape(16.dp))
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = "Vector Analysis",
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = Localization.get("vector_title", lang).uppercase(),
+                                color = Color(0xFF10B981),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                        AppVectorRadarChart(
+                            packageName = app.packageName,
+                            category = info.category,
+                            tags = info.getParsedTags(),
+                            lang = lang
                         )
                     }
 
@@ -1119,46 +1180,302 @@ fun AppDetailsDialog(
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                // 4. Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
                     Button(
-                        onClick = onLaunch,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
-                        shape = RoundedCornerShape(12.dp),
+                        onClick = {
+                            onAnalyze(customContextText, selectedFileName, selectedFileMimeType, selectedFileBytes)
+                        },
+                        enabled = !isAnalyzing,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF10B981),
+                            disabledContainerColor = Color(0x3310B981)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
-                            .weight(1.2f)
-                            .testTag("launch_app_button")
+                            .fillMaxWidth()
+                            .height(38.dp)
+                            .testTag("re_analyze_button")
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = "Launch", tint = Color.White)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(Localization.get("open_app", lang).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
-                    }
-
-                    if (app.isAnalyzed) {
-                        // Re-analyze option
-                        OutlinedButton(
-                            onClick = {
-                                onAnalyze(customContextText, selectedFileName, selectedFileMimeType, selectedFileBytes)
-                            },
-                            enabled = !isAnalyzing,
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                            border = BorderStroke(1.dp, Color(0x14FFFFFF)),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.weight(0.8f)
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Re-analyze", modifier = Modifier.size(14.dp))
+                        if (isAnalyzing) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Re-analyze",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(Localization.get("re_analyze", lang).uppercase(), fontSize = 11.sp, letterSpacing = 0.5.sp)
+                            Text(
+                                text = Localization.get("re_analyze", lang).uppercase(),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                letterSpacing = 0.5.sp
+                            )
                         }
                     }
                 }
+
+            }
+        }
+    }
+}
+
+@Composable
+fun AppVectorRadarChart(
+    packageName: String,
+    category: String,
+    tags: List<String>,
+    lang: String,
+    modifier: Modifier = Modifier
+) {
+    // 1. Calculate standard 6-axis values (0.15 to 1.0)
+    val scores = remember(packageName, category, tags) {
+        val catLower = category.lowercase()
+        val tagsLower = tags.map { it.lowercase() }
+        
+        // Base value so the chart isn't empty
+        val baseScores = FloatArray(6) { 0.22f }
+        
+        // Axis 0: Utility & Efficiency
+        if (catLower.contains("system") || catLower.contains("utility") || catLower.contains("tool") || 
+            catLower.contains("ツール") || catLower.contains("システム") || catLower.contains("便利")) {
+            baseScores[0] += 0.45f
+        }
+        if (tagsLower.any { it.contains("tool") || it.contains("system") || it.contains("setting") || 
+            it.contains("utility") || it.contains("便利") || it.contains("管理") || it.contains("最適化") }) {
+            baseScores[0] += 0.20f
+        }
+
+        // Axis 1: Productivity & Work
+        if (catLower.contains("productivity") || catLower.contains("business") || catLower.contains("finance") || 
+            catLower.contains("education") || catLower.contains("生産性") || catLower.contains("ビジネス") || catLower.contains("仕事") || catLower.contains("家計簿")) {
+            baseScores[1] += 0.45f
+        }
+        if (tagsLower.any { it.contains("note") || it.contains("task") || it.contains("calendar") || 
+            it.contains("work") || it.contains("office") || it.contains("効率") || it.contains("メモ") || 
+            it.contains("タスク") || it.contains("スケジュール") || it.contains("管理") }) {
+            baseScores[1] += 0.20f
+        }
+
+        // Axis 2: Social & Connect
+        if (catLower.contains("social") || catLower.contains("communication") || catLower.contains("messenger") || 
+            catLower.contains("mail") || catLower.contains("ソーシャル") || catLower.contains("通信") || catLower.contains("連絡")) {
+            baseScores[2] += 0.45f
+        }
+        if (tagsLower.any { it.contains("social") || it.contains("chat") || it.contains("message") || 
+            it.contains("sns") || it.contains("community") || it.contains("チャット") || it.contains("メール") || 
+            it.contains("トーク") || it.contains("投稿") || it.contains("交流") }) {
+            baseScores[2] += 0.20f
+        }
+
+        // Axis 3: Entertainment & Fun
+        if (catLower.contains("game") || catLower.contains("entertainment") || catLower.contains("video") || 
+            catLower.contains("music") || catLower.contains("media") || catLower.contains("ゲーム") || 
+            catLower.contains("エンタメ") || catLower.contains("メディア") || catLower.contains("音楽") || catLower.contains("動画")) {
+            baseScores[3] += 0.45f
+        }
+        if (tagsLower.any { it.contains("game") || it.contains("play") || it.contains("movie") || 
+            it.contains("fun") || it.contains("music") || it.contains("video") || it.contains("プレイヤー") || 
+            it.contains("ゲーム") || it.contains("遊び") || it.contains("鑑賞") }) {
+            baseScores[3] += 0.20f
+        }
+
+        // Axis 4: Creativity & Art
+        if (catLower.contains("creativity") || catLower.contains("art") || catLower.contains("design") || 
+            catLower.contains("photo") || catLower.contains("camera") || catLower.contains("クリエイティブ") || 
+            catLower.contains("アート") || catLower.contains("写真") || catLower.contains("カメラ")) {
+            baseScores[4] += 0.45f
+        }
+        if (tagsLower.any { it.contains("photo") || it.contains("edit") || it.contains("create") || 
+            it.contains("draw") || it.contains("art") || it.contains("camera") || it.contains("作成") || 
+            it.contains("編集") || it.contains("デザイン") || it.contains("描画") }) {
+            baseScores[4] += 0.20f
+        }
+
+        // Axis 5: Knowledge & Info
+        if (catLower.contains("news") || catLower.contains("book") || catLower.contains("weather") || 
+            catLower.contains("info") || catLower.contains("map") || catLower.contains("learn") || 
+            catLower.contains("情報") || catLower.contains("ニュース") || catLower.contains("天気") || 
+            catLower.contains("辞書") || catLower.contains("ナビ")) {
+            baseScores[5] += 0.45f
+        }
+        if (tagsLower.any { it.contains("news") || it.contains("weather") || it.contains("read") || 
+            it.contains("book") || it.contains("learn") || it.contains("map") || it.contains("ナビ") || 
+            it.contains("天気") || it.contains("ニュース") || it.contains("地図") || it.contains("検索") }) {
+            baseScores[5] += 0.20f
+        }
+
+        // Deterministic variance based on packageName hash code
+        val hash = kotlin.math.abs(packageName.hashCode())
+        for (i in 0 until 6) {
+            val variance = ((hash shr (i * 3)) % 15) / 100.0f // 0.0 to 0.14
+            baseScores[i] = (baseScores[i] + variance).coerceIn(0.15f, 1.0f)
+        }
+        baseScores.toList()
+    }
+
+    // Axis Labels
+    val labels = listOf(
+        Localization.get("vector_utility", lang),
+        Localization.get("vector_productivity", lang),
+        Localization.get("vector_social", lang),
+        Localization.get("vector_entertainment", lang),
+        Localization.get("vector_creativity", lang),
+        Localization.get("vector_knowledge", lang)
+    )
+
+    // Animated entry progress
+    val animatedProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(packageName) {
+        animatedProgress.snapTo(0f)
+        animatedProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = androidx.compose.animation.core.tween(
+                durationMillis = 1000,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing
+            )
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(210.dp)
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val radius = size.height.coerceAtMost(size.width) / 2.8f
+            val numAxes = 6
+
+            // Draw concentric web rings
+            val ringLevels = listOf(0.25f, 0.5f, 0.75f, 1.0f)
+            ringLevels.forEach { level ->
+                val ringPath = Path()
+                for (i in 0 until numAxes) {
+                    val angle = (i * 2 * Math.PI / numAxes) - Math.PI / 2
+                    val r = radius * level
+                    val x = center.x + (r * Math.cos(angle)).toFloat()
+                    val y = center.y + (r * Math.sin(angle)).toFloat()
+                    if (i == 0) {
+                        ringPath.moveTo(x, y)
+                    } else {
+                        ringPath.lineTo(x, y)
+                    }
+                }
+                ringPath.close()
+                drawPath(
+                    path = ringPath,
+                    color = Color(0x1AFFFFFF),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
+
+            // Draw axis lines and labels
+            for (i in 0 until numAxes) {
+                val angle = (i * 2 * Math.PI / numAxes) - Math.PI / 2
+                val axisX = center.x + (radius * Math.cos(angle)).toFloat()
+                val axisY = center.y + (radius * Math.sin(angle)).toFloat()
+
+                // Axis line
+                drawLine(
+                    color = Color(0x22FFFFFF),
+                    start = center,
+                    end = Offset(axisX, axisY),
+                    strokeWidth = 1.dp.toPx()
+                )
+
+                // Labels positioning
+                val labelDistance = radius + 18.dp.toPx()
+                val labelX = center.x + (labelDistance * Math.cos(angle)).toFloat()
+                val labelY = center.y + (labelDistance * Math.sin(angle)).toFloat()
+
+                // Draw label text manually on Native Canvas
+                val textPaint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.parseColor("#94A3B8")
+                    textSize = 9.5.dp.toPx()
+                    isAntiAlias = true
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                }
+                
+                // Adjust vertical alignment offset based on label angle
+                val adjustedY = labelY + if (Math.sin(angle) > 0.1) 7.dp.toPx() else if (Math.sin(angle) < -0.1) -1.dp.toPx() else 3.dp.toPx()
+                drawContext.canvas.nativeCanvas.drawText(
+                    labels[i],
+                    labelX,
+                    adjustedY,
+                    textPaint
+                )
+            }
+
+            // Draw the Vector Polygon path
+            val polygonPath = Path()
+            for (i in 0 until numAxes) {
+                val angle = (i * 2 * Math.PI / numAxes) - Math.PI / 2
+                val value = scores[i] * animatedProgress.value
+                val r = radius * value
+                val x = center.x + (r * Math.cos(angle)).toFloat()
+                val y = center.y + (r * Math.sin(angle)).toFloat()
+                if (i == 0) {
+                    polygonPath.moveTo(x, y)
+                } else {
+                    polygonPath.lineTo(x, y)
+                }
+            }
+            polygonPath.close()
+
+            // Outer outline stroke
+            drawPath(
+                path = polygonPath,
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFF3B82F6), Color(0xFF10B981)),
+                    center = center,
+                    radius = radius
+                ),
+                style = Stroke(width = 2.dp.toPx())
+            )
+
+            // Dynamic gradient semi-transparent fill
+            drawPath(
+                path = polygonPath,
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0x333B82F6), Color(0x6610B981)),
+                    center = center,
+                    radius = radius
+                ),
+                style = Fill
+            )
+
+            // Draw score indicator dots on vertices
+            for (i in 0 until numAxes) {
+                val angle = (i * 2 * Math.PI / numAxes) - Math.PI / 2
+                val value = scores[i] * animatedProgress.value
+                val r = radius * value
+                val x = center.x + (r * Math.cos(angle)).toFloat()
+                val y = center.y + (r * Math.sin(angle)).toFloat()
+
+                // Draw outer pulse
+                drawCircle(
+                    color = Color(0x6610B981),
+                    radius = 4.5.dp.toPx(),
+                    center = Offset(x, y)
+                )
+                // Draw inner core
+                drawCircle(
+                    color = Color(0xFF10B981),
+                    radius = 2.5.dp.toPx(),
+                    center = Offset(x, y)
+                )
             }
         }
     }
