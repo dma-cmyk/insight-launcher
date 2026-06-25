@@ -14,6 +14,9 @@ interface AppDao {
     @Query("SELECT * FROM app_info_table WHERE packageName = :packageName LIMIT 1")
     suspend fun getAppByPackageName(packageName: String): AppInfo?
 
+    @Query("SELECT * FROM app_info_table")
+    suspend fun getAllAppsDirect(): List<AppInfo>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertApp(appInfo: AppInfo)
 

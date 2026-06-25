@@ -13,6 +13,8 @@ import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 import android.util.Log
 import com.example.BuildConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @JsonClass(generateAdapter = true)
 data class GeminiRequest(
@@ -62,6 +64,22 @@ data class GeminiAppAnalysis(
     val relatedLinks: List<RelatedLink>
 )
 
+@JsonClass(generateAdapter = true)
+data class GeminiEmbeddingRequest(
+    val content: GeminiContent,
+    val model: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class GeminiEmbeddingResponse(
+    val embedding: GeminiEmbeddingValues?
+)
+
+@JsonClass(generateAdapter = true)
+data class GeminiEmbeddingValues(
+    val values: List<Float>?
+)
+
 interface GeminiApiService {
     @POST("v1beta/models/{model}:generateContent")
     suspend fun generateContent(
@@ -69,6 +87,13 @@ interface GeminiApiService {
         @Query("key") apiKey: String,
         @Body request: GeminiRequest
     ): GeminiResponse
+
+    @POST("v1beta/models/{model}:embedContent")
+    suspend fun embedContent(
+        @Path("model") model: String,
+        @Query("key") apiKey: String,
+        @Body request: GeminiEmbeddingRequest
+    ): GeminiEmbeddingResponse
 }
 
 object GeminiClient {
@@ -240,6 +265,81 @@ object GeminiClient {
             adapter.fromJson(rawJson)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse JSON response: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun getEmbedding(
+        text: String,
+        customApiKey: String? = null,
+        modelName: String = "text-embedding-004"
+    ): List<Float>? = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            Log.e(TAG, "API Key is missing for embedding!")
+            return@withContext null
+        }
+
+        val fullModelName = if (modelName.startsWith("models/")) modelName else "models/$modelName"
+        val request = GeminiEmbeddingRequest(
+            content = GeminiContent(parts = listOf(GeminiPart(text = text))),
+            model = fullModelName
+        )
+
+        try {
+            Log.d(TAG, "Fetching embedding vector for model: $modelName")
+            val response = apiService.embedContent(modelName, apiKey, request)
+            response.embedding?.values
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get embedding with $modelName: ${e.message}. Trying fallback to gemini-embedding-001", e)
+            try {
+                val fallbackModel = "gemini-embedding-001"
+                val fallbackRequest = GeminiEmbeddingRequest(
+                    content = GeminiContent(parts = listOf(GeminiPart(text = text))),
+                    model = "models/$fallbackModel"
+                )
+                val response = apiService.embedContent(fallbackModel, apiKey, fallbackRequest)
+                response.embedding?.values
+            } catch (fallbackEx: Exception) {
+                Log.e(TAG, "Fallback embedding also failed: ${fallbackEx.message}", fallbackEx)
+                null
+            }
+        }
+    }
+
+    suspend fun correctVoiceInput(
+        spokenText: String,
+        modelName: String,
+        customApiKey: String? = null
+    ): String? = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            return@withContext null
+        }
+
+        val fullModelName = if (modelName.startsWith("models/")) modelName else "models/$modelName"
+        
+        val prompt = """
+            You are an AI assistant that corrects speech recognition text. 
+            The user may have used filler words (like 'ah', 'um', 'er', 'あー', 'えーと'), hesitated, or repeated words. 
+            Please remove the filler words, correct obvious misrecognitions, and output ONLY the corrected clean text. 
+            Keep the original language and meaning intact. Do not add any conversational replies or quotes.
+            
+            Original text:
+            $spokenText
+        """.trimIndent()
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(GeminiPart(text = prompt))
+            ))
+        )
+
+        try {
+            val response = apiService.generateContent(fullModelName, apiKey, request)
+            response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
+        } catch (e: Exception) {
+            Log.e(TAG, "Voice correction failed: ${e.message}", e)
             null
         }
     }

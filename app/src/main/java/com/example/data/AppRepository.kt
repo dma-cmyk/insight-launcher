@@ -16,7 +16,8 @@ data class InstalledApp(
     val packageName: String,
     val label: String,
     val isSystemApp: Boolean,
-    val cachedInfo: AppInfo? = null
+    val cachedInfo: AppInfo? = null,
+    val similarityScore: Float? = null
 ) {
     val isAnalyzed: Boolean get() = cachedInfo != null
 }
@@ -51,15 +52,19 @@ class AppRepository(private val appDao: AppDao) {
 
     // Get raw launchable apps using Package Manager
     private fun getLaunchableAppsList(pm: PackageManager): List<PmAppInfo> {
-        val intent = Intent(Intent.ACTION_MAIN, null).apply {
-            addCategory(Intent.CATEGORY_LAUNCHER)
+        val apps = try {
+            pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        } catch (e: Exception) {
+            emptyList()
         }
-        val resolveInfos = pm.queryIntentActivities(intent, 0)
-        return resolveInfos.mapNotNull { resolveInfo ->
-            val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
-            val packageName = activityInfo.packageName
-            val label = resolveInfo.loadLabel(pm).toString()
-            val isSystemApp = (activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+        return apps.mapNotNull { appInfo ->
+            val packageName = appInfo.packageName
+            val label = try {
+                pm.getApplicationLabel(appInfo).toString()
+            } catch (e: Exception) {
+                packageName
+            }
+            val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             PmAppInfo(packageName, label, isSystemApp)
         }.distinctBy { it.packageName }
     }
@@ -107,6 +112,16 @@ class AppRepository(private val appDao: AppDao) {
             // Serialize relatedLinks as JSON
             val linksJson = serializeLinks(analysis.relatedLinks)
 
+            // Try to fetch embedding for semantic search
+            val embedText = "Label: $label. Category: ${analysis.category}. Summary: ${analysis.summary}. Tags: $tagsCsv"
+            val embeddingVector = try {
+                GeminiClient.getEmbedding(embedText, customApiKey)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching embedding vector: ${e.message}")
+                null
+            }
+            val embeddingCsv = embeddingVector?.joinToString(",")
+
             val appInfo = AppInfo(
                 packageName = packageName,
                 label = label,
@@ -115,7 +130,8 @@ class AppRepository(private val appDao: AppDao) {
                 tags = tagsCsv,
                 relatedLinks = linksJson,
                 isSystemApp = isSystemApp,
-                lastUpdated = System.currentTimeMillis()
+                lastUpdated = System.currentTimeMillis(),
+                embedding = embeddingCsv
             )
 
             appDao.insertApp(appInfo)
@@ -125,6 +141,14 @@ class AppRepository(private val appDao: AppDao) {
             Log.e(TAG, "Failed to analyze app: $label")
             false
         }
+    }
+
+    suspend fun updateAppInfo(appInfo: AppInfo) = withContext(Dispatchers.IO) {
+        appDao.insertApp(appInfo)
+    }
+
+    suspend fun getAllAppInfosDirect(): List<AppInfo> = withContext(Dispatchers.IO) {
+        appDao.getAllAppsDirect()
     }
 
     private fun serializeLinks(links: List<RelatedLink>): String {

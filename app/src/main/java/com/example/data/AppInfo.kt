@@ -12,13 +12,23 @@ data class AppInfo(
     val tags: String, // Comma-separated or JSON list of tags (minimum 5 tags)
     val relatedLinks: String, // JSON string representing list of RelatedLink objects (minimum 3 links)
     val isSystemApp: Boolean,
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val embedding: String? = null
 )
 
 data class RelatedLink(
     val title: String,
     val url: String
 )
+
+fun AppInfo.getParsedEmbedding(): List<Float> {
+    if (embedding.isNullOrBlank()) return emptyList()
+    return try {
+        embedding.split(",").mapNotNull { it.toFloatOrNull() }
+    } catch (e: Exception) {
+        emptyList()
+    }
+}
 
 fun AppInfo.getParsedLinks(): List<RelatedLink> {
     if (relatedLinks.isBlank()) return emptyList()

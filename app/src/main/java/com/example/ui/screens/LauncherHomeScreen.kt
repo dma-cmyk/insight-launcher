@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +15,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -84,6 +88,25 @@ fun LauncherHomeScreen(
     val viewMode by viewModel.viewMode.collectAsState()
     val selectedApp by viewModel.selectedApp.collectAsState()
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
+
+    val isVectorSearchEnabled by viewModel.isVectorSearchEnabled.collectAsState()
+    val isVectorSearching by viewModel.isVectorSearching.collectAsState()
+    val isCorrectingVoice by viewModel.isCorrectingVoice.collectAsState()
+
+    var isSearchExpanded by remember { mutableStateOf(false) }
+
+    val speechRecognizerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val results = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            if (!results.isNullOrEmpty()) {
+                val spokenText = results[0]
+                viewModel.processVoiceInput(spokenText)
+            }
+        }
+    }
 
     // Dynamic distinct categories in the current list
     val categories = remember(apps) {
@@ -200,31 +223,158 @@ fun LauncherHomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { viewModel.onSearchQueryChanged(it) },
-                        placeholder = { Text(Localization.get("search_placeholder", aiLanguage), color = Color(0x80FFFFFF), fontSize = 13.sp) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = Localization.get("search_icon_desc", aiLanguage), tint = Color(0x99FFFFFF)) },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                    Icon(Icons.Default.Close, contentDescription = Localization.get("clear_btn_desc", aiLanguage), tint = Color.White)
-                                }
-                            }
-                        },
-                        textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 13.sp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0x20FFFFFF),
-                            unfocusedBorderColor = Color(0x10FFFFFF),
-                            focusedContainerColor = Color(0x15FFFFFF),
-                            unfocusedContainerColor = Color(0x10FFFFFF)
-                        ),
-                        shape = RoundedCornerShape(50),
-                        singleLine = true,
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .testTag("app_search_input")
-                    )
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color(0x15FFFFFF))
+                            .border(1.dp, Color(0x20FFFFFF), RoundedCornerShape(24.dp))
+                            .animateContentSize()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = if (isSearchExpanded) Alignment.Top else Alignment.CenterVertically
+                            ) {
+                                if (isVectorSearching) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp).padding(top = if(isSearchExpanded) 2.dp else 0.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color(0xFF90CAF9)
+                                    )
+                                } else {
+                                    Icon(Icons.Default.Search, contentDescription = Localization.get("search_icon_desc", aiLanguage), tint = Color(0x99FFFFFF), modifier = Modifier.size(20.dp).padding(top = if(isSearchExpanded) 2.dp else 0.dp))
+                                }
+                                
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                                    textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 14.sp),
+                                    singleLine = !isSearchExpanded,
+                                    maxLines = if (isSearchExpanded) 10 else 1,
+                                    cursorBrush = SolidColor(Color.White),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("app_search_input")
+                                        .let {
+                                            if (isSearchExpanded) it.heightIn(min = 100.dp) else it
+                                        },
+                                    decorationBox = { innerTextField ->
+                                        Box(modifier = Modifier.fillMaxWidth()) {
+                                            if (searchQuery.isEmpty()) {
+                                                Text(Localization.get("search_placeholder", aiLanguage), color = Color(0x80FFFFFF), fontSize = 14.sp)
+                                            }
+                                            innerTextField()
+                                        }
+                                    }
+                                )
+
+                                if (!isSearchExpanded) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        if (searchQuery.isNotEmpty()) {
+                                            IconButton(onClick = { viewModel.onSearchQueryChanged("") }, modifier = Modifier.size(28.dp)) {
+                                                Icon(Icons.Default.Close, contentDescription = Localization.get("clear_btn_desc", aiLanguage), tint = Color.White, modifier = Modifier.size(18.dp))
+                                            }
+                                        }
+                                        IconButton(onClick = { isSearchExpanded = true }, modifier = Modifier.size(28.dp)) {
+                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand Search", tint = Color.White, modifier = Modifier.size(20.dp))
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (isSearchExpanded) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    // Left: Voice Search & Vector Search
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        // Vector Toggle
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(50))
+                                                .clickable { viewModel.setVectorSearchEnabled(!isVectorSearchEnabled) }
+                                                .background(if (isVectorSearchEnabled) Color(0x3342A5F5) else Color(0x1AFFFFFF))
+                                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.AutoAwesome,
+                                                contentDescription = Localization.get("vector_search_label", aiLanguage),
+                                                tint = if (isVectorSearchEnabled) Color(0xFF90CAF9) else Color(0x80FFFFFF),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = Localization.get("vector_search_label", aiLanguage),
+                                                fontSize = 11.sp,
+                                                color = if (isVectorSearchEnabled) Color(0xFF90CAF9) else Color(0xB3FFFFFF)
+                                            )
+                                        }
+
+                                        // Voice Search
+                                        if (isCorrectingVoice) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                strokeWidth = 2.dp,
+                                                color = Color(0xFF90CAF9)
+                                            )
+                                        } else {
+                                            IconButton(
+                                                onClick = {
+                                                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, aiLanguage)
+                                                        putExtra(RecognizerIntent.EXTRA_PROMPT, Localization.get("voice_search_prompt", aiLanguage))
+                                                    }
+                                                    try {
+                                                        speechRecognizerLauncher.launch(intent)
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, Localization.get("voice_unsupported", aiLanguage), Toast.LENGTH_SHORT).show()
+                                                    }
+                                                },
+                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0x20FFFFFF))
+                                            ) {
+                                                Icon(Icons.Default.Mic, contentDescription = "Voice Search", tint = Color.White, modifier = Modifier.size(18.dp))
+                                            }
+                                        }
+                                    }
+
+                                    // Right: Clear and Collapse
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        if (searchQuery.isNotEmpty()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .clickable { viewModel.onSearchQueryChanged("") }
+                                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                            ) {
+                                                Text("Clear", color = Color(0xB3FFFFFF), fontSize = 12.sp)
+                                            }
+                                        }
+                                        IconButton(onClick = { isSearchExpanded = false }, modifier = Modifier.size(28.dp)) {
+                                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Collapse Search", tint = Color.White, modifier = Modifier.size(20.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // Grid / List mode toggle buttons with high contrast matching High Density theme
                     Row(
@@ -417,6 +567,62 @@ fun LauncherHomeScreen(
                             Text(Localization.get("no_apps", aiLanguage), color = Color.Gray, fontSize = 14.sp)
                         }
                     }
+                } else if (isVectorSearchEnabled && searchQuery.isNotBlank()) {
+                    // Vector Search View: flat list globally sorted by similarity score descending
+                    val vectorListState = rememberLazyListState()
+                    LazyColumn(
+                        state = vectorListState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        item {
+                            Text(
+                                text = "${Localization.get("vector_search_label", aiLanguage)} (${apps.size} 件)",
+                                color = Color(0xFF90CAF9),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+
+                        if (viewMode == "GRID") {
+                            val rows = apps.chunked(3)
+                            items(rows) { rowApps ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    for (i in 0 until 3) {
+                                        if (i < rowApps.size) {
+                                            AppGridItem(
+                                                app = rowApps[i],
+                                                onClick = { viewModel.selectApp(rowApps[i]) },
+                                                aiLanguage = aiLanguage,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        } else {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            items(apps) { app ->
+                                AppListItem(
+                                    app = app,
+                                    onClick = { viewModel.selectApp(app) },
+                                    aiLanguage = aiLanguage,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
                 } else {
                     HorizontalPager(
                         state = pagerState,
@@ -467,6 +673,7 @@ fun LauncherHomeScreen(
                                                     AppGridItem(
                                                         app = rowApps[i],
                                                         onClick = { viewModel.selectApp(rowApps[i]) },
+                                                        aiLanguage = aiLanguage,
                                                         modifier = Modifier.weight(1f)
                                                     )
                                                 } else {
@@ -480,6 +687,7 @@ fun LauncherHomeScreen(
                                         AppListItem(
                                             app = app,
                                             onClick = { viewModel.selectApp(app) },
+                                            aiLanguage = aiLanguage,
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -502,6 +710,9 @@ fun LauncherHomeScreen(
             onLaunch = {
                 viewModel.launchApp(app.packageName)
                 viewModel.selectApp(null)
+            },
+            onOpenSettings = {
+                viewModel.openAppSettings(app.packageName)
             },
             onAnalyze = { text, fileName, mimeType, bytes ->
                 viewModel.analyzeSingleApp(app, text, fileName, mimeType, bytes)
@@ -557,6 +768,7 @@ fun CategoryHeader(category: String, count: Int, lang: String, modifier: Modifie
 fun AppGridItem(
     app: InstalledApp,
     onClick: () -> Unit,
+    aiLanguage: String,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -587,7 +799,32 @@ fun AppGridItem(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (app.isAnalyzed) {
+            if (app.similarityScore != null) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (app.isAnalyzed) Color(0x2642A5F5) else Color(0x26FFA726))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = String.format(java.util.Locale.getDefault(), Localization.get("similarity_label", aiLanguage), app.similarityScore),
+                            color = if (app.isAnalyzed) Color(0xFF90CAF9) else Color(0xFFFFCC80),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    if (!app.isAnalyzed) {
+                        Text(
+                            text = Localization.get("ai_unanalyzed_badge", aiLanguage),
+                            color = Color(0xFFFFB74D),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else if (app.isAnalyzed) {
                 // Highlight tags count or status
                 Box(
                     modifier = Modifier
@@ -624,6 +861,7 @@ fun AppGridItem(
 fun AppListItem(
     app: InstalledApp,
     onClick: () -> Unit,
+    aiLanguage: String,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -662,15 +900,40 @@ fun AppListItem(
                         overflow = TextOverflow.Ellipsis
                     )
                 } else {
+                    val promptText = if (aiLanguage == "en") "Tap to perform AI analysis" else "タップしてAI解析を実行"
                     Text(
-                        text = "タップしてAI解析を実行",
+                        text = promptText,
                         color = Color(0x80FFFFFF),
                         fontSize = 11.sp
                     )
                 }
             }
 
-            if (app.isAnalyzed) {
+            if (app.similarityScore != null) {
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (app.isAnalyzed) Color(0x2642A5F5) else Color(0x26FFA726))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = String.format(java.util.Locale.getDefault(), Localization.get("similarity_label", aiLanguage), app.similarityScore),
+                            color = if (app.isAnalyzed) Color(0xFF90CAF9) else Color(0xFFFFCC80),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    if (!app.isAnalyzed) {
+                        Text(
+                            text = Localization.get("ai_unanalyzed_badge", aiLanguage),
+                            color = Color(0xFFFFB74D),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else if (app.isAnalyzed) {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "Analyzed",
@@ -695,6 +958,7 @@ fun AppDetailsDialog(
     app: InstalledApp,
     onDismiss: () -> Unit,
     onLaunch: () -> Unit,
+    onOpenSettings: () -> Unit,
     onAnalyze: (userContextText: String?, fileName: String?, fileMimeType: String?, fileBytes: ByteArray?) -> Unit,
     isAnalyzing: Boolean,
     apps: List<InstalledApp>,
@@ -815,17 +1079,36 @@ fun AppDetailsDialog(
                 HorizontalDivider(color = Color(0x14FFFFFF))
 
                 // Action Buttons at the top (above Vector Analysis and AI Summary)
-                Button(
-                    onClick = onLaunch,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("launch_app_button")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = "Launch", tint = Color.White)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(Localization.get("open_app", lang).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+                    Button(
+                        onClick = onLaunch,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .testTag("launch_app_button")
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Launch", tint = Color.White)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(Localization.get("open_app", lang).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = onOpenSettings,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(0.8f)
+                            .testTag("open_settings_app_button")
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = "App Settings", modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(Localization.get("open_settings_btn", lang).uppercase(), fontSize = 11.sp, letterSpacing = 0.5.sp)
+                    }
                 }
 
                 if (app.isAnalyzed && app.cachedInfo != null) {
