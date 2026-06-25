@@ -260,10 +260,7 @@ fun LauncherHomeScreen(
                                     cursorBrush = SolidColor(Color.White),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .testTag("app_search_input")
-                                        .let {
-                                            if (isSearchExpanded) it.heightIn(min = 100.dp) else it
-                                        },
+                                        .testTag("app_search_input"),
                                     decorationBox = { innerTextField ->
                                         Box(modifier = Modifier.fillMaxWidth()) {
                                             if (searchQuery.isEmpty()) {
@@ -298,15 +295,17 @@ fun LauncherHomeScreen(
                                 ) {
                                     // Left: Voice Search & Vector Search
                                     Row(
+                                        modifier = Modifier.weight(1f),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        // Vector Toggle
+                                        // Vector Search Button
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier
+                                                .weight(1f, fill = false)
                                                 .clip(RoundedCornerShape(50))
-                                                .clickable { viewModel.setVectorSearchEnabled(!isVectorSearchEnabled) }
+                                                .clickable { viewModel.executeVectorSearch() }
                                                 .background(if (isVectorSearchEnabled) Color(0x3342A5F5) else Color(0x1AFFFFFF))
                                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                                         ) {
@@ -320,6 +319,8 @@ fun LauncherHomeScreen(
                                             Text(
                                                 text = Localization.get("vector_search_label", aiLanguage),
                                                 fontSize = 11.sp,
+                                                maxLines = 1,
+                                                softWrap = false,
                                                 color = if (isVectorSearchEnabled) Color(0xFF90CAF9) else Color(0xB3FFFFFF)
                                             )
                                         }
@@ -352,23 +353,26 @@ fun LauncherHomeScreen(
                                         }
                                     }
 
+                                    Spacer(modifier = Modifier.width(8.dp))
+
                                     // Right: Clear and Collapse
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         if (searchQuery.isNotEmpty()) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(50))
-                                                    .clickable { viewModel.onSearchQueryChanged("") }
-                                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                            IconButton(
+                                                onClick = { viewModel.onSearchQueryChanged("") },
+                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0x20FFFFFF))
                                             ) {
-                                                Text("Clear", color = Color(0xB3FFFFFF), fontSize = 12.sp)
+                                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White, modifier = Modifier.size(18.dp))
                                             }
                                         }
-                                        IconButton(onClick = { isSearchExpanded = false }, modifier = Modifier.size(28.dp)) {
-                                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Collapse Search", tint = Color.White, modifier = Modifier.size(20.dp))
+                                        IconButton(
+                                            onClick = { isSearchExpanded = false },
+                                            modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0x20FFFFFF))
+                                        ) {
+                                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Collapse Search", tint = Color.White, modifier = Modifier.size(18.dp))
                                         }
                                     }
                                 }

@@ -112,31 +112,6 @@ class AppLauncherViewModel(
     init {
         // Run background backfill of embeddings for existing apps
         ensureEmbeddingsForAnalyzedApps()
-
-        // Debounced search query observer to fetch embeddings when in vector search mode
-        viewModelScope.launch {
-            combine(_searchQuery, _isVectorSearchEnabled) { query, enabled ->
-                Pair(query, enabled)
-            }.collect { (query, enabled) ->
-                if (enabled && query.isNotBlank()) {
-                    _isVectorSearching.value = true
-                    delay(400) // Debounce typing for 400ms
-                    try {
-                        val apiKey = settingsManager.getGeminiApiKey()
-                        val vector = com.example.data.GeminiClient.getEmbedding(query, apiKey)
-                        _queryEmbedding.value = vector
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error fetching query embedding", e)
-                        _queryEmbedding.value = null
-                    } finally {
-                        _isVectorSearching.value = false
-                    }
-                } else {
-                    _queryEmbedding.value = null
-                    _isVectorSearching.value = false
-                }
-            }
-        }
     }
 
     private fun ensureEmbeddingsForAnalyzedApps() {
@@ -208,10 +183,30 @@ class AppLauncherViewModel(
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
+        if (_isVectorSearchEnabled.value) {
+            _isVectorSearchEnabled.value = false
+            _queryEmbedding.value = null
+        }
     }
 
-    fun setVectorSearchEnabled(enabled: Boolean) {
-        _isVectorSearchEnabled.value = enabled
+    fun executeVectorSearch() {
+        val query = _searchQuery.value
+        if (query.isBlank()) return
+        
+        viewModelScope.launch {
+            _isVectorSearchEnabled.value = true
+            _isVectorSearching.value = true
+            try {
+                val apiKey = settingsManager.getGeminiApiKey()
+                val vector = com.example.data.GeminiClient.getEmbedding(query, apiKey)
+                _queryEmbedding.value = vector
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching query embedding", e)
+                _queryEmbedding.value = null
+            } finally {
+                _isVectorSearching.value = false
+            }
+        }
     }
 
     fun selectApp(app: InstalledApp?) {
@@ -389,6 +384,19 @@ class AppLauncherViewModel(
                         _analysisProgress.value = Localization.get("waiting_next", lang, sec)
                         delay(1000)
                     }
+                }
+            }
+
+            if (!isAnalysisCancelled && successCount > 0) {
+                _analysisProgress.value = Localization.get("merging_categories_status", lang)
+                try {
+                    repository.mergeCategories(
+                        modelName = settingsManager.getPrimaryModel(),
+                        customApiKey = settingsManager.getGeminiApiKey(),
+                        languageCode = settingsManager.getAiLanguage()
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed auto merge categories after batch analysis", e)
                 }
             }
 
