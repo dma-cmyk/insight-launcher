@@ -122,7 +122,10 @@ object Localization {
         "vector_entertainment" to "エンタメ・娯楽",
         "vector_creativity" to "創造・表現",
         "vector_knowledge" to "知性・情報",
-        "vector_title" to "AI多次元ベクトル特性解析"
+        "vector_title" to "AI多次元ベクトル特性解析",
+        "merge_categories_title" to "似たカテゴリを統合",
+        "merge_categories_desc" to "AIが細分化されたカテゴリを分析し、意味の近いものを自動でまとめます。",
+        "merge_categories_btn" to "カテゴリを統合する"
     )
 
     private val englishMap = mapOf(
@@ -231,7 +234,10 @@ object Localization {
         "vector_entertainment" to "Entertainment & Fun",
         "vector_creativity" to "Creativity & Art",
         "vector_knowledge" to "Knowledge & Info",
-        "vector_title" to "AI Vector Characteristic Profile"
+        "vector_title" to "AI Vector Characteristic Profile",
+        "merge_categories_title" to "Merge Similar Categories",
+        "merge_categories_desc" to "Automatically analyze and merge fragmented app categories into broader, unified groups using AI.",
+        "merge_categories_btn" to "Merge Categories Now"
     )
 
     private val koreanMap = mapOf(
@@ -340,7 +346,10 @@ object Localization {
         "vector_entertainment" to "엔터테인먼트 및 재미",
         "vector_creativity" to "창의성 및 예술",
         "vector_knowledge" to "정보 및 지식",
-        "vector_title" to "AI 벡터 다차원 분석"
+        "vector_title" to "AI 벡터 다차원 분석",
+        "merge_categories_title" to "유사한 카테고리 통합",
+        "merge_categories_desc" to "AI가 세분화된 카테고리를 분석하여 의미가 비슷한 것들을 자동으로 통합합니다.",
+        "merge_categories_btn" to "카테고리 통합하기"
     )
 
     private val chineseMap = mapOf(
@@ -449,6 +458,9 @@ object Localization {
         "vector_entertainment" to "娱乐与游戏",
         "vector_creativity" to "创造与艺术",
         "vector_knowledge" to "信息与知识",
-        "vector_title" to "AI 向量多维特征分析"
+        "vector_title" to "AI 向量多维特征分析",
+        "merge_categories_title" to "合并相似分类",
+        "merge_categories_desc" to "AI将自动分析细分的类别，并将语义相近的类别整合在一起。",
+        "merge_categories_btn" to "合并类别"
     )
 }

@@ -167,4 +167,41 @@ class AppRepository(private val appDao: AppDao) {
         val label: String,
         val isSystemApp: Boolean
     )
+
+    suspend fun mergeCategories(
+        modelName: String,
+        customApiKey: String? = null,
+        languageCode: String = "ja"
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val distinctCategories = appDao.getDistinctCategories()
+            if (distinctCategories.isEmpty()) return@withContext false
+
+            val mergeMap = GeminiClient.mergeCategories(
+                categories = distinctCategories,
+                modelName = modelName,
+                customApiKey = customApiKey,
+                languageCode = languageCode
+            )
+
+            if (mergeMap != null && mergeMap.isNotEmpty()) {
+                val allApps = appDao.getAllAppsDirect()
+                val updatedApps = allApps.map { app ->
+                    val newCategory = mergeMap[app.category]
+                    if (newCategory != null && newCategory != app.category) {
+                        app.copy(category = newCategory)
+                    } else {
+                        app
+                    }
+                }
+                appDao.insertApps(updatedApps)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error merging categories", e)
+            false
+        }
+    }
 }

@@ -401,6 +401,51 @@ fun SettingsScreen(
                 }
             }
 
+            // AI Category Management Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Category, contentDescription = "Category", tint = Color(0xFF9575CD))
+                        Text(Localization.get("merge_categories_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Text(
+                        Localization.get("merge_categories_desc", aiLanguage),
+                        fontSize = 12.sp,
+                        color = Color(0xB2FFFFFF),
+                        lineHeight = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    val isMerging by viewModel.isMergingCategories.collectAsState()
+                    Button(
+                        onClick = { viewModel.mergeCategories() },
+                        enabled = !isMerging,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isMerging) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Merging...", color = Color.White)
+                        } else {
+                            Text(Localization.get("merge_categories_btn", aiLanguage), fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+            }
+
             // 4. Reset & Clear Cache Card (Battery and operation helper)
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0x1AFFFFFF)),

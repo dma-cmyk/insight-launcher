@@ -65,6 +65,17 @@ data class GeminiAppAnalysis(
 )
 
 @JsonClass(generateAdapter = true)
+data class GeminiCategoryMerge(
+    val oldCategory: String,
+    val newCategory: String
+)
+
+@JsonClass(generateAdapter = true)
+data class GeminiCategoryMergeResponse(
+    val merges: List<GeminiCategoryMerge>
+)
+
+@JsonClass(generateAdapter = true)
 data class GeminiEmbeddingRequest(
     val content: GeminiContent,
     val model: String? = null
@@ -335,11 +346,86 @@ object GeminiClient {
             ))
         )
 
-        try {
+        return@withContext try {
             val response = apiService.generateContent(fullModelName, apiKey, request)
             response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
         } catch (e: Exception) {
             Log.e(TAG, "Voice correction failed: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun mergeCategories(
+        categories: List<String>,
+        modelName: String,
+        customApiKey: String? = null,
+        languageCode: String = "ja"
+    ): Map<String, String>? = withContext(Dispatchers.IO) {
+        if (categories.isEmpty()) return@withContext emptyMap()
+        
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            return@withContext null
+        }
+
+        val fullModelName = if (modelName.startsWith("models/")) modelName else "models/$modelName"
+        
+        val langName = when (languageCode) {
+            "en" -> "English"
+            "ko" -> "Korean"
+            "zh" -> "Chinese"
+            else -> "Japanese"
+        }
+
+        val prompt = """
+            You are an AI assistant that organizes app categories.
+            The user has provided a list of categories that might be fragmented or too specific.
+            Your task is to group semantically similar categories into broader, standard categories in $langName (e.g., "Productivity", "Social", "Utility", "Game", "Entertainment", "Finance", "Education", "System", etc.).
+            If a category is already good, keep it as is.
+            Output a JSON list where each object has 'oldCategory' and 'newCategory'.
+            
+            Categories to process:
+            ${categories.joinToString(", ")}
+        """.trimIndent()
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(GeminiPart(text = prompt))
+            )),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = "application/json",
+                responseSchema = mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "merges" to mapOf(
+                            "type" to "array",
+                            "items" to mapOf(
+                                "type" to "object",
+                                "properties" to mapOf(
+                                    "oldCategory" to mapOf("type" to "string"),
+                                    "newCategory" to mapOf("type" to "string")
+                                ),
+                                "required" to listOf("oldCategory", "newCategory")
+                            )
+                        )
+                    ),
+                    "required" to listOf("merges")
+                )
+            )
+        )
+
+        return@withContext try {
+            val response = apiService.generateContent(fullModelName, apiKey, request)
+            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            if (jsonText != null) {
+                val adapter = moshi.adapter(GeminiCategoryMergeResponse::class.java)
+                val mergeResponse = adapter.fromJson(jsonText)
+                mergeResponse?.merges?.associate { it.oldCategory to it.newCategory }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Category merge failed: ${e.message}", e)
             null
         }
     }

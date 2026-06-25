@@ -20,6 +20,15 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertApp(appInfo: AppInfo)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertApps(appInfos: List<AppInfo>)
+
+    @Query("UPDATE app_info_table SET category = :newCategory WHERE category = :oldCategory")
+    suspend fun updateCategory(oldCategory: String, newCategory: String)
+
+    @Query("SELECT DISTINCT category FROM app_info_table WHERE summary != '' AND category != ''")
+    suspend fun getDistinctCategories(): List<String>
+
     @Query("DELETE FROM app_info_table WHERE packageName = :packageName")
     suspend fun deleteAppByPackageName(packageName: String)
 

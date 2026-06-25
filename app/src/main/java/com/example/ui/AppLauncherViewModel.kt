@@ -222,6 +222,31 @@ class AppLauncherViewModel(
         settingsManager.setViewMode(mode)
     }
 
+    private val _isMergingCategories = MutableStateFlow(false)
+    val isMergingCategories: StateFlow<Boolean> = _isMergingCategories.asStateFlow()
+
+    fun mergeCategories() {
+        if (_isMergingCategories.value) return
+        viewModelScope.launch {
+            _isMergingCategories.value = true
+            val success = repository.mergeCategories(
+                modelName = settingsManager.getPrimaryModel(),
+                customApiKey = settingsManager.getGeminiApiKey(),
+                languageCode = settingsManager.getAiLanguage()
+            )
+            _isMergingCategories.value = false
+            if (success) {
+                val lang = settingsManager.getAiLanguage()
+                val msg = if (lang == "ja") "カテゴリの統合が完了しました" else "Categories merged successfully"
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            } else {
+                val lang = settingsManager.getAiLanguage()
+                val msg = if (lang == "ja") "カテゴリの統合に失敗しました" else "Failed to merge categories"
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     // Launch app on device
     fun launchApp(packageName: String) {
         val lang = settingsManager.getAiLanguage()
