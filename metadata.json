@@ -1,0 +1,6 @@
+{
+  "name": "Insight Launcher",
+  "description": "Gemini AIがインストール済みのアプリを自動解析・分類し、要約や関連リンクを整理するスマートアプリランチャー。テキスト入力やファイル添付による再解析・補正機能も搭載。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,195 @@
+package com.example.ui.components
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.inset
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import kotlin.random.Random
+
+import androidx.compose.ui.graphics.graphicsLayer
+
+@Composable
+fun SpaceBackground(
+    bgUrl: String,
+    modifier: Modifier = Modifier,
+    scrollOffsetX: Float = 0f,
+    scrollOffsetY: Float = 0f
+) {
+    Box(modifier = modifier.fillMaxSize()) {
+        if (bgUrl == "procedural_nebula") {
+            // Draw a gorgeous offline procedural cosmic nebula background matching the High Density theme
+            val stars = remember {
+                val r = Random(42) // Fixed seed for stable stars
+                List(80) {
+                    StarData(
+                        x = r.nextFloat(),
+                        y = r.nextFloat(),
+                        size = r.nextFloat() * 3f + 1f,
+                        alpha = r.nextFloat() * 0.7f + 0.3f
+                    )
+                }
+            }
+
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                // Base background: center #0a0a0f to #000000
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF0A0A0F),
+                            Color(0xFF000000)
+                        ),
+                        center = center,
+                        radius = size.minDimension * 1.5f
+                    )
+                )
+
+                // Top-left radial purple glow (circle at 20% 30% with #2c1a4d) shifting with parallax
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF2C1A4D),
+                            Color.Transparent
+                        ),
+                        center = Offset(size.width * 0.2f - scrollOffsetX * 80f, size.height * 0.3f - scrollOffsetY * 40f),
+                        radius = size.width * 0.7f
+                    )
+                )
+
+                // Bottom-right radial dark indigo glow (circle at 80% 70% with #1a3c4d) shifting with parallax
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFF1A3C4D),
+                            Color.Transparent
+                        ),
+                        center = Offset(size.width * 0.8f - scrollOffsetX * 80f, size.height * 0.7f - scrollOffsetY * 40f),
+                        radius = size.width * 0.7f
+                    )
+                )
+
+                // Render repeating stardust grid overlay shifting horizontally and vertically
+                val spacing = 40f
+                var xStart = -(scrollOffsetX * 20f) % spacing
+                if (xStart > 0) {
+                    xStart -= spacing
+                }
+                val yStartInitial = -(scrollOffsetY * 10f) % spacing
+                val adjustedYStart = if (yStartInitial > 0) yStartInitial - spacing else yStartInitial
+
+                var currX = xStart
+                while (currX < size.width) {
+                    var currY = adjustedYStart
+                    while (currY < size.height) {
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.20f),
+                            radius = 1.5f,
+                            center = Offset(currX, currY)
+                        )
+                        currY += spacing
+                    }
+                    currX += spacing
+                }
+
+                // Render our beautiful twinkling stars with high-density parallax speed wrapping
+                stars.forEach { star ->
+                    val parallaxFactor = star.size * 30f + 10f
+                    val starX = (star.x * size.width - scrollOffsetX * parallaxFactor) % size.width
+                    val adjustedX = if (starX < 0) starX + size.width else starX
+                    
+                    val starY = (star.y * size.height - scrollOffsetY * (parallaxFactor * 0.5f)) % size.height
+                    val adjustedY = if (starY < 0) starY + size.height else starY
+
+                    drawCircle(
+                        color = Color.White.copy(alpha = star.alpha),
+                        radius = star.size,
+                        center = Offset(
+                            adjustedX,
+                            adjustedY
+                        )
+                    )
+                }
+            }
+        } else {
+            // Load selected NASA/Unsplash or Local gallery image using Coil with a dark dimming layer
+            Box(modifier = Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = bgUrl,
+                    contentDescription = "Cosmic Background",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            // Parallax shifting with subtle zoom scaling to prevent black edge reveals
+                            scaleX = 1.15f
+                            scaleY = 1.15f
+                            translationX = -scrollOffsetX * 50f
+                            translationY = -scrollOffsetY * 30f
+                        }
+                )
+                // Add high-contrast background overlay + repeating stardust grid overlay
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xD00A0A0F),
+                                Color(0xEC000000)
+                            ),
+                            center = center,
+                            radius = size.minDimension * 1.5f
+                        )
+                    )
+
+                    // Top-left radial purple glow for aesthetic cohesion
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0x402C1A4D),
+                                Color.Transparent
+                            ),
+                            center = Offset(size.width * 0.2f - scrollOffsetX * 80f, size.height * 0.3f - scrollOffsetY * 40f),
+                            radius = size.width * 0.7f
+                        )
+                    )
+
+                    // Repeating stardust grid overlay shifting with parallax
+                    val spacing = 40f
+                    var xStart = -(scrollOffsetX * 20f) % spacing
+                    if (xStart > 0) {
+                        xStart -= spacing
+                    }
+                    val yStartInitial = -(scrollOffsetY * 10f) % spacing
+                    val adjustedYStart = if (yStartInitial > 0) yStartInitial - spacing else yStartInitial
+
+                    var currX = xStart
+                    while (currX < size.width) {
+                        var currY = adjustedYStart
+                        while (currY < size.height) {
+                            drawCircle(
+                                color = Color.White.copy(alpha = 0.15f),
+                                radius = 1.5f,
+                                center = Offset(currX, currY)
+                            )
+                            currY += spacing
+                        }
+                        currX += spacing
+                    }
+                }
+            }
+        }
+    }
+}
+
+private data class StarData(
+    val x: Float,
+    val y: Float,
+    val size: Float,
+    val alpha: Float
+)
