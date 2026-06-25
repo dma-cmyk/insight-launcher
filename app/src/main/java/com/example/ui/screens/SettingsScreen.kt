@@ -16,8 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -36,6 +38,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val scrollState = rememberScrollState()
 
     var primaryModel by remember { mutableStateOf(viewModel.settingsManager.getPrimaryModel()) }
@@ -181,7 +184,29 @@ fun SettingsScreen(
 
                     // Gemini API Key (Custom)
                     Column {
-                        Text(Localization.get("gemini_api_key_label", aiLanguage), fontSize = 12.sp, color = Color(0xB2FFFFFF))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(Localization.get("gemini_api_key_label", aiLanguage), fontSize = 12.sp, color = Color(0xB2FFFFFF))
+                            Text(
+                                text = Localization.get("get_api_key_link_text", aiLanguage),
+                                fontSize = 11.sp,
+                                color = Color(0xFF60A5FA),
+                                fontWeight = FontWeight.Bold,
+                                textDecoration = TextDecoration.Underline,
+                                modifier = Modifier
+                                    .clickable {
+                                        try {
+                                            uriHandler.openUri("https://aistudio.google.com/app/apikey")
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, Localization.get("link_error", aiLanguage).format(e.message ?: ""), Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    .padding(vertical = 2.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         OutlinedTextField(
                             value = geminiApiKey,

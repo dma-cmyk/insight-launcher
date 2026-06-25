@@ -104,6 +104,7 @@ fun LauncherHomeScreen(
     }
 
     var selectedCategoryFilter by remember { mutableStateOf("すべて") }
+    val categoryListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
     // Synchronize horizontal and vertical page scrolls with background parallax offset
@@ -126,6 +127,11 @@ fun LauncherHomeScreen(
     LaunchedEffect(pagerState.currentPage) {
         if (pagerState.currentPage in categories.indices) {
             selectedCategoryFilter = categories[pagerState.currentPage]
+            try {
+                categoryListState.animateScrollToItem(pagerState.currentPage)
+            } catch (e: Exception) {
+                // Ignore layout/animation exceptions
+            }
         }
     }
 
@@ -256,6 +262,7 @@ fun LauncherHomeScreen(
 
                 // High Density Interactive Category Filter Chips
                 LazyRow(
+                    state = categoryListState,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                     modifier = Modifier.fillMaxWidth()
