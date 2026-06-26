@@ -49,6 +49,7 @@ fun SettingsScreen(
     var geminiApiKey by remember { mutableStateOf(viewModel.settingsManager.getGeminiApiKey()) }
     val currentBgUrl by viewModel.currentBgUrl.collectAsState()
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
+    val viewMode by viewModel.viewMode.collectAsState()
 
     var customUrlInput by remember { mutableStateOf("") }
     var showCustomUrlDialog by remember { mutableStateOf(false) }
@@ -284,6 +285,72 @@ fun SettingsScreen(
                             Text(name, color = Color.White, fontSize = 14.sp)
                             if (isSelected) {
                                 Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color(0xFF81C784))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Display Layout Settings Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .testTag("layout_mode_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.GridView, contentDescription = "Layout", tint = Color(0xFF64B5F6))
+                        Text(Localization.get("layout_mode_title", aiLanguage), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+
+                    HorizontalDivider(color = Color(0x20FFFFFF))
+
+                    Text(
+                        Localization.get("layout_mode_desc", aiLanguage),
+                        fontSize = 12.sp,
+                        color = Color(0xB2FFFFFF),
+                        lineHeight = 16.sp
+                    )
+
+                    val modes = listOf(
+                        "GRID" to Localization.get("layout_mode_grid", aiLanguage),
+                        "LIST" to Localization.get("layout_mode_list", aiLanguage)
+                    )
+
+                    modes.forEach { (mode, label) ->
+                        val isSelected = viewMode == mode
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) Color(0x3D64B5F6) else Color.Transparent)
+                                .clickable { viewModel.setViewMode(mode) }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (mode == "GRID") Icons.Default.GridView else Icons.Default.List,
+                                    contentDescription = null,
+                                    tint = if (isSelected) Color(0xFF64B5F6) else Color(0x80FFFFFF)
+                                )
+                                Text(label, color = Color.White, fontSize = 14.sp)
+                            }
+                            if (isSelected) {
+                                Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color(0xFF64B5F6))
                             }
                         }
                     }

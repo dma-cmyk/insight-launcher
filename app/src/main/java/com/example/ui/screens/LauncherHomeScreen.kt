@@ -67,6 +67,8 @@ fun getCategoryDisplayName(category: String, lang: String): String {
         "すべて" -> Localization.get("all", lang)
         "未解析" -> Localization.get("unanalyzed", lang)
         "未解析 (AI分類待ち)" -> Localization.get("waiting_ai", lang)
+        "RECENT" -> Localization.get("category_recently_used", lang)
+        "MOST_USED" -> Localization.get("category_most_used", lang)
         else -> category
     }
 }
@@ -88,6 +90,8 @@ fun LauncherHomeScreen(
     val viewMode by viewModel.viewMode.collectAsState()
     val selectedApp by viewModel.selectedApp.collectAsState()
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
+    val lastLaunchTimes by viewModel.lastLaunchTimes.collectAsState()
+    val launchCounts by viewModel.launchCounts.collectAsState()
 
     val isVectorSearchEnabled by viewModel.isVectorSearchEnabled.collectAsState()
     val isVectorSearching by viewModel.isVectorSearching.collectAsState()
@@ -114,7 +118,7 @@ fun LauncherHomeScreen(
             .filter { it.isNotBlank() }
             .distinct()
             .sorted()
-        listOf("すべて") + uniqueCats
+        listOf("すべて", "RECENT", "MOST_USED") + uniqueCats
     }
 
     val pagerState = rememberPagerState(
@@ -160,53 +164,6 @@ fun LauncherHomeScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xD002040A))
-                    .border(BorderStroke(1.dp, Color(0x0DFFFFFF)), shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .padding(horizontal = 24.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(24.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Column {
-                            Text("LLM ENGINE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
-                            Text(viewModel.settingsManager.getPrimaryModel().substringAfterLast("/"), fontSize = 12.sp, color = Color(0xFF60A5FA), fontWeight = FontWeight.SemiBold)
-                        }
-                        Column {
-                            Text("EMBEDDING", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0x66FFFFFF), letterSpacing = 1.sp)
-                            Text(viewModel.settingsManager.getEmbeddingModel().substringAfterLast("/"), fontSize = 12.sp, color = Color(0xFF60A5FA), fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0x0DFFFFFF))
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color(0xB2FFFFFF))
-                    }
-                }
-                Box(
-                    modifier = Modifier
-                        .width(48.dp)
-                        .height(3.dp)
-                        .align(Alignment.CenterHorizontally)
-                        .clip(CircleShape)
-                        .background(Color(0x33FFFFFF))
-                )
-            }
-        },
         containerColor = Color.Transparent
     ) { innerPadding ->
         Box(
@@ -380,37 +337,22 @@ fun LauncherHomeScreen(
                         }
                     }
 
-                    // Grid / List mode toggle buttons with high contrast matching High Density theme
-                    Row(
+                    // Settings button in a compact header style next to the search bar
+                    IconButton(
+                        onClick = onNavigateToSettings,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(Color(0x0DFFFFFF))
-                            .border(1.dp, Color(0x0DFFFFFF), RoundedCornerShape(50))
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x15FFFFFF))
+                            .border(1.dp, Color(0x20FFFFFF), CircleShape)
+                            .testTag("navigate_to_settings_button")
                     ) {
-                        IconButton(
-                            onClick = { viewModel.setViewMode("GRID") },
-                            modifier = Modifier
-                                .background(if (viewMode == "GRID") Color(0x1A42A5F5) else Color.Transparent)
-                                .testTag("toggle_grid_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.GridView,
-                                contentDescription = "グリッド表示",
-                                tint = if (viewMode == "GRID") Color(0xFF90CAF9) else Color(0x80FFFFFF)
-                            )
-                        }
-                        IconButton(
-                            onClick = { viewModel.setViewMode("LIST") },
-                            modifier = Modifier
-                                .background(if (viewMode == "LIST") Color(0x1A42A5F5) else Color.Transparent)
-                                .testTag("toggle_list_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.List,
-                                contentDescription = "リスト表示",
-                                tint = if (viewMode == "LIST") Color(0xFF90CAF9) else Color(0x80FFFFFF)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -635,16 +577,29 @@ fun LauncherHomeScreen(
                             .fillMaxWidth()
                     ) { page ->
                         val currentCategory = categories[page]
-                        val pageApps = remember(apps, currentCategory) {
-                            if (currentCategory == "すべて") {
-                                apps
-                            } else {
-                                apps.filter { (it.cachedInfo?.category ?: "未解析") == currentCategory }
+                        val pageApps = remember(apps, currentCategory, lastLaunchTimes, launchCounts) {
+                            when (currentCategory) {
+                                "すべて" -> apps
+                                "RECENT" -> {
+                                    apps.filter { (lastLaunchTimes[it.packageName] ?: 0L) > 0L }
+                                        .sortedByDescending { lastLaunchTimes[it.packageName] ?: 0L }
+                                }
+                                "MOST_USED" -> {
+                                    apps.filter { (launchCounts[it.packageName] ?: 0) > 0 }
+                                        .sortedByDescending { launchCounts[it.packageName] ?: 0 }
+                                }
+                                else -> {
+                                    apps.filter { (it.cachedInfo?.category ?: "未解析") == currentCategory }
+                                }
                             }
                         }
 
-                        val pageGroupedApps = remember(pageApps) {
-                            pageApps.groupBy { it.cachedInfo?.category ?: "未解析 (AI分類待ち)" }
+                        val pageGroupedApps = remember(pageApps, currentCategory) {
+                            if (currentCategory == "RECENT" || currentCategory == "MOST_USED") {
+                                mapOf(currentCategory to pageApps)
+                            } else {
+                                pageApps.groupBy { it.cachedInfo?.category ?: "未解析 (AI分類待ち)" }
+                            }
                         }
 
                         val listState = remember(page, lazyListStates) {
@@ -656,6 +611,40 @@ fun LauncherHomeScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 80.dp)
                         ) {
+                            if (pageApps.isEmpty() && (currentCategory == "RECENT" || currentCategory == "MOST_USED")) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillParentMaxHeight(0.8f)
+                                            .fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                                            modifier = Modifier.padding(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (currentCategory == "RECENT") Icons.Default.History else Icons.Default.TrendingUp,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(48.dp),
+                                                tint = Color.Gray
+                                            )
+                                            Text(
+                                                text = if (currentCategory == "RECENT") {
+                                                    Localization.get("no_recently_used", aiLanguage)
+                                                } else {
+                                                    Localization.get("no_most_used", aiLanguage)
+                                                },
+                                                color = Color.Gray,
+                                                fontSize = 14.sp,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             pageGroupedApps.forEach { (category, categoryApps) ->
                                 // Header segment
                                 item {

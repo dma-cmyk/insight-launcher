@@ -129,7 +129,15 @@ object Localization {
         "merge_categories_btn" to "カテゴリを統合する",
         "set_default_home_title" to "デフォルトのホームアプリに設定",
         "set_default_home_desc" to "本アプリをデフォルトのホーム（ランチャー）として登録し、いつでもAI分類やスマート検索、関連リンクへの素早いアクセスができるようにします。",
-        "set_default_home_btn" to "デフォルトのアプリ設定を開く"
+        "set_default_home_btn" to "デフォルトのアプリ設定を開く",
+        "category_recently_used" to "最近使ったアプリ",
+        "category_most_used" to "使用頻度順",
+        "no_recently_used" to "最近起動されたアプリはありません。アプリを起動してみましょう！",
+        "no_most_used" to "起動履歴のあるアプリはありません。アプリを起動してみましょう！",
+        "layout_mode_title" to "表示形式の切り替え",
+        "layout_mode_desc" to "ホーム画面でのアプリの表示スタイル（グリッドまたはリスト）を切り替えます。",
+        "layout_mode_grid" to "グリッド表示（3列）",
+        "layout_mode_list" to "リスト表示（1列・詳細つき）"
     )
 
     private val englishMap = mapOf(
@@ -245,7 +253,15 @@ object Localization {
         "merge_categories_btn" to "Merge Categories Now",
         "set_default_home_title" to "Set Default Home App",
         "set_default_home_desc" to "Set this launcher as your default home app so you can use AI organization, smart search, and quick links anytime.",
-        "set_default_home_btn" to "Open Default App Settings"
+        "set_default_home_btn" to "Open Default App Settings",
+        "category_recently_used" to "Recently Used",
+        "category_most_used" to "Most Used",
+        "no_recently_used" to "No recently used apps. Let's launch some apps!",
+        "no_most_used" to "No frequently used apps yet. Let's launch some apps!",
+        "layout_mode_title" to "Display View Style",
+        "layout_mode_desc" to "Toggle between a compact 3-column Grid view or a detailed single-column List view.",
+        "layout_mode_grid" to "Grid Style (3 Columns)",
+        "layout_mode_list" to "List Style (1 Column & Details)"
     )
 
     private val koreanMap = mapOf(
@@ -361,7 +377,15 @@ object Localization {
         "merge_categories_btn" to "카테고리 통합하기",
         "set_default_home_title" to "기본 홈 앱으로 설정",
         "set_default_home_desc" to "이 런처를 기본 홈 앱으로 설정하여 언제든지 AI 카테고리 분류, 스마트 검색, 유용한 링크를 편리하게 이용해 보세요.",
-        "set_default_home_btn" to "기본 앱 설정 열기"
+        "set_default_home_btn" to "기본 앱 설정 열기",
+        "category_recently_used" to "최근 사용한 앱",
+        "category_most_used" to "사용 빈도순",
+        "no_recently_used" to "최근 사용한 앱이 없습니다. 앱을 실행해 보세요!",
+        "no_most_used" to "사용 빈도가 높은 앱이 아직 없습니다. 앱을 실행해 보세요!",
+        "layout_mode_title" to "화면 표시 형식",
+        "layout_mode_desc" to "홈 화면에서 앱의 표시 스타일(그리드 또는 리스트)을 변경합니다.",
+        "layout_mode_grid" to "그리드 뷰(3열)",
+        "layout_mode_list" to "리스트 뷰(1열 & 상세)"
     )
 
     private val chineseMap = mapOf(
@@ -477,6 +501,14 @@ object Localization {
         "merge_categories_btn" to "合并类别",
         "set_default_home_title" to "设置为默认主屏幕应用",
         "set_default_home_desc" to "将此启动器设置为您的默认主屏幕应用，以便随时使用 AI 智能分类、智能搜索和实用相关链接。",
-        "set_default_home_btn" to "打开默认应用设置"
+        "set_default_home_btn" to "打开默认应用设置",
+        "category_recently_used" to "最近使用",
+        "category_most_used" to "使用频率",
+        "no_recently_used" to "最近没有使用过的应用。启动一些应用吧！",
+        "no_most_used" to "还没有常用应用。启动一些应用吧！",
+        "layout_mode_title" to "显示样式切换",
+        "layout_mode_desc" to "在主屏幕上切换 3 列紧凑网格视图或单列详细列表视图。",
+        "layout_mode_grid" to "网格样式 (3列)",
+        "layout_mode_list" to "列表样式 (单列含详情)"
     )
 }

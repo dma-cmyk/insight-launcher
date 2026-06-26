@@ -10,6 +10,7 @@ import com.example.data.AppInfo
 import com.example.data.AppRepository
 import com.example.data.InstalledApp
 import com.example.data.SettingsManager
+import com.example.data.UsageTracker
 import com.example.data.getParsedEmbedding
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,6 +31,7 @@ class AppLauncherViewModel(
 
     private val TAG = "AppLauncherViewModel"
     private var isAnalysisCancelled = false
+    val usageTracker = UsageTracker(context)
 
     private val _analysisProgressPercent = MutableStateFlow(0f)
     val analysisProgressPercent: StateFlow<Float> = _analysisProgressPercent.asStateFlow()
@@ -58,6 +60,8 @@ class AppLauncherViewModel(
     // Expose background image URL reactively
     val currentBgUrl: StateFlow<String> = settingsManager.bgImageUrl
     val viewMode: StateFlow<String> = settingsManager.viewMode
+    val lastLaunchTimes: StateFlow<Map<String, Long>> = usageTracker.lastLaunchTimes
+    val launchCounts: StateFlow<Map<String, Int>> = usageTracker.launchCounts
 
     // Combine installed apps with search query and vector search settings
     val appListState: StateFlow<List<InstalledApp>> = combine(
@@ -248,6 +252,7 @@ class AppLauncherViewModel(
         try {
             val intent = context.packageManager.getLaunchIntentForPackage(packageName)
             if (intent != null) {
+                usageTracker.recordLaunch(packageName)
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(intent)
             } else {
