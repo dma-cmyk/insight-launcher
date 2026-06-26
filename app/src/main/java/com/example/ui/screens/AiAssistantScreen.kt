@@ -61,6 +61,8 @@ fun AiAssistantScreen(
     val apps by viewModel.appListState.collectAsState()
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
     val wikiEntries by viewModel.wikiEntries.collectAsState()
+    val githubRepos by viewModel.githubRepos.collectAsState()
+    val isGithubLoading by viewModel.isGithubLoading.collectAsState()
     
     var textInput by remember { mutableStateOf("") }
     var activeTab by remember { mutableStateOf(0) } // 0 = Chat, 1 = LLM Wiki
@@ -552,6 +554,293 @@ fun AiAssistantScreen(
                                                         tint = Color.White,
                                                         modifier = Modifier.size(20.dp)
                                                     )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 3.1 Recommended Play Store Apps
+                                val recommendedStoreApps = response.recommendedStoreApps ?: emptyList()
+                                if (recommendedStoreApps.isNotEmpty()) {
+                                    item {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text(
+                                            text = (if (aiLanguage == "ja") "🛒 Playストアの推奨アプリ" else "🛒 Recommended Play Store Apps").uppercase(),
+                                            color = Color(0xFFEF5350),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 1.sp,
+                                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                                        )
+                                    }
+
+                                    items(recommendedStoreApps) { storeApp ->
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = Color(0x11EF5350)),
+                                            shape = RoundedCornerShape(16.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .border(1.dp, Color(0x22EF5350), RoundedCornerShape(16.dp))
+                                                .clickable {
+                                                    try {
+                                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(storeApp.playStoreUrl)).apply {
+                                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        }
+                                                        context.startActivity(intent)
+                                                    } catch (e: Exception) {
+                                                        val queryUrl = "https://play.google.com/store/search?q=${storeApp.packageName}"
+                                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(queryUrl)).apply {
+                                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        }
+                                                        context.startActivity(intent)
+                                                    }
+                                                }
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(14.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(52.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(Color(0x22FFFFFF)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.ShoppingCart,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFEF5350),
+                                                        modifier = Modifier.size(28.dp)
+                                                    )
+                                                }
+
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = storeApp.name,
+                                                            color = Color.White,
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontSize = 16.sp,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            modifier = Modifier.weight(1f, fill = false)
+                                                        )
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(6.dp))
+                                                                .background(Color(0x33EF5350))
+                                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = storeApp.category,
+                                                                color = Color(0xFFEF5350),
+                                                                fontSize = 9.sp,
+                                                                fontWeight = FontWeight.Black
+                                                            )
+                                                        }
+                                                    }
+                                                    Text(
+                                                        text = storeApp.packageName,
+                                                        color = Color(0x80FFFFFF),
+                                                        fontSize = 11.sp,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        text = storeApp.description,
+                                                        color = Color(0xBBFFFFFF),
+                                                        fontSize = 13.sp,
+                                                        maxLines = 3,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.padding(top = 4.dp)
+                                                    )
+                                                }
+
+                                                IconButton(
+                                                    onClick = {
+                                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(storeApp.playStoreUrl)).apply {
+                                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        }
+                                                        context.startActivity(intent)
+                                                    },
+                                                    modifier = Modifier
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFFEF5350))
+                                                        .size(36.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.ArrowForward,
+                                                        contentDescription = "Install from Play Store",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 3.2 GitHub Real-time Search Results
+                                val ghQuery = response.githubSearchQuery
+                                if (!ghQuery.isNullOrBlank() || isGithubLoading || githubRepos.isNotEmpty()) {
+                                    item {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text(
+                                            text = (if (aiLanguage == "ja") "🐙 GitHub リアルタイム検索" else "🐙 GitHub Real-time Search").uppercase(),
+                                            color = Color(0xFF90CAF9),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 1.sp,
+                                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                                        )
+                                    }
+
+                                    if (isGithubLoading) {
+                                        item {
+                                            Card(
+                                                colors = CardDefaults.cardColors(containerColor = Color(0x1190CAF9)),
+                                                shape = RoundedCornerShape(16.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .border(1.dp, Color(0x2290CAF9), RoundedCornerShape(16.dp))
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(16.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                                ) {
+                                                    CircularProgressIndicator(
+                                                        color = Color(0xFF90CAF9),
+                                                        modifier = Modifier.size(24.dp),
+                                                        strokeWidth = 2.5.dp
+                                                    )
+                                                    Text(
+                                                        text = if (aiLanguage == "ja") "GitHubから最新のリポジトリを検索中..." else "Searching GitHub for live repositories...",
+                                                        color = Color(0xCCFFFFFF),
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else if (githubRepos.isEmpty()) {
+                                        item {
+                                            Card(
+                                                colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
+                                                shape = RoundedCornerShape(16.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(16.dp))
+                                            ) {
+                                                Text(
+                                                    text = if (aiLanguage == "ja") "「$ghQuery」に一致するリポジトリが見つかりませんでした。" else "No repositories found for '$ghQuery'.",
+                                                    color = Color(0x80FFFFFF),
+                                                    fontSize = 12.sp,
+                                                    modifier = Modifier.padding(16.dp)
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        items(githubRepos) { repo ->
+                                            Card(
+                                                colors = CardDefaults.cardColors(containerColor = Color(0x1190CAF9)),
+                                                shape = RoundedCornerShape(16.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .border(1.dp, Color(0x2290CAF9), RoundedCornerShape(16.dp))
+                                                    .clickable {
+                                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(repo.htmlUrl)).apply {
+                                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        }
+                                                        context.startActivity(intent)
+                                                    }
+                                            ) {
+                                                Column(modifier = Modifier.padding(14.dp)) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                            modifier = Modifier.weight(1f)
+                                                        ) {
+                                                            // Owner icon fallback
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(24.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(0x22FFFFFF)),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = repo.owner.login.take(1).uppercase(),
+                                                                    color = Color(0xFF90CAF9),
+                                                                    fontSize = 10.sp,
+                                                                    fontWeight = FontWeight.Black
+                                                                )
+                                                            }
+                                                            Text(
+                                                                text = repo.owner.login,
+                                                                color = Color(0x99FFFFFF),
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Medium,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                        }
+
+                                                        // Stars badge
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Star,
+                                                                contentDescription = "Stars",
+                                                                tint = Color(0xFFFFD54F),
+                                                                modifier = Modifier.size(14.dp)
+                                                            )
+                                                            Text(
+                                                                text = String.format("%,d", repo.stargazersCount),
+                                                                color = Color(0xFFFFD54F),
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                                    Text(
+                                                        text = repo.name,
+                                                        color = Color.White,
+                                                        fontSize = 15.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+
+                                                    if (!repo.description.isNullOrBlank()) {
+                                                        Spacer(modifier = Modifier.height(4.dp))
+                                                        Text(
+                                                            text = repo.description,
+                                                            color = Color(0xCCFFFFFF),
+                                                            fontSize = 13.sp,
+                                                            lineHeight = 18.sp,
+                                                            maxLines = 3,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }

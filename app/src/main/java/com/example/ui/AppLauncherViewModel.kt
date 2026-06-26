@@ -460,6 +460,28 @@ class AppLauncherViewModel(
     private val _assistantResponse = MutableStateFlow<com.example.data.GeminiAssistantResponse?>(null)
     val assistantResponse: StateFlow<com.example.data.GeminiAssistantResponse?> = _assistantResponse.asStateFlow()
 
+    private val _githubRepos = MutableStateFlow<List<com.example.data.GitHubRepo>>(emptyList())
+    val githubRepos: StateFlow<List<com.example.data.GitHubRepo>> = _githubRepos.asStateFlow()
+
+    private val _isGithubLoading = MutableStateFlow(false)
+    val isGithubLoading: StateFlow<Boolean> = _isGithubLoading.asStateFlow()
+
+    fun searchGitHub(query: String) {
+        if (query.isBlank()) return
+        viewModelScope.launch {
+            _isGithubLoading.value = true
+            try {
+                val searchResult = com.example.data.GitHubClient.service.searchRepositories(query)
+                _githubRepos.value = searchResult.items
+            } catch (e: Exception) {
+                Log.e(TAG, "GitHub search failed: ${e.message}", e)
+                _githubRepos.value = emptyList()
+            } finally {
+                _isGithubLoading.value = false
+            }
+        }
+    }
+
     val wikiEntries: StateFlow<List<LlmWikiEntry>> = repository.allWikiEntriesFlow
         .stateIn(
             scope = viewModelScope,
@@ -542,6 +564,12 @@ class AppLauncherViewModel(
                     languageCode = lang
                 )
                 _assistantResponse.value = response
+                val ghQuery = response?.githubSearchQuery
+                if (!ghQuery.isNullOrBlank()) {
+                    searchGitHub(ghQuery)
+                } else {
+                    _githubRepos.value = emptyList()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in askAiAssistant", e)
                 val lang = settingsManager.getAiLanguage()
@@ -554,6 +582,7 @@ class AppLauncherViewModel(
                         if (lang == "ja") "ホームに戻る" else "Back to Home"
                     )
                 )
+                _githubRepos.value = emptyList()
             } finally {
                 _isAssistantLoading.value = false
             }
@@ -563,6 +592,7 @@ class AppLauncherViewModel(
     fun clearAssistantState() {
         _assistantResponse.value = null
         _isAssistantLoading.value = false
+        _githubRepos.value = emptyList()
     }
 }
 

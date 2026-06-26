@@ -497,6 +497,8 @@ object GeminiClient {
                If the user asks about facts or instructions you have saved in your LLM WIKI/memories (shown above), use that stored knowledge to answer accurately!
             4. Identify up to 6 "relevantPackages" (exact package names from the list) that are most relevant to the user's query so we can display them as clickable app cards. If the query is a general question (e.g., "tell me a joke"), this can be empty or list 1-2 most frequently used apps as helpful suggestions.
             5. Provide 3 "suggestions" (short follow-up queries or questions in $langName, e.g., "ゲームを探して", "SNSアプリはどれ？").
+            6. If the user's query asks for or would highly benefit from apps they DO NOT have installed, recommend up to 4 high-quality relevant apps from the Play Store in the "recommendedStoreApps" list.
+            7. If the user's query indicates they are looking for developer templates, open-source projects, Kotlin codebases, libraries, or GitHub projects, provide a relevant concise search keyword in "githubSearchQuery" so the app can perform a real-time live search against GitHub Search API.
 
             Format your response STRICTLY as a JSON object adhering to the schema.
         """.trimIndent()
@@ -515,6 +517,25 @@ object GeminiClient {
                     "type" to "ARRAY",
                     "items" to mapOf("type" to "STRING"),
                     "description" to "3 short follow-up suggestions in $langName"
+                ),
+                "recommendedStoreApps" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf(
+                        "type" to "OBJECT",
+                        "properties" to mapOf(
+                            "name" to mapOf("type" to "STRING", "description" to "Application name"),
+                            "packageName" to mapOf("type" to "STRING", "description" to "Android package name (e.g. com.android.chrome)"),
+                            "description" to mapOf("type" to "STRING", "description" to "Brief explanation of why this app is recommended"),
+                            "playStoreUrl" to mapOf("type" to "STRING", "description" to "Play store direct URL or search URL"),
+                            "category" to mapOf("type" to "STRING", "description" to "Category name (e.g. Utility, Social, Dev, Productivity)")
+                        ),
+                        "required" to listOf("name", "packageName", "description", "playStoreUrl")
+                    ),
+                    "description" to "List of high-quality app recommendations that are NOT currently installed, suggesting the user to fetch them from Play Store"
+                ),
+                "githubSearchQuery" to mapOf(
+                    "type" to "STRING",
+                    "description" to "A search query keyword to look up real-time matching GitHub repositories (e.g. 'jetpack compose navigation' or 'android launcher'). Keep it short and precise. Set to null or empty string if GitHub search is not relevant."
                 )
             ),
             "required" to listOf("headline", "answer", "relevantPackages", "suggestions")
@@ -629,9 +650,20 @@ object GeminiClient {
 }
 
 @JsonClass(generateAdapter = true)
+data class RecommendedStoreApp(
+    val name: String,
+    val packageName: String,
+    val description: String,
+    val playStoreUrl: String,
+    val category: String = "General"
+)
+
+@JsonClass(generateAdapter = true)
 data class GeminiAssistantResponse(
     val headline: String,
     val answer: String,
     val relevantPackages: List<String>?,
-    val suggestions: List<String>?
+    val suggestions: List<String>?,
+    val recommendedStoreApps: List<RecommendedStoreApp>? = null,
+    val githubSearchQuery: String? = null
 )
