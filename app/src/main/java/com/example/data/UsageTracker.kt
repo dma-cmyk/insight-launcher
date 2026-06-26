@@ -15,6 +15,9 @@ class UsageTracker(context: Context) {
     private val _launchCounts = MutableStateFlow<Map<String, Int>>(loadAllLaunchCounts())
     val launchCounts: StateFlow<Map<String, Int>> = _launchCounts
 
+    private val _favorites = MutableStateFlow<Set<String>>(loadAllFavorites())
+    val favorites: StateFlow<Set<String>> = _favorites
+
     fun recordLaunch(packageName: String) {
         val currentCount = prefs.getInt("count_$packageName", 0)
         val newCount = currentCount + 1
@@ -43,10 +46,32 @@ class UsageTracker(context: Context) {
         return prefs.getLong("time_$packageName", 0L)
     }
 
+    fun toggleFavorite(packageName: String) {
+        val isFav = _favorites.value.contains(packageName)
+        val newFav = !isFav
+        
+        prefs.edit()
+            .putBoolean("fav_$packageName", newFav)
+            .apply()
+
+        val updatedFavorites = _favorites.value.toMutableSet()
+        if (newFav) {
+            updatedFavorites.add(packageName)
+        } else {
+            updatedFavorites.remove(packageName)
+        }
+        _favorites.value = updatedFavorites
+    }
+
+    fun isFavorite(packageName: String): Boolean {
+        return _favorites.value.contains(packageName)
+    }
+
     fun clearStats() {
         prefs.edit().clear().apply()
         _lastLaunchTimes.value = emptyMap()
         _launchCounts.value = emptyMap()
+        _favorites.value = emptySet()
     }
 
     private fun loadAllLastLaunchTimes(): Map<String, Long> {
@@ -67,5 +92,15 @@ class UsageTracker(context: Context) {
             }
         }
         return map
+    }
+
+    private fun loadAllFavorites(): Set<String> {
+        val set = mutableSetOf<String>()
+        prefs.all.forEach { (key, value) ->
+            if (key.startsWith("fav_") && value is Boolean && value) {
+                set.add(key.substringAfter("fav_"))
+            }
+        }
+        return set
     }
 }

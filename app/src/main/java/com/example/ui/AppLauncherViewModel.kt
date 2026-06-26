@@ -62,6 +62,7 @@ class AppLauncherViewModel(
     val viewMode: StateFlow<String> = settingsManager.viewMode
     val lastLaunchTimes: StateFlow<Map<String, Long>> = usageTracker.lastLaunchTimes
     val launchCounts: StateFlow<Map<String, Int>> = usageTracker.launchCounts
+    val favorites: StateFlow<Set<String>> = usageTracker.favorites
 
     // Combine installed apps with search query and vector search settings
     val appListState: StateFlow<List<InstalledApp>> = combine(
@@ -219,6 +220,10 @@ class AppLauncherViewModel(
 
     fun setViewMode(mode: String) {
         settingsManager.setViewMode(mode)
+    }
+
+    fun toggleFavorite(packageName: String) {
+        usageTracker.toggleFavorite(packageName)
     }
 
     private val _isMergingCategories = MutableStateFlow(false)

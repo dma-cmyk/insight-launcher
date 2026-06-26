@@ -69,6 +69,7 @@ fun getCategoryDisplayName(category: String, lang: String): String {
         "未解析 (AI分類待ち)" -> Localization.get("waiting_ai", lang)
         "RECENT" -> Localization.get("category_recently_used", lang)
         "MOST_USED" -> Localization.get("category_most_used", lang)
+        "FAVORITE" -> Localization.get("category_favorite", lang)
         else -> category
     }
 }
@@ -92,6 +93,7 @@ fun LauncherHomeScreen(
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
     val lastLaunchTimes by viewModel.lastLaunchTimes.collectAsState()
     val launchCounts by viewModel.launchCounts.collectAsState()
+    val favorites by viewModel.favorites.collectAsState()
 
     val isVectorSearchEnabled by viewModel.isVectorSearchEnabled.collectAsState()
     val isVectorSearching by viewModel.isVectorSearching.collectAsState()
@@ -118,7 +120,7 @@ fun LauncherHomeScreen(
             .filter { it.isNotBlank() }
             .distinct()
             .sorted()
-        listOf("すべて", "RECENT", "MOST_USED") + uniqueCats
+        listOf("すべて", "FAVORITE", "RECENT", "MOST_USED") + uniqueCats
     }
 
     val pagerState = rememberPagerState(
@@ -577,9 +579,13 @@ fun LauncherHomeScreen(
                             .fillMaxWidth()
                     ) { page ->
                         val currentCategory = categories[page]
-                        val pageApps = remember(apps, currentCategory, lastLaunchTimes, launchCounts) {
+                        val pageApps = remember(apps, currentCategory, lastLaunchTimes, launchCounts, favorites) {
                             when (currentCategory) {
                                 "すべて" -> apps
+                                "FAVORITE" -> {
+                                    apps.filter { favorites.contains(it.packageName) }
+                                        .sortedBy { it.label.lowercase() }
+                                }
                                 "RECENT" -> {
                                     apps.filter { (lastLaunchTimes[it.packageName] ?: 0L) > 0L }
                                         .sortedByDescending { lastLaunchTimes[it.packageName] ?: 0L }
@@ -595,7 +601,7 @@ fun LauncherHomeScreen(
                         }
 
                         val pageGroupedApps = remember(pageApps, currentCategory) {
-                            if (currentCategory == "RECENT" || currentCategory == "MOST_USED") {
+                            if (currentCategory == "RECENT" || currentCategory == "MOST_USED" || currentCategory == "FAVORITE") {
                                 mapOf(currentCategory to pageApps)
                             } else {
                                 pageApps.groupBy { it.cachedInfo?.category ?: "未解析 (AI分類待ち)" }
@@ -611,7 +617,7 @@ fun LauncherHomeScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 80.dp)
                         ) {
-                            if (pageApps.isEmpty() && (currentCategory == "RECENT" || currentCategory == "MOST_USED")) {
+                            if (pageApps.isEmpty() && (currentCategory == "RECENT" || currentCategory == "MOST_USED" || currentCategory == "FAVORITE")) {
                                 item {
                                     Box(
                                         modifier = Modifier
@@ -625,16 +631,20 @@ fun LauncherHomeScreen(
                                             modifier = Modifier.padding(32.dp)
                                         ) {
                                             Icon(
-                                                imageVector = if (currentCategory == "RECENT") Icons.Default.History else Icons.Default.TrendingUp,
+                                                imageVector = when (currentCategory) {
+                                                    "RECENT" -> Icons.Default.History
+                                                    "MOST_USED" -> Icons.Default.TrendingUp
+                                                    else -> Icons.Default.Star
+                                                },
                                                 contentDescription = null,
                                                 modifier = Modifier.size(48.dp),
                                                 tint = Color.Gray
                                             )
                                             Text(
-                                                text = if (currentCategory == "RECENT") {
-                                                    Localization.get("no_recently_used", aiLanguage)
-                                                } else {
-                                                    Localization.get("no_most_used", aiLanguage)
+                                                text = when (currentCategory) {
+                                                    "RECENT" -> Localization.get("no_recently_used", aiLanguage)
+                                                    "MOST_USED" -> Localization.get("no_most_used", aiLanguage)
+                                                    else -> Localization.get("no_favorites", aiLanguage)
                                                 },
                                                 color = Color.Gray,
                                                 fontSize = 14.sp,
@@ -667,7 +677,8 @@ fun LauncherHomeScreen(
                                                         app = rowApps[i],
                                                         onClick = { viewModel.selectApp(rowApps[i]) },
                                                         aiLanguage = aiLanguage,
-                                                        modifier = Modifier.weight(1f)
+                                                        modifier = Modifier.weight(1f),
+                                                        isFavorite = favorites.contains(rowApps[i].packageName)
                                                     )
                                                 } else {
                                                     Spacer(modifier = Modifier.weight(1f))
@@ -683,7 +694,8 @@ fun LauncherHomeScreen(
                                             aiLanguage = aiLanguage,
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                                            isFavorite = favorites.contains(app.packageName)
                                         )
                                     }
                                 }
@@ -713,7 +725,9 @@ fun LauncherHomeScreen(
             isAnalyzing = isAnalyzing,
             apps = apps,
             onSelectApp = { viewModel.selectApp(it) },
-            lang = aiLanguage
+            lang = aiLanguage,
+            isFavorite = favorites.contains(app.packageName),
+            onToggleFavorite = { viewModel.toggleFavorite(app.packageName) }
         )
     }
 }
@@ -762,7 +776,8 @@ fun AppGridItem(
     app: InstalledApp,
     onClick: () -> Unit,
     aiLanguage: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isFavorite: Boolean = false
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
@@ -779,7 +794,20 @@ fun AppGridItem(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            AppIconImage(packageName = app.packageName, size = 48.dp)
+            Box {
+                AppIconImage(packageName = app.packageName, size = 48.dp)
+                if (isFavorite) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Favorite",
+                        tint = Color(0xFFFFD700),
+                        modifier = Modifier
+                            .size(16.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = 4.dp, y = (-4).dp)
+                    )
+                }
+            }
 
             Text(
                 text = app.label,
@@ -855,7 +883,8 @@ fun AppListItem(
     app: InstalledApp,
     onClick: () -> Unit,
     aiLanguage: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isFavorite: Boolean = false
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
@@ -872,7 +901,20 @@ fun AppListItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            AppIconImage(packageName = app.packageName, size = 44.dp)
+            Box {
+                AppIconImage(packageName = app.packageName, size = 44.dp)
+                if (isFavorite) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Favorite",
+                        tint = Color(0xFFFFD700),
+                        modifier = Modifier
+                            .size(14.dp)
+                            .align(Alignment.TopEnd)
+                            .offset(x = 3.dp, y = (-3).dp)
+                    )
+                }
+            }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -956,7 +998,9 @@ fun AppDetailsDialog(
     isAnalyzing: Boolean,
     apps: List<InstalledApp>,
     onSelectApp: (InstalledApp) -> Unit,
-    lang: String
+    lang: String,
+    isFavorite: Boolean = false,
+    onToggleFavorite: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -1056,6 +1100,20 @@ fun AppDetailsDialog(
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(Color(0x0DFFFFFF))
+                            .testTag("favorite_toggle_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = Localization.get("toggle_favorite_btn", lang),
+                            tint = if (isFavorite) Color(0xFFFFD700) else Color(0x4DFFFFFF)
                         )
                     }
 

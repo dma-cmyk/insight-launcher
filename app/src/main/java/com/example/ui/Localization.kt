@@ -137,7 +137,10 @@ object Localization {
         "layout_mode_title" to "表示形式の切り替え",
         "layout_mode_desc" to "ホーム画面でのアプリの表示スタイル（グリッドまたはリスト）を切り替えます。",
         "layout_mode_grid" to "グリッド表示（3列）",
-        "layout_mode_list" to "リスト表示（1列・詳細つき）"
+        "layout_mode_list" to "リスト表示（1列・詳細つき）",
+        "category_favorite" to "お気に入り",
+        "no_favorites" to "お気に入りに登録されたアプリはありません。詳細ダイアログから星マークをタップして登録してみましょう！",
+        "toggle_favorite_btn" to "お気に入りに追加/解除"
     )
 
     private val englishMap = mapOf(
@@ -261,7 +264,10 @@ object Localization {
         "layout_mode_title" to "Display View Style",
         "layout_mode_desc" to "Toggle between a compact 3-column Grid view or a detailed single-column List view.",
         "layout_mode_grid" to "Grid Style (3 Columns)",
-        "layout_mode_list" to "List Style (1 Column & Details)"
+        "layout_mode_list" to "List Style (1 Column & Details)",
+        "category_favorite" to "Favorites",
+        "no_favorites" to "No favorites added yet. Click the star icon in any app's details to add favorites!",
+        "toggle_favorite_btn" to "Toggle Favorite"
     )
 
     private val koreanMap = mapOf(
@@ -383,9 +389,12 @@ object Localization {
         "no_recently_used" to "최근 사용한 앱이 없습니다. 앱을 실행해 보세요!",
         "no_most_used" to "사용 빈도가 높은 앱이 아직 없습니다. 앱을 실행해 보세요!",
         "layout_mode_title" to "화면 표시 형식",
-        "layout_mode_desc" to "홈 화면에서 앱의 표시 스타일(그리드 또는 리스트)을 변경합니다.",
+        "layout_mode_desc" to "홈 화면에서 앱의 표시スタイル(그리드 또는 리스트)을 변경합니다.",
         "layout_mode_grid" to "그리드 뷰(3열)",
-        "layout_mode_list" to "리스트 뷰(1열 & 상세)"
+        "layout_mode_list" to "리스트 뷰(1열 & 상세)",
+        "category_favorite" to "즐겨찾기",
+        "no_favorites" to "즐겨찾기에 추가된 앱이 없습니다. 앱 상세 설명 창에서 별표 아이콘을 눌러 추가해 보세요!",
+        "toggle_favorite_btn" to "즐겨찾기 추가/해제"
     )
 
     private val chineseMap = mapOf(
@@ -509,6 +518,9 @@ object Localization {
         "layout_mode_title" to "显示样式切换",
         "layout_mode_desc" to "在主屏幕上切换 3 列紧凑网格视图或单列详细列表视图。",
         "layout_mode_grid" to "网格样式 (3列)",
-        "layout_mode_list" to "列表样式 (单列含详情)"
+        "layout_mode_list" to "列表样式 (单列含详情)",
+        "category_favorite" to "收藏",
+        "no_favorites" to "暂无收藏应用。请在应用详情弹窗中点击星星图标进行收藏！",
+        "toggle_favorite_btn" to "添加/取消收藏"
     )
 }
