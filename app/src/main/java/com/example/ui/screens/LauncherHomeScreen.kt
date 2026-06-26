@@ -216,6 +216,32 @@ fun LauncherHomeScreen(
         }
     }
 
+    // Keep pagerState.currentPage dynamically synced with selectedCategoryFilter when categories change
+    LaunchedEffect(categories) {
+        if (categories.isNotEmpty()) {
+            val targetIdx = categories.indexOf(selectedCategoryFilter)
+            if (targetIdx >= 0) {
+                val size = categories.size
+                val currentAbsPage = pagerState.currentPage
+                val currentRealPage = currentAbsPage % size
+                var diff = (targetIdx - currentRealPage) % size
+                if (diff > size / 2) {
+                    diff -= size
+                } else if (diff < -size / 2) {
+                    diff += size
+                }
+                val targetAbsPage = (currentAbsPage + diff).coerceIn(0, totalPageCount - 1)
+                if (targetAbsPage != currentAbsPage) {
+                    try {
+                        pagerState.scrollToPage(targetAbsPage)
+                    } catch (e: Exception) {
+                        // Ignore any pager state exceptions
+                    }
+                }
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Transparent
@@ -604,7 +630,8 @@ fun LauncherHomeScreen(
                                 text = analysisProgress,
                                 color = Color.White,
                                 fontSize = 12.sp,
-                                maxLines = 1,
+                                maxLines = 4,
+                                minLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             LinearProgressIndicator(

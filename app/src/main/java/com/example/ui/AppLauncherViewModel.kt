@@ -425,18 +425,9 @@ class AppLauncherViewModel(
                     appsToAnalyze = appsToAnalyze,
                     settingsManager = settingsManager,
                     isCancelled = { isAnalysisCancelled },
-                    onProgress = { currentIndex, totalCount, currentBatchNames ->
+                    onProgress = { currentIndex, totalCount, statusText ->
                         _analysisProgressPercent.value = currentIndex.toFloat() / totalCount
-                        val localizedFormat = if (lang == "ja") {
-                            "一括解析中... (%d/%d)\n対象: %s"
-                        } else if (lang == "ko") {
-                            "일괄 분석 중... (%d/%d)\n대상: %s"
-                        } else if (lang == "zh") {
-                            "批量分析中... (%d/%d)\n对象: %s"
-                        } else {
-                            "Bulk analyzing... (%d/%d)\nApps: %s"
-                        }
-                        _analysisProgress.value = String.format(localizedFormat, currentIndex, totalCount, currentBatchNames)
+                        _analysisProgress.value = statusText
                     }
                 )
             } catch (e: Exception) {
@@ -499,8 +490,7 @@ class AppLauncherViewModel(
                     
                     if (attempts > 1) {
                         _analysisProgress.value = Localization.get("analyzing_retry", lang, app.label, index + 1, total, attempts, maxAttempts)
-                    } else {
-                        _analysisProgress.value = Localization.get("analyzing", lang, app.label, index + 1, total)
+                        delay(1000)
                     }
                     
                     success = repository.analyzeAndCacheApp(
@@ -508,7 +498,10 @@ class AppLauncherViewModel(
                         packageName = app.packageName,
                         label = app.label,
                         isSystemApp = app.isSystemApp,
-                        settingsManager = settingsManager
+                        settingsManager = settingsManager,
+                        onStatusUpdate = { subStatus ->
+                            _analysisProgress.value = "(${index + 1}/$total) $subStatus"
+                        }
                     )
 
                     if (success) {

@@ -238,7 +238,8 @@ object GeminiClient {
         userContextText: String? = null,
         fileName: String? = null,
         fileMimeType: String? = null,
-        fileBytes: ByteArray? = null
+        fileBytes: ByteArray? = null,
+        onModelSelected: ((String) -> Unit)? = null
     ): GeminiAppAnalysis? {
         val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
         if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
@@ -356,6 +357,7 @@ object GeminiClient {
         // Try primary model first, fallback to backup if it fails
         return try {
             Log.d(TAG, "Calling Gemini API using primary model: $modelName")
+            onModelSelected?.invoke(cleanModelName)
             val primaryRequest = if (isGemma) {
                 request.copy(
                     generationConfig = request.generationConfig?.copy(
@@ -369,6 +371,7 @@ object GeminiClient {
         } catch (e: Exception) {
             Log.e(TAG, "Primary model failed: ${e.message}. Retrying with backup model: $backupModelName", e)
             try {
+                onModelSelected?.invoke(backupModelNameClean)
                 val backupRequest = if (isBackupGemma) {
                     request.copy(
                         generationConfig = request.generationConfig?.copy(
@@ -409,7 +412,8 @@ object GeminiClient {
         modelName: String,
         backupModelName: String,
         languageCode: String = "ja",
-        customApiKey: String? = null
+        customApiKey: String? = null,
+        onModelSelected: ((String) -> Unit)? = null
     ): List<GeminiBulkAppAnalysisItem>? {
         val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
         if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
@@ -501,6 +505,7 @@ object GeminiClient {
 
         return try {
             Log.d(TAG, "Calling Gemini API for bulk analysis using primary model: $modelName")
+            onModelSelected?.invoke(cleanModelName)
             val primaryRequest = if (isGemma) {
                 request.copy(
                     generationConfig = request.generationConfig?.copy(
@@ -514,6 +519,7 @@ object GeminiClient {
         } catch (e: Exception) {
             Log.e(TAG, "Primary model bulk analysis failed: ${e.message}. Retrying with backup model: $backupModelName", e)
             try {
+                onModelSelected?.invoke(backupModelNameClean)
                 val backupRequest = if (isBackupGemma) {
                     request.copy(
                         generationConfig = request.generationConfig?.copy(

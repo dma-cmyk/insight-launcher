@@ -108,12 +108,22 @@ class AppRepository(private val appDao: AppDao) {
         userContextText: String? = null,
         fileName: String? = null,
         fileMimeType: String? = null,
-        fileBytes: ByteArray? = null
+        fileBytes: ByteArray? = null,
+        onStatusUpdate: ((String) -> Unit)? = null
     ): Boolean = withContext(Dispatchers.IO) {
         val primaryModel = settingsManager.getPrimaryModel()
         val backupModel = settingsManager.getBackupModel()
         val aiLanguage = settingsManager.getAiLanguage()
         val customApiKey = settingsManager.getGeminiApiKey()
+
+        val cleanPrimary = primaryModel.removePrefix("models/")
+        val startMsg = when (aiLanguage) {
+            "ja" -> "%s の解析中...\nモデル: %s"
+            "ko" -> "%s 분석 중...\n모델: %s"
+            "zh" -> "正在分析 %s...\n模型: %s"
+            else -> "Analyzing %s...\nModel: %s"
+        }
+        onStatusUpdate?.invoke(String.format(startMsg, label, cleanPrimary))
 
         Log.d(TAG, "Starting AI analysis for $label ($packageName)...")
         val analysis = GeminiClient.analyzeApp(
@@ -126,7 +136,10 @@ class AppRepository(private val appDao: AppDao) {
             userContextText = userContextText,
             fileName = fileName,
             fileMimeType = fileMimeType,
-            fileBytes = fileBytes
+            fileBytes = fileBytes,
+            onModelSelected = { selectedModel ->
+                onStatusUpdate?.invoke(String.format(startMsg, label, selectedModel))
+            }
         )
 
         if (analysis != null) {
@@ -137,6 +150,14 @@ class AppRepository(private val appDao: AppDao) {
             val linksJson = serializeLinks(analysis.relatedLinks)
 
             // Try to fetch embedding for semantic search
+            val embedMsg = when (aiLanguage) {
+                "ja" -> "%s のベクトル作成中...\nモデル: text-embedding-004"
+                "ko" -> "%s 벡터 생성 중...\n모델: text-embedding-004"
+                "zh" -> "正在生成 %s 的向量...\n模型: text-embedding-004"
+                else -> "Generating embedding for %s...\nModel: text-embedding-004"
+            }
+            onStatusUpdate?.invoke(String.format(embedMsg, label))
+
             val embedText = "Label: $label. Category: ${analysis.category}. Summary: ${analysis.summary}. Tags: $tagsCsv"
             val embeddingVector = try {
                 GeminiClient.getEmbedding(embedText, customApiKey)
@@ -173,17 +194,17 @@ class AppRepository(private val appDao: AppDao) {
         appsToAnalyze: List<com.example.data.AppToAnalyze>,
         settingsManager: SettingsManager,
         isCancelled: () -> Boolean,
-        onProgress: (currentIndex: Int, total: Int, currentBatchNames: String) -> Unit
+        onProgress: (currentIndex: Int, total: Int, statusText: String) -> Unit
     ): Int = withContext(Dispatchers.IO) {
         val primaryModel = settingsManager.getPrimaryModel()
         val backupModel = settingsManager.getBackupModel()
         val aiLanguage = settingsManager.getAiLanguage()
         val customApiKey = settingsManager.getGeminiApiKey()
-
+ 
         val batchSize = 10
         var successCount = 0
         val total = appsToAnalyze.size
-
+ 
         val pm = context.packageManager
         val systemPackageNames = try {
             pm.getInstalledPackages(PackageManager.GET_META_DATA).associate { 
@@ -192,36 +213,58 @@ class AppRepository(private val appDao: AppDao) {
         } catch (e: Exception) {
             emptyMap()
         }
-
+ 
         val chunks = appsToAnalyze.chunked(batchSize)
         var processedCount = 0
-
+ 
         for ((chunkIndex, chunk) in chunks.withIndex()) {
             if (isCancelled()) break
             val names = chunk.joinToString(", ") { it.label }
-            onProgress(processedCount, total, names)
-
+            
+            var activeModel = primaryModel.removePrefix("models/")
+            
+            val startMsg = when (aiLanguage) {
+                "ja" -> "一括解析中... (%d/%d)\nモデル: %s\n対象: %s"
+                "ko" -> "일괄 분석 중... (%d/%d)\n모델: %s\n대상: %s"
+                "zh" -> "批量分析中... (%d/%d)\n模型: %s\n对象: %s"
+                else -> "Bulk analyzing... (%d/%d)\nModel: %s\nApps: %s"
+            }
+            onProgress(processedCount, total, String.format(startMsg, processedCount, total, activeModel, names))
+ 
             Log.d(TAG, "Starting bulk AI analysis for batch ${chunkIndex + 1}/${chunks.size} containing: $names")
             val results = GeminiClient.analyzeAppsBulk(
                 apps = chunk,
                 modelName = primaryModel,
                 backupModelName = backupModel,
                 languageCode = aiLanguage,
-                customApiKey = customApiKey
+                customApiKey = customApiKey,
+                onModelSelected = { model ->
+                    activeModel = model
+                    onProgress(processedCount, total, String.format(startMsg, processedCount, total, activeModel, names))
+                }
             )
-
+ 
             if (isCancelled()) break
-
+ 
             if (results != null) {
-                for (result in results) {
+                for ((resIndex, result) in results.withIndex()) {
                     if (isCancelled()) break
                     val appToAnalyze = chunk.find { it.packageName == result.packageName }
                     val label = appToAnalyze?.label ?: result.packageName
                     val isSystemApp = systemPackageNames[result.packageName] ?: false
-
+ 
                     val tagsCsv = result.tags.joinToString(",")
                     val linksJson = serializeLinks(result.relatedLinks)
-
+ 
+                    // Show embedding status
+                    val embedMsg = when (aiLanguage) {
+                        "ja" -> "ベクトル作成中... (%d/%d)\nモデル: text-embedding-004\n対象: %s"
+                        "ko" -> "벡터 생성 중... (%d/%d)\n모델: text-embedding-004\n대상: %s"
+                        "zh" -> "向量生成中... (%d/%d)\n模型: text-embedding-004\n对象: %s"
+                        else -> "Generating embedding... (%d/%d)\nModel: text-embedding-004\nApp: %s"
+                    }
+                    onProgress(processedCount + resIndex, total, String.format(embedMsg, processedCount + resIndex, total, label))
+ 
                     val embedText = "Label: $label. Category: ${result.category}. Summary: ${result.summary}. Tags: $tagsCsv"
                     val embeddingVector = try {
                         GeminiClient.getEmbedding(embedText, customApiKey)
@@ -230,7 +273,7 @@ class AppRepository(private val appDao: AppDao) {
                         null
                     }
                     val embeddingCsv = embeddingVector?.joinToString(",")
-
+ 
                     val appInfo = AppInfo(
                         packageName = result.packageName,
                         label = label,
@@ -242,13 +285,22 @@ class AppRepository(private val appDao: AppDao) {
                         lastUpdated = System.currentTimeMillis(),
                         embedding = embeddingCsv
                     )
-
+ 
                     appDao.insertApp(appInfo)
                     successCount++
                 }
             } else {
                 Log.e(TAG, "Failed bulk analysis for batch ${chunkIndex + 1}/${chunks.size}. Falling back to individual sequential analysis for this batch...")
-                for (app in chunk) {
+                val fallbackStatusMsg = when (aiLanguage) {
+                    "ja" -> "一括解析失敗。個別解析にフォールバック中...\n対象: %s"
+                    "ko" -> "일괄 분석 실패. 개별 순차 분석으로 전환 중...\n대상: %s"
+                    "zh" -> "批量分析失败。正在降级为单个顺序分析...\n对象: %s"
+                    else -> "Bulk analysis failed. Falling back to individual sequential analysis...\nApps: %s"
+                }
+                onProgress(processedCount, total, String.format(fallbackStatusMsg, names))
+                delay(2000)
+ 
+                for ((subIndex, app) in chunk.withIndex()) {
                     if (isCancelled()) break
                     val isSystemApp = systemPackageNames[app.packageName] ?: false
                     val success = analyzeAndCacheApp(
@@ -256,7 +308,10 @@ class AppRepository(private val appDao: AppDao) {
                         packageName = app.packageName,
                         label = app.label,
                         isSystemApp = isSystemApp,
-                        settingsManager = settingsManager
+                        settingsManager = settingsManager,
+                        onStatusUpdate = { subStatus ->
+                            onProgress(processedCount + subIndex, total, subStatus)
+                        }
                     )
                     if (success) {
                         successCount++
@@ -264,9 +319,9 @@ class AppRepository(private val appDao: AppDao) {
                     delay(1500)
                 }
             }
-
+ 
             processedCount += chunk.size
-
+ 
             if (chunkIndex < chunks.size - 1) {
                 // Wait 4 seconds, but check cancellation every 500ms
                 for (i in 0 until 8) {
