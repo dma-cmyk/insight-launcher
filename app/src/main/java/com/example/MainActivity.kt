@@ -38,6 +38,8 @@ class MainActivity : ComponentActivity() {
                 )
 
                 val currentBgUrl by viewModel.currentBgUrl.collectAsState()
+                val bgLuminance by viewModel.bgLuminance.collectAsState()
+                val autoContrast by viewModel.autoContrast.collectAsState()
                 var currentScreen by remember { mutableStateOf("home") }
                 var bgScrollOffsetX by remember { mutableStateOf(0f) }
                 var bgScrollOffsetY by remember { mutableStateOf(0f) }
@@ -47,7 +49,9 @@ class MainActivity : ComponentActivity() {
                     SpaceBackground(
                         bgUrl = currentBgUrl,
                         scrollOffsetX = bgScrollOffsetX,
-                        scrollOffsetY = bgScrollOffsetY
+                        scrollOffsetY = bgScrollOffsetY,
+                        bgLuminance = bgLuminance,
+                        autoContrast = autoContrast
                     )
 
                     // Smooth sliding content transition

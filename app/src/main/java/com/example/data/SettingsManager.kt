@@ -17,6 +17,7 @@ class SettingsManager(context: Context) {
         const val KEY_AI_LANGUAGE = "ai_language"
         const val KEY_GEMINI_API_KEY = "gemini_api_key"
         const val KEY_ICON_SHAPE = "icon_shape" // "ROUNDED_RECT", "CIRCLE", "SQUARE", "SQUIRCLE"
+        const val KEY_AUTO_CONTRAST = "auto_contrast"
 
         const val DEFAULT_PRIMARY_MODEL = "gemini-flash-lite-latest"
         const val DEFAULT_BACKUP_MODEL = "gemini-flash-latest"
@@ -47,6 +48,9 @@ class SettingsManager(context: Context) {
 
     private val _iconShape = MutableStateFlow(prefs.getString(KEY_ICON_SHAPE, DEFAULT_ICON_SHAPE) ?: DEFAULT_ICON_SHAPE)
     val iconShape: StateFlow<String> = _iconShape
+
+    private val _autoContrast = MutableStateFlow(prefs.getBoolean(KEY_AUTO_CONTRAST, true))
+    val autoContrast: StateFlow<Boolean> = _autoContrast
 
     fun getPrimaryModel(): String = prefs.getString(KEY_PRIMARY_MODEL, DEFAULT_PRIMARY_MODEL) ?: DEFAULT_PRIMARY_MODEL
     fun getBackupModel(): String = prefs.getString(KEY_BACKUP_MODEL, DEFAULT_BACKUP_MODEL) ?: DEFAULT_BACKUP_MODEL
@@ -89,5 +93,10 @@ class SettingsManager(context: Context) {
     fun setIconShape(shape: String) {
         prefs.edit().putString(KEY_ICON_SHAPE, shape).apply()
         _iconShape.value = shape
+    }
+
+    fun setAutoContrast(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_CONTRAST, enabled).apply()
+        _autoContrast.value = enabled
     }
 }

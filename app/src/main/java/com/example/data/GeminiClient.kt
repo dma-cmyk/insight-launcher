@@ -19,18 +19,46 @@ import kotlinx.coroutines.withContext
 @JsonClass(generateAdapter = true)
 data class GeminiRequest(
     val contents: List<GeminiContent>,
+    val tools: List<GeminiTool>? = null,
     val generationConfig: GeminiGenerationConfig? = null
 )
 
 @JsonClass(generateAdapter = true)
 data class GeminiContent(
+    val role: String? = null,
     val parts: List<GeminiPart>
 )
 
 @JsonClass(generateAdapter = true)
 data class GeminiPart(
     val text: String? = null,
-    val inlineData: GeminiBlob? = null
+    val inlineData: GeminiBlob? = null,
+    val functionCall: GeminiFunctionCall? = null,
+    val functionResponse: GeminiFunctionResponse? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class GeminiTool(
+    val functionDeclarations: List<GeminiFunctionDeclaration>
+)
+
+@JsonClass(generateAdapter = true)
+data class GeminiFunctionDeclaration(
+    val name: String,
+    val description: String,
+    val parameters: Map<String, Any>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class GeminiFunctionCall(
+    val name: String,
+    val args: Map<String, Any>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class GeminiFunctionResponse(
+    val name: String,
+    val response: Map<String, Any>
 )
 
 @JsonClass(generateAdapter = true)
@@ -437,7 +465,8 @@ object GeminiClient {
         wikiEntries: List<LlmWikiEntry>,
         modelName: String,
         customApiKey: String? = null,
-        languageCode: String = "ja"
+        languageCode: String = "ja",
+        mcpManager: McpManager? = null
     ): GeminiAssistantResponse? = withContext(Dispatchers.IO) {
         val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
         if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
@@ -492,13 +521,14 @@ object GeminiClient {
 
             Your tasks:
             1. Analyze the user's instruction. If they are looking for specific apps, categories, features, or recommendations, search through their installed apps list.
-            2. Produce a "headline" summarizing your recommendation or response (short, punchy, bold title, e.g., "🎯 効率化アプリのご提案！" or "💬 友友人繋がるSNSツール").
+            2. Produce a "headline" summarizing your recommendation or response (short, punchy, bold title, e.g., "🎯 効率化アプリのご提案！" or "💬 友達とつながるSNSツール").
             3. Produce an "answer" (detailed explanation in $langName. Be friendly and engaging. Support bullet points, paragraphs, and emojis. It will be displayed in a very large and beautiful format, so make sure it's highly readable and structured).
                If the user asks about facts or instructions you have saved in your LLM WIKI/memories (shown above), use that stored knowledge to answer accurately!
             4. Identify up to 6 "relevantPackages" (exact package names from the list) that are most relevant to the user's query so we can display them as clickable app cards. If the query is a general question (e.g., "tell me a joke"), this can be empty or list 1-2 most frequently used apps as helpful suggestions.
             5. Provide 3 "suggestions" (short follow-up queries or questions in $langName, e.g., "ゲームを探して", "SNSアプリはどれ？").
             6. If the user's query asks for or would highly benefit from apps they DO NOT have installed, recommend up to 4 high-quality relevant apps from the Play Store in the "recommendedStoreApps" list.
             7. If the user's query indicates they are looking for developer templates, open-source projects, Kotlin codebases, libraries, or GitHub projects, provide a relevant concise search keyword in "githubSearchQuery" so the app can perform a real-time live search against GitHub Search API.
+            8. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, or get the weather for a city, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool.
 
             Format your response STRICTLY as a JSON object adhering to the schema.
         """.trimIndent()
@@ -541,23 +571,89 @@ object GeminiClient {
             "required" to listOf("headline", "answer", "relevantPackages", "suggestions")
         )
 
-        val request = GeminiRequest(
-            contents = listOf(GeminiContent(
-                parts = listOf(GeminiPart(text = prompt))
-            )),
-            generationConfig = GeminiGenerationConfig(
-                responseMimeType = "application/json",
-                responseSchema = schema,
-                temperature = 0.5
-            )
-        )
+        // Prep tools
+        val mcpTools = mcpManager?.getAvailableTools() ?: emptyList()
+        val geminiTools = if (mcpTools.isNotEmpty()) {
+            listOf(GeminiTool(functionDeclarations = mcpTools.map {
+                GeminiFunctionDeclaration(
+                    name = it.name,
+                    description = it.description,
+                    parameters = it.inputSchema
+                )
+            }))
+        } else null
+
+        val contents = mutableListOf(GeminiContent(
+            role = "user",
+            parts = listOf(GeminiPart(text = prompt))
+        ))
 
         return@withContext try {
-            val response = apiService.generateContent(cleanModelName, apiKey, request)
-            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-            if (jsonText != null) {
+            var responseText: String? = null
+            var loopCount = 0
+            val maxLoops = 6
+
+            while (loopCount < maxLoops) {
+                val request = GeminiRequest(
+                    contents = contents,
+                    tools = geminiTools,
+                    generationConfig = GeminiGenerationConfig(
+                        responseMimeType = "application/json",
+                        responseSchema = schema,
+                        temperature = 0.4
+                    )
+                )
+
+                val response = apiService.generateContent(cleanModelName, apiKey, request)
+                val candidate = response.candidates?.firstOrNull()
+                val candidateContent = candidate?.content
+                val part = candidateContent?.parts?.firstOrNull()
+
+                if (part == null) {
+                    break
+                }
+
+                val functionCall = part.functionCall
+                if (functionCall != null) {
+                    Log.d(TAG, "Gemini requested function call: ${functionCall.name} with args: ${functionCall.args}")
+                    
+                    // Add the model turn with functionCall
+                    contents.add(GeminiContent(
+                        role = "model",
+                        parts = listOf(part)
+                    ))
+
+                    // Execute MCP tool
+                    val toolResult = try {
+                        mcpManager?.executeTool(functionCall.name, functionCall.args ?: emptyMap()) ?: "Error: McpManager is offline"
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed executing MCP tool: ${functionCall.name}", e)
+                        "Error: ${e.localizedMessage}"
+                    }
+
+                    Log.d(TAG, "MCP tool result: $toolResult")
+
+                    // Add function response turn
+                    contents.add(GeminiContent(
+                        role = "function",
+                        parts = listOf(GeminiPart(
+                            functionResponse = GeminiFunctionResponse(
+                                name = functionCall.name,
+                                response = mapOf("content" to toolResult)
+                            )
+                        ))
+                    ))
+
+                    loopCount++
+                } else {
+                    responseText = part.text
+                    break
+                }
+            }
+
+            if (responseText != null) {
                 val adapter = moshi.adapter(GeminiAssistantResponse::class.java)
-                adapter.fromJson(jsonText)
+                adapter.fromJson(responseText)
             } else {
                 null
             }

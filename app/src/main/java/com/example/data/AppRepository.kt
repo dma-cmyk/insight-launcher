@@ -248,4 +248,19 @@ class AppRepository(private val appDao: AppDao) {
     suspend fun clearAllWikiEntries() = withContext(Dispatchers.IO) {
         appDao.clearAllWikiEntries()
     }
+
+    // MCP Server operations
+    val allMcpServersFlow: Flow<List<McpServerEntity>> = appDao.getAllMcpServersFlow()
+
+    suspend fun getAllMcpServersDirect(): List<McpServerEntity> = withContext(Dispatchers.IO) {
+        appDao.getAllMcpServersDirect()
+    }
+
+    suspend fun insertMcpServer(server: McpServerEntity) = withContext(Dispatchers.IO) {
+        appDao.insertMcpServer(server)
+    }
+
+    suspend fun deleteMcpServerById(id: Long) = withContext(Dispatchers.IO) {
+        appDao.deleteMcpServerById(id)
+    }
 }

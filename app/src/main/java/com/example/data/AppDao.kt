@@ -50,4 +50,17 @@ interface AppDao {
 
     @Query("DELETE FROM llm_wiki_table")
     suspend fun clearAllWikiEntries()
+
+    // MCP Server operations
+    @Query("SELECT * FROM mcp_servers_table ORDER BY lastUpdated DESC")
+    fun getAllMcpServersFlow(): Flow<List<McpServerEntity>>
+
+    @Query("SELECT * FROM mcp_servers_table ORDER BY lastUpdated DESC")
+    suspend fun getAllMcpServersDirect(): List<McpServerEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMcpServer(server: McpServerEntity)
+
+    @Query("DELETE FROM mcp_servers_table WHERE id = :id")
+    suspend fun deleteMcpServerById(id: Long)
 }

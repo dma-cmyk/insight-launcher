@@ -53,18 +53,40 @@ fun SettingsScreen(
     var geminiApiKey by remember { mutableStateOf(viewModel.settingsManager.getGeminiApiKey()) }
     var isApiKeyVisible by remember { mutableStateOf(false) }
     val currentBgUrl by viewModel.currentBgUrl.collectAsState()
+    val autoContrast by viewModel.autoContrast.collectAsState()
+    val bgLuminance by viewModel.bgLuminance.collectAsState()
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
 
     var customUrlInput by remember { mutableStateOf("") }
     var showCustomUrlDialog by remember { mutableStateOf(false) }
+    var showAddMcpServerDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showCustomUrlDialog) {
+        if (showCustomUrlDialog) {
+            customUrlInput = if (currentBgUrl.startsWith("http")) currentBgUrl else ""
+        }
+    }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
             try {
-                val file = File(context.filesDir, "custom_background.jpg")
+                // Delete previous custom background files to save storage space
+                context.filesDir.listFiles()?.forEach { f ->
+                    if (f.name.startsWith("custom_background_") && f.name.endsWith(".jpg")) {
+                        f.delete()
+                    }
+                }
+                // Also delete the old legacy non-timestamped file if it exists
+                val legacyFile = File(context.filesDir, "custom_background.jpg")
+                if (legacyFile.exists()) {
+                    legacyFile.delete()
+                }
+
+                // Generate a unique filename using timestamp
+                val file = File(context.filesDir, "custom_background_${System.currentTimeMillis()}.jpg")
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     file.outputStream().use { output ->
                         input.copyTo(output)
@@ -503,7 +525,7 @@ fun SettingsScreen(
                     }
 
                     // Album/Gallery Image picker option
-                    val isCustomFile = currentBgUrl.startsWith("/") || currentBgUrl.contains("custom_background.jpg")
+                    val isCustomFile = currentBgUrl.startsWith(context.filesDir.absolutePath) || currentBgUrl.contains("custom_background")
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -537,6 +559,76 @@ fun SettingsScreen(
                         Icon(Icons.Default.Link, contentDescription = "Custom URL", tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(Localization.get("bg_custom_url", aiLanguage), color = Color.White)
+                    }
+
+                    HorizontalDivider(color = Color(0x14FFFFFF))
+
+                    // Auto Contrast Adjustment option
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Default.Brightness6,
+                                    contentDescription = "Contrast",
+                                    tint = Color(0xFFFF8A65),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column {
+                                    Text(
+                                        Localization.get("auto_contrast_title", aiLanguage),
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        Localization.get("auto_contrast_desc", aiLanguage),
+                                        color = Color.White.copy(alpha = 0.6f),
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = autoContrast,
+                                onCheckedChange = { viewModel.settingsManager.setAutoContrast(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color(0xFFFF8A65),
+                                    checkedTrackColor = Color(0x66FF8A65),
+                                    uncheckedThumbColor = Color.LightGray,
+                                    uncheckedTrackColor = Color(0x33FFFFFF)
+                                )
+                            )
+                        }
+
+                        // Display the detected brightness and state
+                        if (currentBgUrl != "procedural_nebula") {
+                            val brightnessPercent = (bgLuminance * 100).toInt()
+                            val brightnessLabel = if (brightnessPercent > 50) {
+                                if (aiLanguage == "ja") "明るい (自動調光強)" else "Bright (High Dimming)"
+                            } else {
+                                if (aiLanguage == "ja") "暗い (自動調光弱)" else "Dark (Low Dimming)"
+                            }
+                            Text(
+                                text = String.format(Localization.get("bg_luminance_detected", aiLanguage), brightnessPercent, brightnessLabel),
+                                color = Color(0xFFFF8A65).copy(alpha = 0.85f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(start = 30.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -572,6 +664,140 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // Model Context Protocol (MCP) Configuration Card
+            val mcpServers by viewModel.mcpServers.collectAsState()
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .testTag("mcp_settings_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Build, contentDescription = "MCP Settings", tint = Color(0xFF4CAF50))
+                        Text(Localization.get("mcp_settings_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Text(
+                        Localization.get("mcp_settings_desc", aiLanguage),
+                        fontSize = 12.sp,
+                        color = Color(0xB2FFFFFF),
+                        lineHeight = 16.sp
+                    )
+                    
+                    HorizontalDivider(color = Color(0x20FFFFFF))
+
+                    // 1. Built-in MCP Tools Indicators (Active)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Color(0x224CAF50), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = "Active", tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(Localization.get("mcp_builtin_title", aiLanguage), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(Localization.get("mcp_builtin_desc", aiLanguage), fontSize = 11.sp, color = Color(0x99FFFFFF))
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0x20FFFFFF))
+
+                    // 2. Custom MCP Servers list
+                    Text(Localization.get("mcp_custom_servers", aiLanguage), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+
+                    if (mcpServers.isEmpty()) {
+                        Text(
+                            Localization.get("mcp_no_custom_servers", aiLanguage),
+                            fontSize = 12.sp,
+                            color = Color(0x66FFFFFF),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    } else {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            mcpServers.forEach { server ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0x12FFFFFF), RoundedCornerShape(8.dp))
+                                        .padding(10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(server.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                        if (server.description.isNotBlank()) {
+                                            Text(server.description, fontSize = 11.sp, color = Color(0x80FFFFFF))
+                                        }
+                                        Text(server.endpointUrl, fontSize = 10.sp, color = Color(0x66FFFFFF), maxLines = 1)
+                                    }
+                                    
+                                    // Enabled toggle switch
+                                    Switch(
+                                        checked = server.isEnabled,
+                                        onCheckedChange = { isEnabled ->
+                                            viewModel.toggleMcpServer(server, isEnabled)
+                                        },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color(0xFF4CAF50),
+                                            checkedTrackColor = Color(0x4D4CAF50)
+                                        )
+                                    )
+
+                                    // Delete button
+                                    IconButton(
+                                        onClick = { viewModel.deleteMcpServer(server.id) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete Server",
+                                            tint = Color(0xFFEF5350),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Button to open dialog
+                    Button(
+                        onClick = { showAddMcpServerDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0x1BFFFFFF)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("add_mcp_server_button")
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Server", modifier = Modifier.size(16.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(Localization.get("mcp_add_server_btn", aiLanguage), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // AI Category Management Card
             Card(
@@ -738,6 +964,60 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showCustomUrlDialog = false }) {
+                    Text(Localization.get("cancel", aiLanguage))
+                }
+            }
+        )
+    }
+
+    if (showAddMcpServerDialog) {
+        var serverNameInput by remember { mutableStateOf("") }
+        var serverDescInput by remember { mutableStateOf("") }
+        var serverUrlInput by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showAddMcpServerDialog = false },
+            title = { Text(Localization.get("mcp_add_dialog_title", aiLanguage), color = Color.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = serverNameInput,
+                        onValueChange = { serverNameInput = it },
+                        label = { Text(Localization.get("mcp_server_name_label", aiLanguage)) },
+                        placeholder = { Text("My Remote MCP Server") },
+                        modifier = Modifier.fillMaxWidth().testTag("mcp_input_name")
+                    )
+                    OutlinedTextField(
+                        value = serverDescInput,
+                        onValueChange = { serverDescInput = it },
+                        label = { Text(Localization.get("mcp_server_desc_label", aiLanguage)) },
+                        placeholder = { Text("Handles system files/scripts") },
+                        modifier = Modifier.fillMaxWidth().testTag("mcp_input_desc")
+                    )
+                    OutlinedTextField(
+                        value = serverUrlInput,
+                        onValueChange = { serverUrlInput = it },
+                        label = { Text(Localization.get("mcp_server_url_label", aiLanguage)) },
+                        placeholder = { Text("http://192.168.1.5:5000/api") },
+                        modifier = Modifier.fillMaxWidth().testTag("mcp_input_url")
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (serverNameInput.isNotBlank() && serverUrlInput.isNotBlank()) {
+                            viewModel.addMcpServer(serverNameInput, serverDescInput, serverUrlInput)
+                        }
+                        showAddMcpServerDialog = false
+                    },
+                    enabled = serverNameInput.isNotBlank() && serverUrlInput.isNotBlank()
+                ) {
+                    Text(Localization.get("set", aiLanguage))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddMcpServerDialog = false }) {
                     Text(Localization.get("cancel", aiLanguage))
                 }
             }

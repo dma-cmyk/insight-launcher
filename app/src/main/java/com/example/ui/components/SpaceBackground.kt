@@ -21,7 +21,9 @@ fun SpaceBackground(
     bgUrl: String,
     modifier: Modifier = Modifier,
     scrollOffsetX: Float = 0f,
-    scrollOffsetY: Float = 0f
+    scrollOffsetY: Float = 0f,
+    bgLuminance: Float = 0.05f,
+    autoContrast: Boolean = true
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         if (bgUrl == "procedural_nebula") {
@@ -136,11 +138,20 @@ fun SpaceBackground(
                 )
                 // Add high-contrast background overlay + repeating stardust grid overlay
                 Canvas(modifier = Modifier.fillMaxSize()) {
+                    // Dynamic dim alpha based on background image luminance (higher luminance -> heavier dimming)
+                    val baseLuminance = if (autoContrast) bgLuminance else 0.15f
+                    // If luminance is high, make the center and edge overlays darker
+                    val centerAlpha = (0.35f + baseLuminance * 0.5f).coerceIn(0.35f, 0.88f)
+                    val edgeAlpha = (0.55f + baseLuminance * 0.4f).coerceIn(0.55f, 0.97f)
+
+                    val centerColor = Color(0, 0, 0, (centerAlpha * 255).toInt())
+                    val edgeColor = Color(0, 0, 0, (edgeAlpha * 255).toInt())
+
                     drawRect(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color(0xD00A0A0F),
-                                Color(0xEC000000)
+                                centerColor,
+                                edgeColor
                             ),
                             center = center,
                             radius = size.minDimension * 1.5f

@@ -13,16 +13,24 @@ import com.example.data.InstalledApp
 import com.example.data.SettingsManager
 import com.example.data.UsageTracker
 import com.example.data.getParsedEmbedding
+import com.example.data.McpManager
+import com.example.data.McpServerEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import android.util.Log
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 
 class AppLauncherViewModel(
     private val repository: AppRepository,
@@ -33,6 +41,7 @@ class AppLauncherViewModel(
     private val TAG = "AppLauncherViewModel"
     private var isAnalysisCancelled = false
     val usageTracker = UsageTracker(context)
+    val mcpManager = McpManager(context, repository, settingsManager)
 
     private val _analysisProgressPercent = MutableStateFlow(0f)
     val analysisProgressPercent: StateFlow<Float> = _analysisProgressPercent.asStateFlow()
@@ -151,6 +160,9 @@ class AppLauncherViewModel(
 
         // Run background backfill of embeddings for existing apps
         ensureEmbeddingsForAnalyzedApps()
+
+        // Start background image luminance tracking
+        startBgLuminanceAnalysis()
     }
 
     private fun ensureEmbeddingsForAnalyzedApps() {
@@ -593,7 +605,8 @@ class AppLauncherViewModel(
                     wikiEntries = currentWikis,
                     modelName = modelName,
                     customApiKey = customApiKey,
-                    languageCode = lang
+                    languageCode = lang,
+                    mcpManager = mcpManager
                 )
                 _assistantResponse.value = response
                 val ghQuery = response?.githubSearchQuery
@@ -625,6 +638,98 @@ class AppLauncherViewModel(
         _assistantResponse.value = null
         _isAssistantLoading.value = false
         _githubRepos.value = emptyList()
+    }
+
+    private val _bgLuminance = MutableStateFlow(0.05f) // Default is dark (procedural nebula)
+    val bgLuminance: StateFlow<Float> = _bgLuminance.asStateFlow()
+
+    val autoContrast: StateFlow<Boolean> = settingsManager.autoContrast
+
+    private fun startBgLuminanceAnalysis() {
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsManager.bgImageUrl.collectLatest { url ->
+                if (url == "procedural_nebula") {
+                    _bgLuminance.value = 0.05f
+                } else {
+                    try {
+                        val loader = ImageLoader(context)
+                        val request = ImageRequest.Builder(context)
+                            .data(url)
+                            .allowHardware(false) // Allow pixel reading
+                            .build()
+                        val result = loader.execute(request)
+                        if (result is SuccessResult) {
+                            val drawable = result.drawable
+                            if (drawable is BitmapDrawable) {
+                                val bitmap = drawable.bitmap
+                                val luminance = analyzeBitmapLuminance(bitmap)
+                                Log.d(TAG, "Analyzed background luminance for $url: $luminance")
+                                _bgLuminance.value = luminance
+                            } else {
+                                _bgLuminance.value = 0.4f
+                            }
+                        } else {
+                            _bgLuminance.value = 0.4f
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to analyze background image luminance", e)
+                        _bgLuminance.value = 0.4f
+                    }
+                }
+            }
+        }
+    }
+
+    private fun analyzeBitmapLuminance(bitmap: Bitmap): Float {
+        val width = bitmap.width
+        val height = bitmap.height
+        val stepX = (width / 40).coerceAtLeast(1)
+        val stepY = (height / 40).coerceAtLeast(1)
+        var totalLuminance = 0.0
+        var count = 0
+        for (x in 0 until width step stepX) {
+            for (y in 0 until height step stepY) {
+                if (x < width && y < height) {
+                    val pixel = bitmap.getPixel(x, y)
+                    val r = android.graphics.Color.red(pixel) / 255.0
+                    val g = android.graphics.Color.green(pixel) / 255.0
+                    val b = android.graphics.Color.blue(pixel) / 255.0
+                    val l = 0.2126 * r + 0.7152 * g + 0.0722 * b
+                    totalLuminance += l
+                    count++
+                }
+            }
+        }
+        return if (count > 0) (totalLuminance / count).toFloat() else 0.4f
+    }
+
+    val mcpServers: StateFlow<List<McpServerEntity>> = repository.allMcpServersFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addMcpServer(name: String, description: String, endpointUrl: String) {
+        viewModelScope.launch {
+            val server = McpServerEntity(
+                name = name,
+                description = description,
+                type = "REMOTE",
+                endpointUrl = endpointUrl,
+                isEnabled = true,
+                lastUpdated = System.currentTimeMillis()
+            )
+            repository.insertMcpServer(server)
+        }
+    }
+
+    fun deleteMcpServer(id: Long) {
+        viewModelScope.launch {
+            repository.deleteMcpServerById(id)
+        }
+    }
+
+    fun toggleMcpServer(server: McpServerEntity, isEnabled: Boolean) {
+        viewModelScope.launch {
+            repository.insertMcpServer(server.copy(isEnabled = isEnabled, lastUpdated = System.currentTimeMillis()))
+        }
     }
 
     fun refreshInstalledApps() {
