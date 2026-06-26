@@ -67,6 +67,13 @@ class AppLauncherViewModel(
     val favorites: StateFlow<List<String>> = usageTracker.favorites
     val customIcons: StateFlow<Map<String, String>> = usageTracker.customIcons
 
+    // Unfiltered installed apps stream for stable category calculations during search
+    val allAppsState: StateFlow<List<InstalledApp>> = repository.getInstalledAppsFlow(context).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     // Combine installed apps with search query and vector search settings
     val appListState: StateFlow<List<InstalledApp>> = combine(
         repository.getInstalledAppsFlow(context),

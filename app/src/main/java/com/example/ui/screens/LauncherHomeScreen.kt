@@ -122,6 +122,7 @@ fun LauncherHomeScreen(
         }
     }
     val apps by viewModel.appListState.collectAsState()
+    val allApps by viewModel.allAppsState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
     val analysisProgress by viewModel.analysisProgress.collectAsState()
@@ -152,9 +153,9 @@ fun LauncherHomeScreen(
         }
     }
 
-    // Dynamic distinct categories in the current list
-    val categories = remember(apps) {
-        val uniqueCats = apps.map { it.cachedInfo?.category ?: "未解析" }
+    // Dynamic distinct categories in the current list, stable during search
+    val categories = remember(allApps) {
+        val uniqueCats = allApps.map { it.cachedInfo?.category ?: "未解析" }
             .filter { it.isNotBlank() }
             .distinct()
             .sorted()
