@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -168,6 +169,45 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .testTag("primary_model_input")
                         )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                        ) {
+                            listOf(
+                                "gemini-flash-latest",
+                                "gemini-flash-lite-latest"
+                            ).forEach { modelOption ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            if (primaryModel == modelOption) Color(0xFF81C784).copy(alpha = 0.25f)
+                                            else Color(0x1AFFFFFF)
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (primaryModel == modelOption) Color(0xFF81C784)
+                                                    else Color(0x1FFFFFFF),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable {
+                                            primaryModel = modelOption
+                                            viewModel.settingsManager.setPrimaryModel(modelOption)
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = modelOption.removePrefix("models/"),
+                                        color = if (primaryModel == modelOption) Color(0xFF81C784) else Color(0xB2FFFFFF),
+                                        fontSize = 11.sp,
+                                        fontWeight = if (primaryModel == modelOption) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Backup model
@@ -189,6 +229,45 @@ fun SettingsScreen(
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                        ) {
+                            listOf(
+                                "gemini-flash-latest",
+                                "gemini-flash-lite-latest"
+                            ).forEach { modelOption ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            if (backupModel == modelOption) Color(0xFF64B5F6).copy(alpha = 0.25f)
+                                            else Color(0x1AFFFFFF)
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (backupModel == modelOption) Color(0xFF64B5F6)
+                                                    else Color(0x1FFFFFFF),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable {
+                                            backupModel = modelOption
+                                            viewModel.settingsManager.setBackupModel(modelOption)
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = modelOption.removePrefix("models/"),
+                                        color = if (backupModel == modelOption) Color(0xFF64B5F6) else Color(0xB2FFFFFF),
+                                        fontSize = 11.sp,
+                                        fontWeight = if (backupModel == modelOption) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Embedding model

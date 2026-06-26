@@ -92,6 +92,25 @@ data class GeminiAppAnalysis(
     val relatedLinks: List<RelatedLink>
 )
 
+data class AppToAnalyze(
+    val packageName: String,
+    val label: String
+)
+
+@JsonClass(generateAdapter = true)
+data class GeminiBulkAppAnalysisItem(
+    val packageName: String,
+    val category: String,
+    val summary: String,
+    val tags: List<String>,
+    val relatedLinks: List<RelatedLink>
+)
+
+@JsonClass(generateAdapter = true)
+data class GeminiBulkAnalysisResponse(
+    val results: List<GeminiBulkAppAnalysisItem>
+)
+
 @JsonClass(generateAdapter = true)
 data class GeminiCategoryMerge(
     val oldCategory: String,
@@ -158,6 +177,57 @@ object GeminiClient {
             .create(GeminiApiService::class.java)
     }
 
+    private fun escapeJsonNewlines(json: String): String {
+        val sb = StringBuilder()
+        var inString = false
+        var isEscaped = false
+        for (i in 0 until json.length) {
+            val char = json[i]
+            if (char == '"' && !isEscaped) {
+                inString = !inString
+            }
+            if (char == '\\' && !isEscaped) {
+                isEscaped = true
+            } else {
+                isEscaped = false
+            }
+            
+            if (char == '\n' && inString) {
+                sb.append("\\n")
+            } else if (char == '\r' && inString) {
+                sb.append("\\r")
+            } else {
+                sb.append(char)
+            }
+        }
+        return sb.toString()
+    }
+
+    private fun cleanJsonText(raw: String?): String? {
+        if (raw == null) return null
+        val cleaned = raw.trim()
+        
+        var jsonOnly = cleaned
+        // 1. First, check if there's a markdown code block like ```json ... ``` or ``` ... ```
+        val codeBlockRegex = Regex("```(?:json)?\\s*([\\s\\S]*?)\\s*```")
+        val matchResult = codeBlockRegex.find(cleaned)
+        if (matchResult != null) {
+            val content = matchResult.groupValues[1].trim()
+            if (content.startsWith("{") && content.endsWith("}")) {
+                jsonOnly = content
+            }
+        } else {
+            // 2. If no code block found, or if it didn't contain valid braces, find the outer-most curly braces
+            val firstBrace = cleaned.indexOf('{')
+            val lastBrace = cleaned.lastIndexOf('}')
+            if (firstBrace != -1 && lastBrace != -1 && firstBrace < lastBrace) {
+                jsonOnly = cleaned.substring(firstBrace, lastBrace + 1).trim()
+            }
+        }
+        
+        return escapeJsonNewlines(jsonOnly)
+    }
+
     suspend fun analyzeApp(
         appName: String,
         packageName: String,
@@ -182,6 +252,11 @@ object GeminiClient {
             "zh" -> "Chinese"
             else -> "Japanese"
         }
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val backupModelNameClean = backupModelName.removePrefix("models/")
+        val isGemma = cleanModelName.contains("gemma", ignoreCase = true)
+        val isBackupGemma = backupModelNameClean.contains("gemma", ignoreCase = true)
 
         val promptBuilder = StringBuilder()
         promptBuilder.append("""
@@ -221,6 +296,10 @@ object GeminiClient {
             
             Format your response STRICTLY as a JSON object adhering to the schema.
         """.trimIndent())
+
+        if (isGemma || isBackupGemma) {
+            promptBuilder.append("\n\nIMPORTANT: You must return ONLY a raw JSON string matching the expected JSON format. Do not wrap the JSON in markdown code blocks like ```json ... ```, and do not write any conversation before or after the JSON.")
+        }
 
         val schema: Map<String, Any> = mapOf(
             "type" to "OBJECT",
@@ -277,12 +356,28 @@ object GeminiClient {
         // Try primary model first, fallback to backup if it fails
         return try {
             Log.d(TAG, "Calling Gemini API using primary model: $modelName")
-            val response = apiService.generateContent(modelName, apiKey, request)
+            val primaryRequest = if (isGemma) {
+                request.copy(
+                    generationConfig = request.generationConfig?.copy(
+                        responseMimeType = null,
+                        responseSchema = null
+                    )
+                )
+            } else request
+            val response = apiService.generateContent(cleanModelName, apiKey, primaryRequest)
             parseResponse(response)
         } catch (e: Exception) {
             Log.e(TAG, "Primary model failed: ${e.message}. Retrying with backup model: $backupModelName", e)
             try {
-                val response = apiService.generateContent(backupModelName, apiKey, request)
+                val backupRequest = if (isBackupGemma) {
+                    request.copy(
+                        generationConfig = request.generationConfig?.copy(
+                            responseMimeType = null,
+                            responseSchema = null
+                        )
+                    )
+                } else request
+                val response = apiService.generateContent(backupModelNameClean, apiKey, backupRequest)
                 parseResponse(response)
             } catch (fallbackEx: Exception) {
                 Log.e(TAG, "Backup model failed: ${fallbackEx.message}", fallbackEx)
@@ -299,11 +394,158 @@ object GeminiClient {
         }
 
         return try {
-            Log.d(TAG, "Raw JSON response: $rawJson")
-            val adapter = moshi.adapter(GeminiAppAnalysis::class.java)
-            adapter.fromJson(rawJson)
+            val cleanedJson = cleanJsonText(rawJson) ?: ""
+            Log.d(TAG, "Parsed JSON response: $cleanedJson")
+            val adapter = moshi.adapter(GeminiAppAnalysis::class.java).lenient()
+            adapter.fromJson(cleanedJson)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse JSON response: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun analyzeAppsBulk(
+        apps: List<AppToAnalyze>,
+        modelName: String,
+        backupModelName: String,
+        languageCode: String = "ja",
+        customApiKey: String? = null
+    ): List<GeminiBulkAppAnalysisItem>? {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            Log.e(TAG, "API Key is missing or default placeholder!")
+            return null
+        }
+        if (apps.isEmpty()) return emptyList()
+
+        val langName = when (languageCode) {
+            "en" -> "English"
+            "ko" -> "Korean"
+            "zh" -> "Chinese"
+            else -> "Japanese"
+        }
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val backupModelNameClean = backupModelName.removePrefix("models/")
+        val isGemma = cleanModelName.contains("gemma", ignoreCase = true)
+        val isBackupGemma = backupModelNameClean.contains("gemma", ignoreCase = true)
+
+        val promptBuilder = StringBuilder()
+        promptBuilder.append("Please analyze the following list of Android applications in bulk:\n")
+        apps.forEachIndexed { index, app ->
+            promptBuilder.append("${index + 1}. App Name: ${app.label}, Package Name: ${app.packageName}\n")
+        }
+
+        promptBuilder.append("""
+            
+            Provide the following information for EACH of the applications in the list:
+            1. The exact same packageName (must match the input exactly).
+            2. An appropriate standard high-level category in $langName (e.g., "Productivity", "Social", "Utility", "Game", "Entertainment", "Finance", "Education", "System", or equivalent in $langName).
+            3. A brief, useful summary of this application in $langName (explaining its core purpose).
+            4. At least 5 relevant tags or keywords in $langName.
+            5. At least 3 relevant high-quality related links or external resources in $langName (e.g., official support site, Wikipedia article, Google Play Store search, documentation, or relevant guides).
+            
+            Format your response STRICTLY as a JSON object matching the responseSchema. It must have a top-level "results" array where each item contains the fields: "packageName", "category", "summary", "tags", "relatedLinks".
+        """.trimIndent())
+
+        if (isGemma || isBackupGemma) {
+            promptBuilder.append("\n\nIMPORTANT: You must return ONLY a raw JSON string matching the expected JSON format. Do not wrap the JSON in markdown code blocks like ```json ... ```, and do not write any conversation before or after the JSON.")
+        }
+
+        val schema: Map<String, Any> = mapOf(
+            "type" to "OBJECT",
+            "properties" to mapOf(
+                "results" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf(
+                        "type" to "OBJECT",
+                        "properties" to mapOf(
+                            "packageName" to mapOf("type" to "STRING", "description" to "The exact package name of the app"),
+                            "category" to mapOf("type" to "STRING", "description" to "A general standard category in $langName"),
+                            "summary" to mapOf("type" to "STRING", "description" to "A concise summary of the app's purpose in $langName"),
+                            "tags" to mapOf(
+                                "type" to "ARRAY",
+                                "items" to mapOf("type" to "STRING"),
+                                "description" to "At least 5 relevant descriptive tags or keywords in $langName"
+                            ),
+                            "relatedLinks" to mapOf(
+                                "type" to "ARRAY",
+                                "items" to mapOf(
+                                    "type" to "OBJECT",
+                                    "properties" to mapOf(
+                                        "title" to mapOf("type" to "STRING", "description" to "Title of the link in $langName"),
+                                        "url" to mapOf("type" to "STRING", "description" to "Valid URL related to the app")
+                                    ),
+                                    "required" to listOf("title", "url")
+                                ),
+                                "description" to "At least 3 high-quality relevant external links or resources in $langName"
+                            )
+                        ),
+                        "required" to listOf("packageName", "category", "summary", "tags", "relatedLinks")
+                    )
+                )
+            ),
+            "required" to listOf("results")
+        )
+
+        val request = GeminiRequest(
+            contents = listOf(
+                GeminiContent(parts = listOf(GeminiPart(text = promptBuilder.toString())))
+            ),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = "application/json",
+                responseSchema = schema,
+                temperature = 0.2
+            )
+        )
+
+        return try {
+            Log.d(TAG, "Calling Gemini API for bulk analysis using primary model: $modelName")
+            val primaryRequest = if (isGemma) {
+                request.copy(
+                    generationConfig = request.generationConfig?.copy(
+                        responseMimeType = null,
+                        responseSchema = null
+                    )
+                )
+            } else request
+            val response = apiService.generateContent(cleanModelName, apiKey, primaryRequest)
+            parseBulkResponse(response)
+        } catch (e: Exception) {
+            Log.e(TAG, "Primary model bulk analysis failed: ${e.message}. Retrying with backup model: $backupModelName", e)
+            try {
+                val backupRequest = if (isBackupGemma) {
+                    request.copy(
+                        generationConfig = request.generationConfig?.copy(
+                            responseMimeType = null,
+                            responseSchema = null
+                        )
+                    )
+                } else request
+                val response = apiService.generateContent(backupModelNameClean, apiKey, backupRequest)
+                parseBulkResponse(response)
+            } catch (fallbackEx: Exception) {
+                Log.e(TAG, "Backup model bulk analysis failed: ${fallbackEx.message}", fallbackEx)
+                null
+            }
+        }
+    }
+
+    private fun parseBulkResponse(response: GeminiResponse): List<GeminiBulkAppAnalysisItem>? {
+        val rawJson = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+        if (rawJson.isNullOrBlank()) {
+            Log.e(TAG, "Gemini bulk returned empty response")
+            return null
+        }
+
+        return try {
+            val cleanedJson = cleanJsonText(rawJson) ?: ""
+            Log.d(TAG, "Parsed bulk JSON response: $cleanedJson")
+            val adapter = moshi.adapter(GeminiBulkAnalysisResponse::class.java).lenient()
+            val parsed = adapter.fromJson(cleanedJson)
+            parsed?.results
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse bulk JSON response: ${e.message}", e)
             null
         }
     }
@@ -398,6 +640,7 @@ object GeminiClient {
         }
 
         val cleanModelName = modelName.removePrefix("models/")
+        val isGemma = cleanModelName.contains("gemma", ignoreCase = true)
         
         val langName = when (languageCode) {
             "en" -> "English"
@@ -415,6 +658,7 @@ object GeminiClient {
             
             Categories to process:
             ${categories.joinToString(", ")}
+            ${if (isGemma) "\n\nIMPORTANT: Return ONLY a raw JSON string of format {\"merges\":[{\"oldCategory\":\"...\",\"newCategory\":\"...\"}]}. Do not include markdown blocks or extra text." else ""}
         """.trimIndent()
 
         val request = GeminiRequest(
@@ -422,8 +666,8 @@ object GeminiClient {
                 parts = listOf(GeminiPart(text = prompt))
             )),
             generationConfig = GeminiGenerationConfig(
-                responseMimeType = "application/json",
-                responseSchema = mapOf(
+                responseMimeType = if (isGemma) null else "application/json",
+                responseSchema = if (isGemma) null else mapOf(
                     "type" to "object",
                     "properties" to mapOf(
                         "merges" to mapOf(
@@ -446,9 +690,10 @@ object GeminiClient {
         return@withContext try {
             val response = apiService.generateContent(cleanModelName, apiKey, request)
             val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-            if (jsonText != null) {
-                val adapter = moshi.adapter(GeminiCategoryMergeResponse::class.java)
-                val mergeResponse = adapter.fromJson(jsonText)
+            val cleanedJson = cleanJsonText(jsonText)
+            if (cleanedJson != null) {
+                val adapter = moshi.adapter(GeminiCategoryMergeResponse::class.java).lenient()
+                val mergeResponse = adapter.fromJson(cleanedJson)
                 mergeResponse?.merges?.associate { it.oldCategory to it.newCategory }
             } else {
                 null
@@ -482,6 +727,7 @@ object GeminiClient {
         }
 
         val cleanModelName = modelName.removePrefix("models/")
+        val isGemma = cleanModelName.contains("gemma", ignoreCase = true)
         val langName = when (languageCode) {
             "en" -> "English"
             "ko" -> "Korean"
@@ -533,6 +779,12 @@ object GeminiClient {
             Format your response STRICTLY as a JSON object adhering to the schema.
         """.trimIndent()
 
+        val finalPrompt = if (isGemma) {
+            prompt + "\n\nIMPORTANT: You must return ONLY a raw JSON string matching the expected JSON format. Do not wrap the JSON in markdown code blocks like ```json ... ```, and do not write any conversation before or after the JSON."
+        } else {
+            prompt
+        }
+
         val schema = mapOf(
             "type" to "OBJECT",
             "properties" to mapOf(
@@ -571,8 +823,8 @@ object GeminiClient {
             "required" to listOf("headline", "answer", "relevantPackages", "suggestions")
         )
 
-        // Prep tools
-        val mcpTools = mcpManager?.getAvailableTools() ?: emptyList()
+        // Prep tools (disable MCP tools for Gemma as it doesn't support tools/function calling over standard payload)
+        val mcpTools = if (isGemma) emptyList() else (mcpManager?.getAvailableTools() ?: emptyList())
         val geminiTools = if (mcpTools.isNotEmpty()) {
             listOf(GeminiTool(functionDeclarations = mcpTools.map {
                 GeminiFunctionDeclaration(
@@ -585,7 +837,7 @@ object GeminiClient {
 
         val contents = mutableListOf(GeminiContent(
             role = "user",
-            parts = listOf(GeminiPart(text = prompt))
+            parts = listOf(GeminiPart(text = finalPrompt))
         ))
 
         return@withContext try {
@@ -598,8 +850,8 @@ object GeminiClient {
                     contents = contents,
                     tools = geminiTools,
                     generationConfig = GeminiGenerationConfig(
-                        responseMimeType = if (geminiTools == null) "application/json" else null,
-                        responseSchema = if (geminiTools == null) schema else null,
+                        responseMimeType = if (geminiTools == null && !isGemma) "application/json" else null,
+                        responseSchema = if (geminiTools == null && !isGemma) schema else null,
                         temperature = 0.4
                     )
                 )
@@ -652,27 +904,48 @@ object GeminiClient {
             }
 
             if (responseText != null) {
-                var cleanedJson = responseText.trim()
-                if (cleanedJson.startsWith("```")) {
-                    cleanedJson = cleanedJson.replaceFirst(Regex("^```(?:json)?\\s*"), "")
-                    cleanedJson = cleanedJson.replace(Regex("\\s*```$"), "")
-                }
-                cleanedJson = cleanedJson.trim()
-
-                val adapter = moshi.adapter(GeminiAssistantResponse::class.java)
+                val cleanedJson = cleanJsonText(responseText) ?: ""
+                Log.d(TAG, "Parsed chat JSON response: $cleanedJson")
+                val adapter = moshi.adapter(GeminiAssistantResponse::class.java).lenient()
                 adapter.fromJson(cleanedJson)
             } else {
                 null
             }
         } catch (e: Exception) {
             Log.e(TAG, "askAssistant failed: ${e.message}", e)
+            val isRateLimit = e is retrofit2.HttpException && e.code() == 429
+            val headline = if (isRateLimit) {
+                if (languageCode == "ja") "⚠️ リクエスト制限に達しました (HTTP 429)" else "⚠️ Rate Limit Exceeded (HTTP 429)"
+            } else {
+                if (languageCode == "ja") "エラーが発生しました" else "An error occurred"
+            }
+            val answer = if (isRateLimit) {
+                if (languageCode == "ja") {
+                    "現在、Gemini APIの無料枠のリクエスト制限（HTTP 429 Too Many Requests）に達しています。\n\n" +
+                    "**【主な原因】**\n" +
+                    "無料プランのAPIキーには、1分間に送信できるリクエスト回数（通常10〜15回程度）の厳しい制限があります。特にアプリの一括自動解析を行った直後や、MCPツール連携による連続呼び出しが発生した場合に一時的な制限にかかりやすくなります。\n\n" +
+                    "**【解決方法】**\n" +
+                    "1. **少し時間をおく**: 1分〜数分ほどお待ちいただくと、制限が自動的に解除されます。\n" +
+                    "2. **専用のAPIキーを設定する**: ご自身のGoogle AI Studio（無料枠あり）でAPIキーを発行し、このアプリの「設定」画面から設定していただくことで、制限を大幅に緩和できます。"
+                } else {
+                    "You have reached the temporary rate limit for the free tier of the Gemini API (HTTP 429 Too Many Requests).\n\n" +
+                    "**【Why?】**\n" +
+                    "The free tier is limited to a certain number of requests per minute (typically 10-15 RPM). Bulk app auto-analysis, or rapid sequential tool calls (MCP), can trigger this limit.\n\n" +
+                    "**【Solutions】**\n" +
+                    "1. **Wait a bit**: Please wait for about a minute and try again.\n" +
+                    "2. **Use your own API Key**: Head over to the Settings screen in this app and input your personal Gemini API Key from Google AI Studio to increase your usage limits."
+                }
+            } else {
+                if (languageCode == "ja") "AIの呼び出し中にエラーが発生しました: ${e.localizedMessage}" else "An error occurred while calling the AI: ${e.localizedMessage}"
+            }
+            
             GeminiAssistantResponse(
-                headline = if (languageCode == "ja") "エラーが発生しました" else "An error occurred",
-                answer = if (languageCode == "ja") "AIの呼び出し中にエラーが発生しました: ${e.localizedMessage}" else "An error occurred while calling the AI: ${e.localizedMessage}",
+                headline = headline,
+                answer = answer,
                 relevantPackages = emptyList(),
                 suggestions = listOf(
                     if (languageCode == "ja") "もう一度試す" else "Try again",
-                    if (languageCode == "ja") "お気に入りアプリ" else "Favorites"
+                    if (languageCode == "ja") "設定を開く" else "Open Settings"
                 )
             )
         }
@@ -689,6 +962,7 @@ object GeminiClient {
         if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") return@withContext null
 
         val cleanModelName = modelName.removePrefix("models/")
+        val isGemma = cleanModelName.contains("gemma", ignoreCase = true)
         val langName = when (languageCode) {
             "en" -> "English"
             "ko" -> "Korean"
@@ -709,6 +983,7 @@ object GeminiClient {
             3. Choose an appropriate category (e.g., "Preference", "Instruction", "Fact", "General").
             
             Format your response STRICTLY as a JSON object adhering to the schema.
+            ${if (isGemma) "\nIMPORTANT: Return ONLY a raw JSON string of format {\"title\":\"...\",\"content\":\"...\",\"category\":\"...\"}. Do not include markdown block tags or extra text." else ""}
         """.trimIndent()
 
         val schema = mapOf(
@@ -726,8 +1001,8 @@ object GeminiClient {
                 parts = listOf(GeminiPart(text = prompt))
             )),
             generationConfig = GeminiGenerationConfig(
-                responseMimeType = "application/json",
-                responseSchema = schema,
+                responseMimeType = if (isGemma) null else "application/json",
+                responseSchema = if (isGemma) null else schema,
                 temperature = 0.3
             )
         )
@@ -735,8 +1010,9 @@ object GeminiClient {
         try {
             val response = apiService.generateContent(cleanModelName, apiKey, request)
             val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-            if (jsonText != null) {
-                val json = org.json.JSONObject(jsonText)
+            val cleanedJson = cleanJsonText(jsonText)
+            if (cleanedJson != null) {
+                val json = org.json.JSONObject(cleanedJson)
                 LlmWikiEntry(
                     title = json.optString("title", "Saved Memory"),
                     content = json.optString("content", ""),

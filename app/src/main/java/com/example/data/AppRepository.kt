@@ -6,6 +6,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -164,6 +165,118 @@ class AppRepository(private val appDao: AppDao) {
             Log.e(TAG, "Failed to analyze app: $label")
             false
         }
+    }
+
+    // Run AI analysis on multiple apps in bulk and save to Room
+    suspend fun analyzeAndCacheAppsBulk(
+        context: Context,
+        appsToAnalyze: List<com.example.data.AppToAnalyze>,
+        settingsManager: SettingsManager,
+        isCancelled: () -> Boolean,
+        onProgress: (currentIndex: Int, total: Int, currentBatchNames: String) -> Unit
+    ): Int = withContext(Dispatchers.IO) {
+        val primaryModel = settingsManager.getPrimaryModel()
+        val backupModel = settingsManager.getBackupModel()
+        val aiLanguage = settingsManager.getAiLanguage()
+        val customApiKey = settingsManager.getGeminiApiKey()
+
+        val batchSize = 10
+        var successCount = 0
+        val total = appsToAnalyze.size
+
+        val pm = context.packageManager
+        val systemPackageNames = try {
+            pm.getInstalledPackages(PackageManager.GET_META_DATA).associate { 
+                it.packageName to (it.applicationInfo?.let { info -> (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 } ?: false)
+            }
+        } catch (e: Exception) {
+            emptyMap()
+        }
+
+        val chunks = appsToAnalyze.chunked(batchSize)
+        var processedCount = 0
+
+        for ((chunkIndex, chunk) in chunks.withIndex()) {
+            if (isCancelled()) break
+            val names = chunk.joinToString(", ") { it.label }
+            onProgress(processedCount, total, names)
+
+            Log.d(TAG, "Starting bulk AI analysis for batch ${chunkIndex + 1}/${chunks.size} containing: $names")
+            val results = GeminiClient.analyzeAppsBulk(
+                apps = chunk,
+                modelName = primaryModel,
+                backupModelName = backupModel,
+                languageCode = aiLanguage,
+                customApiKey = customApiKey
+            )
+
+            if (isCancelled()) break
+
+            if (results != null) {
+                for (result in results) {
+                    if (isCancelled()) break
+                    val appToAnalyze = chunk.find { it.packageName == result.packageName }
+                    val label = appToAnalyze?.label ?: result.packageName
+                    val isSystemApp = systemPackageNames[result.packageName] ?: false
+
+                    val tagsCsv = result.tags.joinToString(",")
+                    val linksJson = serializeLinks(result.relatedLinks)
+
+                    val embedText = "Label: $label. Category: ${result.category}. Summary: ${result.summary}. Tags: $tagsCsv"
+                    val embeddingVector = try {
+                        GeminiClient.getEmbedding(embedText, customApiKey)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error fetching embedding vector in bulk: ${e.message}")
+                        null
+                    }
+                    val embeddingCsv = embeddingVector?.joinToString(",")
+
+                    val appInfo = AppInfo(
+                        packageName = result.packageName,
+                        label = label,
+                        category = result.category,
+                        summary = result.summary,
+                        tags = tagsCsv,
+                        relatedLinks = linksJson,
+                        isSystemApp = isSystemApp,
+                        lastUpdated = System.currentTimeMillis(),
+                        embedding = embeddingCsv
+                    )
+
+                    appDao.insertApp(appInfo)
+                    successCount++
+                }
+            } else {
+                Log.e(TAG, "Failed bulk analysis for batch ${chunkIndex + 1}/${chunks.size}. Falling back to individual sequential analysis for this batch...")
+                for (app in chunk) {
+                    if (isCancelled()) break
+                    val isSystemApp = systemPackageNames[app.packageName] ?: false
+                    val success = analyzeAndCacheApp(
+                        context = context,
+                        packageName = app.packageName,
+                        label = app.label,
+                        isSystemApp = isSystemApp,
+                        settingsManager = settingsManager
+                    )
+                    if (success) {
+                        successCount++
+                    }
+                    delay(1500)
+                }
+            }
+
+            processedCount += chunk.size
+
+            if (chunkIndex < chunks.size - 1) {
+                // Wait 4 seconds, but check cancellation every 500ms
+                for (i in 0 until 8) {
+                    if (isCancelled()) break
+                    delay(500)
+                }
+            }
+        }
+
+        successCount
     }
 
     suspend fun updateAppInfo(appInfo: AppInfo) = withContext(Dispatchers.IO) {

@@ -139,6 +139,7 @@ fun LauncherHomeScreen(
     val isCorrectingVoice by viewModel.isCorrectingVoice.collectAsState()
 
     var isSearchExpanded by remember { mutableStateOf(false) }
+    var showAnalysisModeDialog by remember { mutableStateOf(false) }
 
     val speechRecognizerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -534,7 +535,7 @@ fun LauncherHomeScreen(
                                 Text(Localization.get("unanalyzed_ribbon_desc", aiLanguage), color = Color(0xCCFFFFFF), fontSize = 11.sp)
                             }
                             Button(
-                                onClick = { viewModel.autoAnalyzeAllUnanalyzed() },
+                                onClick = { showAnalysisModeDialog = true },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF81C784)),
                                 shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
@@ -546,6 +547,15 @@ fun LauncherHomeScreen(
                             }
                         }
                     }
+                }
+
+                if (showAnalysisModeDialog) {
+                    AnalysisModeSelectionDialog(
+                        onDismiss = { showAnalysisModeDialog = false },
+                        onSelectBulk = { viewModel.autoAnalyzeAllUnanalyzedBulk() },
+                        onSelectSequential = { viewModel.autoAnalyzeAllUnanalyzedSequential() },
+                        aiLanguage = aiLanguage
+                    )
                 }
 
                 // 3. Batch Analysis Progress Bar
@@ -2392,5 +2402,176 @@ fun AppVectorRadarChart(
         }
     }
 }
+
+@Composable
+fun AnalysisModeSelectionDialog(
+    onDismiss: () -> Unit,
+    onSelectBulk: () -> Unit,
+    onSelectSequential: () -> Unit,
+    aiLanguage: String
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xF0080812))
+                .border(1.dp, Color(0x20FFFFFF), RoundedCornerShape(24.dp))
+                .padding(20.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Title Block
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = Color(0xFF81C784),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = Localization.get("select_analysis_mode", aiLanguage),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                }
+
+                Text(
+                    text = Localization.get("select_analysis_mode_desc", aiLanguage),
+                    color = Color(0xCCFFFFFF),
+                    fontSize = 13.sp
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Bulk Option Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0x1281C784)),
+                    border = BorderStroke(1.dp, Color(0x3381C784)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onSelectBulk()
+                            onDismiss()
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x2081C784)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FlashOn,
+                                contentDescription = null,
+                                tint = Color(0xFF81C784),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = Localization.get("bulk_analyze_option", aiLanguage),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = Localization.get("bulk_analyze_desc", aiLanguage),
+                                color = Color(0xCCFFFFFF),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+
+                // Sequential Option Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0x10FFFFFF)),
+                    border = BorderStroke(1.dp, Color(0x20FFFFFF)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onSelectSequential()
+                            onDismiss()
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x15FFFFFF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.List,
+                                contentDescription = null,
+                                tint = Color(0xCCFFFFFF),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = Localization.get("sequential_analyze_option", aiLanguage),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = Localization.get("sequential_analyze_desc", aiLanguage),
+                                color = Color(0xCCFFFFFF),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Actions
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(
+                            text = Localization.get("cancel", aiLanguage),
+                            color = Color(0xCCFFFFFF)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 

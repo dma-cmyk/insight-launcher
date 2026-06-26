@@ -389,8 +389,87 @@ class AppLauncherViewModel(
         }
     }
 
+    // Bulk auto-analysis of all unanalyzed apps
+    fun autoAnalyzeAllUnanalyzedBulk() {
+        if (_isAnalyzing.value) return
+        val lang = settingsManager.getAiLanguage()
+        viewModelScope.launch {
+            val unanalyzed = appListState.value.filter { !it.isAnalyzed }
+            if (unanalyzed.isEmpty()) {
+                Toast.makeText(context, Localization.get("all_analyzed", lang), Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            _isAnalyzing.value = true
+            isAnalysisCancelled = false
+            _analysisProgressPercent.value = 0f
+            val total = unanalyzed.size
+            var successCount = 0
+
+            val appsToAnalyze = unanalyzed.map { com.example.data.AppToAnalyze(it.packageName, it.label) }
+
+            val initialStatus = if (lang == "ja") {
+                "一括解析の準備中..."
+            } else if (lang == "ko") {
+                "일괄 분석 준비 중..."
+            } else if (lang == "zh") {
+                "批量分析准备中..."
+            } else {
+                "Preparing bulk analysis..."
+            }
+            _analysisProgress.value = initialStatus
+
+            try {
+                successCount = repository.analyzeAndCacheAppsBulk(
+                    context = context,
+                    appsToAnalyze = appsToAnalyze,
+                    settingsManager = settingsManager,
+                    isCancelled = { isAnalysisCancelled },
+                    onProgress = { currentIndex, totalCount, currentBatchNames ->
+                        _analysisProgressPercent.value = currentIndex.toFloat() / totalCount
+                        val localizedFormat = if (lang == "ja") {
+                            "一括解析中... (%d/%d)\n対象: %s"
+                        } else if (lang == "ko") {
+                            "일괄 분석 중... (%d/%d)\n대상: %s"
+                        } else if (lang == "zh") {
+                            "批量分析中... (%d/%d)\n对象: %s"
+                        } else {
+                            "Bulk analyzing... (%d/%d)\nApps: %s"
+                        }
+                        _analysisProgress.value = String.format(localizedFormat, currentIndex, totalCount, currentBatchNames)
+                    }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Bulk auto-analysis failed", e)
+            }
+
+            if (!isAnalysisCancelled && successCount > 0) {
+                _analysisProgress.value = Localization.get("merging_categories_status", lang)
+                try {
+                    repository.mergeCategories(
+                        modelName = settingsManager.getPrimaryModel(),
+                        customApiKey = settingsManager.getGeminiApiKey(),
+                        languageCode = settingsManager.getAiLanguage()
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed auto merge categories after batch analysis", e)
+                }
+            }
+
+            _isAnalyzing.value = false
+            _analysisProgressPercent.value = 1.0f
+            _analysisProgress.value = ""
+
+            if (isAnalysisCancelled) {
+                Toast.makeText(context, Localization.get("batch_cancelled", lang, successCount), Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(context, Localization.get("batch_complete", lang, successCount), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     // Sequential auto-analysis of all unanalyzed apps with rate limit resilience and retries
-    fun autoAnalyzeAllUnanalyzed() {
+    fun autoAnalyzeAllUnanalyzedSequential() {
         if (_isAnalyzing.value) return
         val lang = settingsManager.getAiLanguage()
         viewModelScope.launch {
