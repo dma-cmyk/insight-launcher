@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import android.content.Context
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -35,6 +37,42 @@ import kotlinx.coroutines.withContext
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
+
+object AppIconCache {
+    private val iconCache = ConcurrentHashMap<String, ImageBitmap>()
+
+    fun get(packageName: String): ImageBitmap? {
+        return iconCache[packageName]
+    }
+
+    fun put(packageName: String, bitmap: ImageBitmap) {
+        iconCache[packageName] = bitmap
+    }
+
+    fun clear() {
+        iconCache.clear()
+    }
+}
+
+object SharedPreferencesManagerCache {
+    private var settingsManager: SettingsManager? = null
+    private var usageTracker: UsageTracker? = null
+
+    fun getSettingsManager(context: Context): SettingsManager {
+        if (settingsManager == null) {
+            settingsManager = SettingsManager(context.applicationContext)
+        }
+        return settingsManager!!
+    }
+
+    fun getUsageTracker(context: Context): UsageTracker {
+        if (usageTracker == null) {
+            usageTracker = UsageTracker(context.applicationContext)
+        }
+        return usageTracker!!
+    }
+}
 
 @Composable
 fun AppIconImage(
@@ -43,8 +81,8 @@ fun AppIconImage(
     size: Dp = 48.dp
 ) {
     val context = LocalContext.current
-    val settingsManager = remember { SettingsManager(context.applicationContext) }
-    val usageTracker = remember { UsageTracker(context.applicationContext) }
+    val settingsManager = remember { SharedPreferencesManagerCache.getSettingsManager(context) }
+    val usageTracker = remember { SharedPreferencesManagerCache.getUsageTracker(context) }
 
     val iconShape by settingsManager.iconShape.collectAsState()
     val customIcons by usageTracker.customIcons.collectAsState()
@@ -60,13 +98,23 @@ fun AppIconImage(
         }
     }
 
-    // Asynchronously load the app icon from PackageManager
-    val iconState = produceState<Drawable?>(initialValue = null, packageName) {
-        value = withContext(Dispatchers.IO) {
-            try {
-                context.packageManager.getApplicationIcon(packageName)
-            } catch (e: Exception) {
-                null
+    // Asynchronously load and convert the app icon to avoid main-thread jank
+    val iconState = produceState<ImageBitmap?>(initialValue = AppIconCache.get(packageName), packageName) {
+        if (value == null) {
+            value = withContext(Dispatchers.IO) {
+                try {
+                    val drawable = context.packageManager.getApplicationIcon(packageName)
+                    val density = context.resources.displayMetrics.density
+                    val sizePx = (size.value * density).toInt().coerceAtLeast(100)
+                    val bitmap = drawable.toBitmap(
+                        width = sizePx,
+                        height = sizePx
+                    ).asImageBitmap()
+                    AppIconCache.put(packageName, bitmap)
+                    bitmap
+                } catch (e: Exception) {
+                    null
+                }
             }
         }
     }
@@ -96,17 +144,10 @@ fun AppIconImage(
                 )
             }
         } else {
-            val drawable = iconState.value
-            if (drawable != null) {
-                // Convert to bitmap safely on main thread or convert directly
-                val bitmap = remember(drawable) {
-                    drawable.toBitmap(
-                        width = size.value.toInt().coerceAtLeast(100),
-                        height = size.value.toInt().coerceAtLeast(100)
-                    ).asImageBitmap()
-                }
+            val cachedBitmap = iconState.value
+            if (cachedBitmap != null) {
                 Image(
-                    bitmap = bitmap,
+                    bitmap = cachedBitmap,
                     contentDescription = "App Icon",
                     modifier = Modifier.fillMaxSize()
                 )

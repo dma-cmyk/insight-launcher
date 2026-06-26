@@ -8,6 +8,7 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -28,12 +29,38 @@ class AppRepository(private val appDao: AppDao) {
         private const val TAG = "AppRepository"
     }
 
+    private val refreshTrigger = MutableStateFlow(0L)
+
+    fun refreshInstalledApps() {
+        refreshTrigger.value = System.currentTimeMillis()
+    }
+
+    suspend fun syncDatabaseWithInstalledApps(context: Context) = withContext(Dispatchers.IO) {
+        try {
+            val pm = context.packageManager
+            val installedPackages = getLaunchableAppsList(pm).map { it.packageName }.toSet()
+            val cachedApps = appDao.getAllAppsDirect()
+            
+            val appsToDelete = cachedApps.filter { !installedPackages.contains(it.packageName) }
+            if (appsToDelete.isNotEmpty()) {
+                Log.d(TAG, "Deleting ${appsToDelete.size} uninstalled apps from DB: ${appsToDelete.map { it.packageName }}")
+                appsToDelete.forEach { app ->
+                    appDao.deleteAppByPackageName(app.packageName)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to sync database with installed apps: ${e.message}", e)
+        }
+    }
+
     // Get reactive flow combining PM list and Room database list
     fun getInstalledAppsFlow(context: Context): Flow<List<InstalledApp>> {
         val pm = context.packageManager
-        val allLaunchers = getLaunchableAppsList(pm)
-
-        return appDao.getAllAppsFlow().combine(flowOfEmptyListIfError(allLaunchers)) { cachedList, pmList ->
+        return combine(
+            appDao.getAllAppsFlow(),
+            refreshTrigger
+        ) { cachedList, _ ->
+            val pmList = getLaunchableAppsList(pm)
             val cachedMap = cachedList.associateBy { it.packageName }
             pmList.map { info ->
                 InstalledApp(
@@ -44,10 +71,6 @@ class AppRepository(private val appDao: AppDao) {
                 )
             }.sortedWith(compareBy<InstalledApp> { !it.isAnalyzed }.thenBy { it.label.lowercase() })
         }
-    }
-
-    private fun flowOfEmptyListIfError(list: List<PmAppInfo>): kotlinx.coroutines.flow.Flow<List<PmAppInfo>> {
-        return kotlinx.coroutines.flow.flowOf(list)
     }
 
     // Get raw launchable apps using Package Manager
@@ -147,8 +170,10 @@ class AppRepository(private val appDao: AppDao) {
         appDao.insertApp(appInfo)
     }
 
-    suspend fun getAllAppInfosDirect(): List<AppInfo> = withContext(Dispatchers.IO) {
-        appDao.getAllAppsDirect()
+    suspend fun getAllAppInfosDirect(context: Context): List<AppInfo> = withContext(Dispatchers.IO) {
+        val pm = context.packageManager
+        val installedPackageNames = getLaunchableAppsList(pm).map { it.packageName }.toSet()
+        appDao.getAllAppsDirect().filter { installedPackageNames.contains(it.packageName) }
     }
 
     private fun serializeLinks(links: List<RelatedLink>): String {

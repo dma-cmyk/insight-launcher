@@ -118,6 +118,30 @@ class AppLauncherViewModel(
     )
 
     init {
+        // Register BroadcastReceiver for package added, removed, changed
+        try {
+            val packageFilter = android.content.IntentFilter().apply {
+                addAction(android.content.Intent.ACTION_PACKAGE_ADDED)
+                addAction(android.content.Intent.ACTION_PACKAGE_REMOVED)
+                addAction(android.content.Intent.ACTION_PACKAGE_CHANGED)
+                addDataScheme("package")
+            }
+            val packageReceiver = object : android.content.BroadcastReceiver() {
+                override fun onReceive(receiverContext: android.content.Context?, intent: android.content.Intent?) {
+                    Log.d(TAG, "Package broadcast received: ${intent?.action}")
+                    refreshInstalledApps()
+                }
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(packageReceiver, packageFilter, android.content.Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(packageReceiver, packageFilter)
+            }
+            Log.d(TAG, "Successfully registered package event receiver.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register package receiver: ${e.message}", e)
+        }
+
         // Run background backfill of embeddings for existing apps
         ensureEmbeddingsForAnalyzedApps()
     }
@@ -125,7 +149,8 @@ class AppLauncherViewModel(
     private fun ensureEmbeddingsForAnalyzedApps() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val apps = repository.getAllAppInfosDirect()
+                repository.syncDatabaseWithInstalledApps(context)
+                val apps = repository.getAllAppInfosDirect(context)
                 val customApiKey = settingsManager.getGeminiApiKey()
                 apps.forEach { appInfo ->
                     if (appInfo.embedding.isNullOrBlank() && appInfo.category.isNotBlank()) {
@@ -549,7 +574,7 @@ class AppLauncherViewModel(
         viewModelScope.launch {
             _isAssistantLoading.value = true
             try {
-                val apps = repository.getAllAppInfosDirect()
+                val apps = repository.getAllAppInfosDirect(context)
                 val customApiKey = settingsManager.getGeminiApiKey()
                 val modelName = settingsManager.getPrimaryModel()
                 val lang = settingsManager.getAiLanguage()
@@ -593,6 +618,13 @@ class AppLauncherViewModel(
         _assistantResponse.value = null
         _isAssistantLoading.value = false
         _githubRepos.value = emptyList()
+    }
+
+    fun refreshInstalledApps() {
+        viewModelScope.launch {
+            repository.syncDatabaseWithInstalledApps(context)
+            repository.refreshInstalledApps()
+        }
     }
 }
 

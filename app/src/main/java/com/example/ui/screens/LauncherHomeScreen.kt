@@ -83,6 +83,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import java.util.Collections
 import kotlin.math.roundToInt
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 fun getCategoryDisplayName(category: String, lang: String): String {
     return when (category) {
@@ -106,6 +108,19 @@ fun LauncherHomeScreen(
     onScrollOffsetChanged: (Float, Float) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshInstalledApps()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
     val apps by viewModel.appListState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
