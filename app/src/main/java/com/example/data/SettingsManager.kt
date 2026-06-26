@@ -16,12 +16,14 @@ class SettingsManager(context: Context) {
         const val KEY_VIEW_MODE = "view_mode" // "GRID" or "LIST"
         const val KEY_AI_LANGUAGE = "ai_language"
         const val KEY_GEMINI_API_KEY = "gemini_api_key"
+        const val KEY_ICON_SHAPE = "icon_shape" // "ROUNDED_RECT", "CIRCLE", "SQUARE", "SQUIRCLE"
 
         const val DEFAULT_PRIMARY_MODEL = "gemini-flash-lite-latest"
         const val DEFAULT_BACKUP_MODEL = "gemini-flash-latest"
         const val DEFAULT_EMBEDDING_MODEL = "gemini-embedding-001"
         const val DEFAULT_BG_IMAGE = "procedural_nebula" // Canvas procedural nebula
         const val DEFAULT_AI_LANGUAGE = "ja"
+        const val DEFAULT_ICON_SHAPE = "ROUNDED_RECT"
 
         val SPACE_PRESETS = listOf(
             PresetBg("Procedural Nebula (Offline/Battery-Save)", "procedural_nebula"),
@@ -43,11 +45,15 @@ class SettingsManager(context: Context) {
     private val _aiLanguage = MutableStateFlow(prefs.getString(KEY_AI_LANGUAGE, DEFAULT_AI_LANGUAGE) ?: DEFAULT_AI_LANGUAGE)
     val aiLanguage: StateFlow<String> = _aiLanguage
 
+    private val _iconShape = MutableStateFlow(prefs.getString(KEY_ICON_SHAPE, DEFAULT_ICON_SHAPE) ?: DEFAULT_ICON_SHAPE)
+    val iconShape: StateFlow<String> = _iconShape
+
     fun getPrimaryModel(): String = prefs.getString(KEY_PRIMARY_MODEL, DEFAULT_PRIMARY_MODEL) ?: DEFAULT_PRIMARY_MODEL
     fun getBackupModel(): String = prefs.getString(KEY_BACKUP_MODEL, DEFAULT_BACKUP_MODEL) ?: DEFAULT_BACKUP_MODEL
     fun getEmbeddingModel(): String = prefs.getString(KEY_EMBEDDING_MODEL, DEFAULT_EMBEDDING_MODEL) ?: DEFAULT_EMBEDDING_MODEL
     fun getAiLanguage(): String = prefs.getString(KEY_AI_LANGUAGE, DEFAULT_AI_LANGUAGE) ?: DEFAULT_AI_LANGUAGE
     fun getGeminiApiKey(): String = prefs.getString(KEY_GEMINI_API_KEY, "") ?: ""
+    fun getIconShape(): String = prefs.getString(KEY_ICON_SHAPE, DEFAULT_ICON_SHAPE) ?: DEFAULT_ICON_SHAPE
 
     fun setPrimaryModel(model: String) {
         prefs.edit().putString(KEY_PRIMARY_MODEL, model).apply()
@@ -78,5 +84,10 @@ class SettingsManager(context: Context) {
     fun setAiLanguage(languageCode: String) {
         prefs.edit().putString(KEY_AI_LANGUAGE, languageCode).apply()
         _aiLanguage.value = languageCode
+    }
+
+    fun setIconShape(shape: String) {
+        prefs.edit().putString(KEY_ICON_SHAPE, shape).apply()
+        _iconShape.value = shape
     }
 }

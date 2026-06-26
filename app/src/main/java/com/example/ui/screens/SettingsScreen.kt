@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -351,6 +353,91 @@ fun SettingsScreen(
                             }
                             if (isSelected) {
                                 Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color(0xFF64B5F6))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Icon Shape Settings Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .testTag("icon_shape_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Category, contentDescription = "Icon Shape", tint = Color(0xFFA5D6A7))
+                        val titleText = if (aiLanguage == "ja") "表示アイコンの形状" else "Icon Shape"
+                        Text(titleText, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+
+                    HorizontalDivider(color = Color(0x20FFFFFF))
+
+                    val descText = if (aiLanguage == "ja") {
+                        "ランチャー全体のアプリ表示アイコンの形状をカスタマイズします。"
+                    } else {
+                        "Customize the shape of all application icons in the launcher."
+                    }
+                    Text(
+                        descText,
+                        fontSize = 12.sp,
+                        color = Color(0xB2FFFFFF),
+                        lineHeight = 16.sp
+                    )
+
+                    val shapes = listOf(
+                        "ROUNDED_RECT" to if (aiLanguage == "ja") "角丸長方形 (標準)" else "Rounded Rectangle (Default)",
+                        "CIRCLE" to if (aiLanguage == "ja") "真円" else "Circle",
+                        "SQUARE" to if (aiLanguage == "ja") "正方形" else "Square",
+                        "SQUIRCLE" to if (aiLanguage == "ja") "スクアクル (ソフトな角丸)" else "Squircle"
+                    )
+
+                    val activeIconShape by viewModel.iconShape.collectAsState()
+
+                    shapes.forEach { (shapeKey, shapeLabel) ->
+                        val isSelected = activeIconShape == shapeKey
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) Color(0x3DA5D6A7) else Color.Transparent)
+                                .clickable { viewModel.setIconShape(shapeKey) }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // Mini visual preview of the shape
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(
+                                            when (shapeKey) {
+                                                "CIRCLE" -> CircleShape
+                                                "SQUARE" -> RectangleShape
+                                                "SQUIRCLE" -> RoundedCornerShape(percent = 38)
+                                                else -> RoundedCornerShape(4.dp)
+                                            }
+                                        )
+                                        .background(if (isSelected) Color(0xFFA5D6A7) else Color(0x80FFFFFF))
+                                )
+                                Text(shapeLabel, color = Color.White, fontSize = 14.sp)
+                            }
+                            if (isSelected) {
+                                Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color(0xFFA5D6A7))
                             }
                         }
                     }

@@ -291,15 +291,16 @@ object GeminiClient {
             return@withContext null
         }
 
-        val fullModelName = if (modelName.startsWith("models/")) modelName else "models/$modelName"
+        val cleanModelName = modelName.removePrefix("models/")
+        val fullModelName = "models/$cleanModelName"
         val request = GeminiEmbeddingRequest(
             content = GeminiContent(parts = listOf(GeminiPart(text = text))),
             model = fullModelName
         )
 
         try {
-            Log.d(TAG, "Fetching embedding vector for model: $modelName")
-            val response = apiService.embedContent(modelName, apiKey, request)
+            Log.d(TAG, "Fetching embedding vector for model: $cleanModelName")
+            val response = apiService.embedContent(cleanModelName, apiKey, request)
             response.embedding?.values
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get embedding with $modelName: ${e.message}. Trying fallback to gemini-embedding-001", e)
@@ -328,7 +329,7 @@ object GeminiClient {
             return@withContext null
         }
 
-        val fullModelName = if (modelName.startsWith("models/")) modelName else "models/$modelName"
+        val cleanModelName = modelName.removePrefix("models/")
         
         val prompt = """
             You are an AI assistant that corrects speech recognition text. 
@@ -347,7 +348,7 @@ object GeminiClient {
         )
 
         return@withContext try {
-            val response = apiService.generateContent(fullModelName, apiKey, request)
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
             response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
         } catch (e: Exception) {
             Log.e(TAG, "Voice correction failed: ${e.message}", e)
@@ -368,7 +369,7 @@ object GeminiClient {
             return@withContext null
         }
 
-        val fullModelName = if (modelName.startsWith("models/")) modelName else "models/$modelName"
+        val cleanModelName = modelName.removePrefix("models/")
         
         val langName = when (languageCode) {
             "en" -> "English"
@@ -415,7 +416,7 @@ object GeminiClient {
         )
 
         return@withContext try {
-            val response = apiService.generateContent(fullModelName, apiKey, request)
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
             val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
             if (jsonText != null) {
                 val adapter = moshi.adapter(GeminiCategoryMergeResponse::class.java)
@@ -429,4 +430,119 @@ object GeminiClient {
             null
         }
     }
+
+    suspend fun askAssistant(
+        userInstruction: String,
+        apps: List<AppInfo>,
+        modelName: String,
+        customApiKey: String? = null,
+        languageCode: String = "ja"
+    ): GeminiAssistantResponse? = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            return@withContext GeminiAssistantResponse(
+                headline = if (languageCode == "ja") "APIキーが設定されていません" else "API Key is missing",
+                answer = if (languageCode == "ja") "設定からGemini APIキーを設定してください。" else "Please configure your Gemini API Key in Settings.",
+                relevantPackages = emptyList(),
+                suggestions = listOf(
+                    if (languageCode == "ja") "設定を開く" else "Open Settings",
+                    if (languageCode == "ja") "お気に入りアプリ" else "Favorites"
+                )
+            )
+        }
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val langName = when (languageCode) {
+            "en" -> "English"
+            "ko" -> "Korean"
+            "zh" -> "Chinese"
+            else -> "Japanese"
+        }
+
+        // Construct simplified apps info to avoid exceeding token limit
+        val appsJsonBuilder = StringBuilder("[")
+        apps.take(60).forEachIndexed { i, app ->
+            if (i > 0) appsJsonBuilder.append(",")
+            appsJsonBuilder.append("""{"name":"${app.label}","pkg":"${app.packageName}","cat":"${app.category}","summary":"${app.summary}","tags":"${app.tags}"}""")
+        }
+        appsJsonBuilder.append("]")
+
+        val prompt = """
+            You are a smart, friendly AI Assistant inside a modern Android launcher called AI App Launcher.
+            The user gave you this instruction/query:
+            "$userInstruction"
+
+            Here is a list of the user's installed and analyzed applications:
+            ${appsJsonBuilder.toString()}
+
+            Your tasks:
+            1. Analyze the user's instruction. If they are looking for specific apps, categories, features, or recommendations, search through their installed apps list.
+            2. Produce a "headline" summarizing your recommendation or response (short, punchy, bold title, e.g., "🎯 効率化アプリのご提案！" or "💬 友人と繋がるSNSツール").
+            3. Produce an "answer" (detailed explanation in $langName. Be friendly and engaging. Support bullet points, paragraphs, and emojis. It will be displayed in a very large and beautiful format, so make sure it's highly readable and structured).
+            4. Identify up to 6 "relevantPackages" (exact package names from the list) that are most relevant to the user's query so we can display them as clickable app cards. If the query is a general question (e.g., "tell me a joke"), this can be empty or list 1-2 most frequently used apps as helpful suggestions.
+            5. Provide 3 "suggestions" (short follow-up queries or questions in $langName, e.g., "ゲームを探して", "SNSアプリはどれ？").
+
+            Format your response STRICTLY as a JSON object adhering to the schema.
+        """.trimIndent()
+
+        val schema = mapOf(
+            "type" to "OBJECT",
+            "properties" to mapOf(
+                "headline" to mapOf("type" to "STRING", "description" to "A short, engaging title summarizing your response in $langName"),
+                "answer" to mapOf("type" to "STRING", "description" to "Detailed formatted explanation or response in $langName. Support emojis, lists, and bold text."),
+                "relevantPackages" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf("type" to "STRING"),
+                    "description" to "Exact package names of the installed apps that match the query"
+                ),
+                "suggestions" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf("type" to "STRING"),
+                    "description" to "3 short follow-up suggestions in $langName"
+                )
+            ),
+            "required" to listOf("headline", "answer", "relevantPackages", "suggestions")
+        )
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(GeminiPart(text = prompt))
+            )),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = "application/json",
+                responseSchema = schema,
+                temperature = 0.5
+            )
+        )
+
+        return@withContext try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            if (jsonText != null) {
+                val adapter = moshi.adapter(GeminiAssistantResponse::class.java)
+                adapter.fromJson(jsonText)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "askAssistant failed: ${e.message}", e)
+            GeminiAssistantResponse(
+                headline = if (languageCode == "ja") "エラーが発生しました" else "An error occurred",
+                answer = if (languageCode == "ja") "AIの呼び出し中にエラーが発生しました: ${e.localizedMessage}" else "An error occurred while calling the AI: ${e.localizedMessage}",
+                relevantPackages = emptyList(),
+                suggestions = listOf(
+                    if (languageCode == "ja") "もう一度試す" else "Try again",
+                    if (languageCode == "ja") "お気に入りアプリ" else "Favorites"
+                )
+            )
+        }
+    }
 }
+
+@JsonClass(generateAdapter = true)
+data class GeminiAssistantResponse(
+    val headline: String,
+    val answer: String,
+    val relevantPackages: List<String>?,
+    val suggestions: List<String>?
+)

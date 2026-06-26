@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.AppDatabase
 import com.example.data.AppRepository
@@ -17,6 +18,7 @@ import com.example.ui.AppLauncherViewModelFactory
 import com.example.ui.components.SpaceBackground
 import com.example.ui.screens.LauncherHomeScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.AiAssistantScreen
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -48,22 +50,51 @@ class MainActivity : ComponentActivity() {
                         scrollOffsetY = bgScrollOffsetY
                     )
 
-                    // Lightweight custom state router for extreme startup speed and low battery overhead
-                    when (currentScreen) {
-                        "home" -> LauncherHomeScreen(
-                            viewModel = viewModel,
-                            onNavigateToSettings = { 
-                                currentScreen = "settings"
-                            },
-                            onScrollOffsetChanged = { x, y ->
-                                bgScrollOffsetX = x
-                                bgScrollOffsetY = y
+                    // Smooth sliding content transition
+                    AnimatedContent(
+                        targetState = currentScreen,
+                        transitionSpec = {
+                            if (initialState == "home" && targetState == "ai_assistant") {
+                                (slideInHorizontally { it } + fadeIn()) togetherWith
+                                        (slideOutHorizontally { -it } + fadeOut())
+                            } else if (initialState == "ai_assistant" && targetState == "home") {
+                                (slideInHorizontally { -it } + fadeIn()) togetherWith
+                                        (slideOutHorizontally { it } + fadeOut())
+                            } else if (initialState == "home" && targetState == "settings") {
+                                (slideInVertically { it } + fadeIn()) togetherWith
+                                        (slideOutVertically { -it } + fadeOut())
+                            } else if (initialState == "settings" && targetState == "home") {
+                                (slideInVertically { -it } + fadeIn()) togetherWith
+                                        (slideOutVertically { it } + fadeOut())
+                            } else {
+                                fadeIn() togetherWith fadeOut()
                             }
-                        )
-                        "settings" -> SettingsScreen(
-                            viewModel = viewModel,
-                            onBack = { currentScreen = "home" }
-                        )
+                        },
+                        label = "screen_transition"
+                    ) { screen ->
+                        when (screen) {
+                            "home" -> LauncherHomeScreen(
+                                viewModel = viewModel,
+                                onNavigateToSettings = { 
+                                    currentScreen = "settings"
+                                },
+                                onNavigateToAiAssistant = {
+                                    currentScreen = "ai_assistant"
+                                },
+                                onScrollOffsetChanged = { x, y ->
+                                    bgScrollOffsetX = x
+                                    bgScrollOffsetY = y
+                                }
+                            )
+                            "settings" -> SettingsScreen(
+                                viewModel = viewModel,
+                                onBack = { currentScreen = "home" }
+                            )
+                            "ai_assistant" -> AiAssistantScreen(
+                                viewModel = viewModel,
+                                onBack = { currentScreen = "home" }
+                            )
+                        }
                     }
                 }
             }

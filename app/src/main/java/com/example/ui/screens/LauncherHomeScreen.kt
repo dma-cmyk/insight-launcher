@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import android.widget.Toast
+import java.io.File
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -35,8 +36,13 @@ import androidx.compose.foundation.pager.rememberPagerState
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -60,7 +66,23 @@ import com.example.data.getParsedLinks
 import com.example.data.getParsedTags
 import com.example.ui.AppLauncherViewModel
 import com.example.ui.Localization
+import androidx.compose.ui.graphics.graphicsLayer
 import com.example.ui.components.AppIconImage
+import com.example.data.UsageTracker
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.zIndex
+import java.util.Collections
+import kotlin.math.roundToInt
 
 fun getCategoryDisplayName(category: String, lang: String): String {
     return when (category) {
@@ -79,6 +101,7 @@ fun getCategoryDisplayName(category: String, lang: String): String {
 fun LauncherHomeScreen(
     viewModel: AppLauncherViewModel,
     onNavigateToSettings: () -> Unit,
+    onNavigateToAiAssistant: () -> Unit,
     modifier: Modifier = Modifier,
     onScrollOffsetChanged: (Float, Float) -> Unit = { _, _ -> }
 ) {
@@ -123,9 +146,17 @@ fun LauncherHomeScreen(
         listOf("すべて", "FAVORITE", "RECENT", "MOST_USED") + uniqueCats
     }
 
+    val totalPageCount = 100000
     val pagerState = rememberPagerState(
-        initialPage = 0,
-        pageCount = { categories.size }
+        initialPage = remember(categories) {
+            if (categories.isNotEmpty()) {
+                val mid = totalPageCount / 2
+                mid - (mid % categories.size)
+            } else {
+                0
+            }
+        },
+        pageCount = { if (categories.isNotEmpty()) totalPageCount else 1 }
     )
 
     val lazyListStates = remember(categories) {
@@ -140,13 +171,14 @@ fun LauncherHomeScreen(
     LaunchedEffect(pagerState, lazyListStates) {
         snapshotFlow {
             val page = pagerState.currentPage
-            val listState = if (page in lazyListStates.indices) lazyListStates[page] else null
+            val realPage = if (categories.isNotEmpty()) page % categories.size else 0
+            val listState = if (realPage in lazyListStates.indices) lazyListStates[realPage] else null
             val yOffset = if (listState != null) {
                 listState.firstVisibleItemIndex * 400f + listState.firstVisibleItemScrollOffset
             } else {
                 0f
             }
-            Pair(pagerState.currentPage + pagerState.currentPageOffsetFraction, yOffset)
+            Pair(realPage + pagerState.currentPageOffsetFraction, yOffset)
         }.collect { (x, y) ->
             onScrollOffsetChanged(x, y / 1000f)
         }
@@ -154,12 +186,15 @@ fun LauncherHomeScreen(
 
     // Synchronize pager page selection with category selection state
     LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage in categories.indices) {
-            selectedCategoryFilter = categories[pagerState.currentPage]
-            try {
-                categoryListState.animateScrollToItem(pagerState.currentPage)
-            } catch (e: Exception) {
-                // Ignore layout/animation exceptions
+        if (categories.isNotEmpty()) {
+            val realPage = pagerState.currentPage % categories.size
+            if (realPage in categories.indices) {
+                selectedCategoryFilter = categories[realPage]
+                try {
+                    categoryListState.animateScrollToItem(realPage)
+                } catch (e: Exception) {
+                    // Ignore layout/animation exceptions
+                }
             }
         }
     }
@@ -173,6 +208,53 @@ fun LauncherHomeScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
+            // Floating pull-out tab & Swipe detector on the right edge to open AI Assistant
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(40.dp)
+                    .align(Alignment.CenterEnd)
+                    .zIndex(50f)
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures { change, dragAmount ->
+                            // Left swipe from right edge
+                            if (dragAmount < -8f) {
+                                onNavigateToAiAssistant()
+                            }
+                        }
+                    }
+            ) {
+                // Sleek pull tab indicating AI pull-out assistant
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+                        .background(Color(0x3342A5F5)) // transparent blue theme
+                        .border(1.dp, Color(0x6690CAF9), RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+                        .clickable { onNavigateToAiAssistant() }
+                        .padding(horizontal = 4.dp, vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color(0xFF90CAF9),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ChevronLeft,
+                            contentDescription = if (aiLanguage == "ja") "スワイプまたはタップでAIアシスタントを開く" else "Swipe left or tap to open AI Assistant",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
             Column(modifier = Modifier.fillMaxSize()) {
                 // 1. High Density Capsule Search Bar & Layout Switchers
                 Row(
@@ -386,8 +468,18 @@ fun LauncherHomeScreen(
                                     selectedCategoryFilter = category
                                     coroutineScope.launch {
                                         val targetIdx = categories.indexOf(category)
-                                        if (targetIdx >= 0) {
-                                            pagerState.animateScrollToPage(targetIdx)
+                                        if (targetIdx >= 0 && categories.isNotEmpty()) {
+                                            val size = categories.size
+                                            val currentAbsPage = pagerState.currentPage
+                                            val currentRealPage = currentAbsPage % size
+                                            var diff = (targetIdx - currentRealPage) % size
+                                            if (diff > size / 2) {
+                                                diff -= size
+                                            } else if (diff < -size / 2) {
+                                                diff += size
+                                            }
+                                            val targetAbsPage = (currentAbsPage + diff).coerceIn(0, totalPageCount - 1)
+                                            pagerState.animateScrollToPage(targetAbsPage)
                                         }
                                     }
                                 }
@@ -577,14 +669,15 @@ fun LauncherHomeScreen(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
-                    ) { page ->
+                    ) { absPage ->
+                        val page = if (categories.isNotEmpty()) absPage % categories.size else 0
                         val currentCategory = categories[page]
                         val pageApps = remember(apps, currentCategory, lastLaunchTimes, launchCounts, favorites) {
                             when (currentCategory) {
                                 "すべて" -> apps
                                 "FAVORITE" -> {
                                     apps.filter { favorites.contains(it.packageName) }
-                                        .sortedBy { it.label.lowercase() }
+                                        .sortedBy { favorites.indexOf(it.packageName) }
                                 }
                                 "RECENT" -> {
                                     apps.filter { (lastLaunchTimes[it.packageName] ?: 0L) > 0L }
@@ -612,91 +705,135 @@ fun LauncherHomeScreen(
                             if (page in lazyListStates.indices) lazyListStates[page] else LazyListState()
                         }
 
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 80.dp)
-                        ) {
-                            if (pageApps.isEmpty() && (currentCategory == "RECENT" || currentCategory == "MOST_USED" || currentCategory == "FAVORITE")) {
-                                item {
+                        if (currentCategory == "FAVORITE") {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                CategoryHeader(category = currentCategory, count = pageApps.size, lang = aiLanguage)
+
+                                if (pageApps.isEmpty()) {
                                     Box(
                                         modifier = Modifier
-                                            .fillParentMaxHeight(0.8f)
+                                            .fillMaxHeight(0.8f)
                                             .fillMaxWidth(),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Column(
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.spacedBy(12.dp),
-                                            modifier = Modifier.padding(32.dp)
+                                            modifier = Modifier.padding(32.dp).padding(top = 80.dp)
                                         ) {
                                             Icon(
-                                                imageVector = when (currentCategory) {
-                                                    "RECENT" -> Icons.Default.History
-                                                    "MOST_USED" -> Icons.Default.TrendingUp
-                                                    else -> Icons.Default.Star
-                                                },
+                                                imageVector = Icons.Default.Star,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(48.dp),
                                                 tint = Color.Gray
                                             )
                                             Text(
-                                                text = when (currentCategory) {
-                                                    "RECENT" -> Localization.get("no_recently_used", aiLanguage)
-                                                    "MOST_USED" -> Localization.get("no_most_used", aiLanguage)
-                                                    else -> Localization.get("no_favorites", aiLanguage)
-                                                },
+                                                text = Localization.get("no_favorites", aiLanguage),
                                                 color = Color.Gray,
                                                 fontSize = 14.sp,
                                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                             )
                                         }
                                     }
+                                } else {
+                                    FavoriteReorderableContent(
+                                        pageApps = pageApps,
+                                        favorites = favorites,
+                                        viewMode = viewMode,
+                                        aiLanguage = aiLanguage,
+                                        viewModel = viewModel
+                                    )
                                 }
                             }
-
-                            pageGroupedApps.forEach { (category, categoryApps) ->
-                                // Header segment
-                                item {
-                                    CategoryHeader(category = category, count = categoryApps.size, lang = aiLanguage)
-                                }
-
-                                if (viewMode == "GRID") {
-                                    // Chunk apps into rows of 3
-                                    val rows = categoryApps.chunked(3)
-                                    items(rows) { rowApps ->
-                                        Row(
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = 80.dp)
+                            ) {
+                                if (pageApps.isEmpty() && (currentCategory == "RECENT" || currentCategory == "MOST_USED")) {
+                                    item {
+                                        Box(
                                             modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                                .fillParentMaxHeight(0.8f)
+                                                .fillMaxWidth(),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            for (i in 0 until 3) {
-                                                if (i < rowApps.size) {
-                                                    AppGridItem(
-                                                        app = rowApps[i],
-                                                        onClick = { viewModel.selectApp(rowApps[i]) },
-                                                        aiLanguage = aiLanguage,
-                                                        modifier = Modifier.weight(1f),
-                                                        isFavorite = favorites.contains(rowApps[i].packageName)
-                                                    )
-                                                } else {
-                                                    Spacer(modifier = Modifier.weight(1f))
-                                                }
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                                modifier = Modifier.padding(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = when (currentCategory) {
+                                                        "RECENT" -> Icons.Default.History
+                                                        else -> Icons.Default.TrendingUp
+                                                    },
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(48.dp),
+                                                    tint = Color.Gray
+                                                )
+                                                Text(
+                                                    text = when (currentCategory) {
+                                                        "RECENT" -> Localization.get("no_recently_used", aiLanguage)
+                                                        else -> Localization.get("no_most_used", aiLanguage)
+                                                    },
+                                                    color = Color.Gray,
+                                                    fontSize = 14.sp,
+                                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                                )
                                             }
                                         }
                                     }
-                                } else {
-                                    items(categoryApps) { app ->
-                                        AppListItem(
-                                            app = app,
-                                            onClick = { viewModel.selectApp(app) },
-                                            aiLanguage = aiLanguage,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                                            isFavorite = favorites.contains(app.packageName)
-                                        )
+                                }
+
+                                pageGroupedApps.forEach { (category, categoryApps) ->
+                                    // Header segment
+                                    item {
+                                        CategoryHeader(category = category, count = categoryApps.size, lang = aiLanguage)
+                                    }
+
+                                    if (viewMode == "GRID") {
+                                        // Chunk apps into rows of 3
+                                        val rows = categoryApps.chunked(3)
+                                        items(rows) { rowApps ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                for (i in 0 until 3) {
+                                                    if (i < rowApps.size) {
+                                                        AppGridItem(
+                                                            app = rowApps[i],
+                                                            onClick = { viewModel.selectApp(rowApps[i]) },
+                                                            aiLanguage = aiLanguage,
+                                                            modifier = Modifier.weight(1f),
+                                                            isFavorite = favorites.contains(rowApps[i].packageName)
+                                                        )
+                                                    } else {
+                                                        Spacer(modifier = Modifier.weight(1f))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        items(categoryApps) { app ->
+                                            AppListItem(
+                                                app = app,
+                                                onClick = { viewModel.selectApp(app) },
+                                                aiLanguage = aiLanguage,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                                                isFavorite = favorites.contains(app.packageName)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -783,18 +920,21 @@ fun AppGridItem(
         colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
+            .height(160.dp)
             .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .testTag("app_grid_item_${app.packageName}")
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Box {
+            Box(
+                modifier = Modifier.padding(top = 2.dp)
+            ) {
                 AppIconImage(packageName = app.packageName, size = 48.dp)
                 if (isFavorite) {
                     Icon(
@@ -809,69 +949,79 @@ fun AppGridItem(
                 }
             }
 
-            Text(
-                text = app.label,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = app.label,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
-            if (app.similarityScore != null) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Box(
+                modifier = Modifier.padding(bottom = 2.dp)
+            ) {
+                if (app.similarityScore != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (app.isAnalyzed) Color(0x2642A5F5) else Color(0x26FFA726))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = String.format(java.util.Locale.getDefault(), Localization.get("similarity_label", aiLanguage), app.similarityScore),
+                                color = if (app.isAnalyzed) Color(0xFF90CAF9) else Color(0xFFFFCC80),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        if (!app.isAnalyzed) {
+                            Text(
+                                text = Localization.get("ai_unanalyzed_badge", aiLanguage),
+                                color = Color(0xFFFFB74D),
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else if (app.isAnalyzed) {
+                    // Highlight tags count or status
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (app.isAnalyzed) Color(0x2642A5F5) else Color(0x26FFA726))
+                            .background(Color(0x3081C784))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = String.format(java.util.Locale.getDefault(), Localization.get("similarity_label", aiLanguage), app.similarityScore),
-                            color = if (app.isAnalyzed) Color(0xFF90CAF9) else Color(0xFFFFCC80),
+                            text = "AI解析済",
+                            color = Color(0xFF81C784),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    if (!app.isAnalyzed) {
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0x24FFFFFF))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
                         Text(
-                            text = Localization.get("ai_unanalyzed_badge", aiLanguage),
-                            color = Color(0xFFFFB74D),
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
+                            text = "未解析",
+                            color = Color(0xB2FFFFFF),
+                            fontSize = 9.sp
                         )
                     }
-                }
-            } else if (app.isAnalyzed) {
-                // Highlight tags count or status
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0x3081C784))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = "AI解析済",
-                        color = Color(0xFF81C784),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0x24FFFFFF))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = "未解析",
-                        color = Color(0xB2FFFFFF),
-                        fontSize = 9.sp
-                    )
                 }
             }
         }
@@ -987,6 +1137,179 @@ fun AppListItem(
     }
 }
 
+@Composable
+fun FavoriteReorderableContent(
+    pageApps: List<InstalledApp>,
+    favorites: List<String>,
+    viewMode: String,
+    aiLanguage: String,
+    viewModel: AppLauncherViewModel
+) {
+    var dragList by remember(pageApps) { mutableStateOf(pageApps) }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+
+    val itemPositions = remember { mutableStateMapOf<Int, Rect>() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(dragList) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { startOffset ->
+                        val matchedIndex = itemPositions.entries.firstOrNull { (_, rect) ->
+                            rect.contains(startOffset)
+                        }?.key
+                        if (matchedIndex != null && matchedIndex < dragList.size) {
+                            draggingIndex = matchedIndex
+                            dragOffset = Offset.Zero
+                        }
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        if (draggingIndex != null) {
+                            dragOffset += dragAmount
+                            val originalBounds = itemPositions[draggingIndex]
+                            if (originalBounds != null) {
+                                val currentCenter = originalBounds.center + dragOffset
+                                val targetIndex = itemPositions.entries.firstOrNull { (index, bounds) ->
+                                    index != draggingIndex && bounds.contains(currentCenter)
+                                }?.key
+                                if (targetIndex != null && targetIndex < dragList.size) {
+                                    val mutable = dragList.toMutableList()
+                                    Collections.swap(mutable, draggingIndex!!, targetIndex)
+                                    dragList = mutable
+
+                                    val targetBounds = itemPositions[targetIndex]
+                                    if (targetBounds != null) {
+                                        dragOffset += originalBounds.topLeft - targetBounds.topLeft
+                                    }
+                                    draggingIndex = targetIndex
+                                }
+                            }
+                        }
+                    },
+                    onDragEnd = {
+                        draggingIndex?.let {
+                            viewModel.saveFavoritesOrder(dragList.map { it.packageName })
+                        }
+                        draggingIndex = null
+                        dragOffset = Offset.Zero
+                    },
+                    onDragCancel = {
+                        draggingIndex?.let {
+                            viewModel.saveFavoritesOrder(dragList.map { it.packageName })
+                        }
+                        draggingIndex = null
+                        dragOffset = Offset.Zero
+                    }
+                )
+            }
+            .padding(bottom = 80.dp)
+    ) {
+        if (viewMode == "GRID") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                val chunks = dragList.chunked(3)
+                chunks.forEachIndexed { rowIndex, rowApps ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        for (i in 0 until 3) {
+                            val itemIndex = rowIndex * 3 + i
+                            if (i < rowApps.size && itemIndex < dragList.size) {
+                                val app = dragList[itemIndex]
+                                val isCurrentDragging = draggingIndex == itemIndex
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .onGloballyPositioned { coords ->
+                                            itemPositions[itemIndex] = coords.boundsInParent()
+                                        }
+                                        .zIndex(if (isCurrentDragging) 10f else 1f)
+                                        .offset {
+                                            if (isCurrentDragging) {
+                                                IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
+                                            } else {
+                                                IntOffset.Zero
+                                            }
+                                        }
+                                        .graphicsLayer {
+                                            if (isCurrentDragging) {
+                                                scaleX = 1.12f
+                                                scaleY = 1.12f
+                                                alpha = 0.9f
+                                            }
+                                        }
+                                ) {
+                                    AppGridItem(
+                                        app = app,
+                                        onClick = { viewModel.selectApp(app) },
+                                        aiLanguage = aiLanguage,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        isFavorite = true
+                                    )
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                dragList.forEachIndexed { itemIndex, app ->
+                    val isCurrentDragging = draggingIndex == itemIndex
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .onGloballyPositioned { coords ->
+                                itemPositions[itemIndex] = coords.boundsInParent()
+                            }
+                            .zIndex(if (isCurrentDragging) 10f else 1f)
+                            .offset {
+                                if (isCurrentDragging) {
+                                    IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
+                                } else {
+                                    IntOffset.Zero
+                                }
+                            }
+                            .graphicsLayer {
+                                if (isCurrentDragging) {
+                                    scaleX = 1.05f
+                                    scaleY = 1.05f
+                                    alpha = 0.9f
+                                }
+                            }
+                    ) {
+                        AppListItem(
+                            app = app,
+                            onClick = { viewModel.selectApp(app) },
+                            aiLanguage = aiLanguage,
+                            modifier = Modifier.fillMaxWidth(),
+                            isFavorite = true
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AppDetailsDialog(
@@ -1033,6 +1356,31 @@ fun AppDetailsDialog(
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Error reading file: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val customIconLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val contentResolver = context.contentResolver
+                val inputStream = contentResolver.openInputStream(uri)
+                if (inputStream != null) {
+                    val iconDir = File(context.filesDir, "custom_icons")
+                    if (!iconDir.exists()) {
+                        iconDir.mkdirs()
+                    }
+                    val destFile = File(iconDir, "${app.packageName}.png")
+                    destFile.outputStream().use { output ->
+                        inputStream.copyTo(output)
+                    }
+                    val usageTracker = UsageTracker(context.applicationContext)
+                    usageTracker.setCustomIcon(app.packageName, "image:${destFile.absolutePath}")
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error setting image icon: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -1191,6 +1539,181 @@ fun AppDetailsDialog(
                             letterSpacing = 0.5.sp,
                             maxLines = 1
                         )
+                    }
+                }
+
+                // Icon Customizer Segment
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0x08FFFFFF))
+                        .border(1.dp, Color(0x10FFFFFF), RoundedCornerShape(16.dp))
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = if (lang == "ja") "表示アイコンのカスタマイズ" else "Customize Display Icon",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+
+                    val usageTracker = remember { UsageTracker(context.applicationContext) }
+                    val customIcons by usageTracker.customIcons.collectAsState()
+                    val currentCustomIcon = customIcons[app.packageName]
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val presets = listOf("🚀", "🎮", "💬", "🌐", "🎵", "📷", "🛠️", "❤️")
+                        presets.forEach { emoji ->
+                            val isSelected = currentCustomIcon == emoji
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) Color(0xFF2563EB) else Color(0x0DFFFFFF))
+                                    .border(1.dp, if (isSelected) Color(0xFF60A5FA) else Color(0x15FFFFFF), CircleShape)
+                                    .clickable {
+                                        usageTracker.setCustomIcon(app.packageName, if (isSelected) null else emoji)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = emoji, fontSize = 18.sp)
+                            }
+                        }
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        var manualText by remember { mutableStateOf("") }
+
+                        BasicTextField(
+                            value = manualText,
+                            onValueChange = {
+                                if (it.length <= 4) { // Allow brief custom text / emoji
+                                    manualText = it
+                                }
+                            },
+                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp),
+                            cursorBrush = SolidColor(Color.White),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0x0DFFFFFF))
+                                .border(1.dp, Color(0x15FFFFFF), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            decorationBox = { innerTextField ->
+                                if (manualText.isEmpty()) {
+                                    Text(
+                                        text = if (lang == "ja") "絵文字等を入力..." else "Enter emoji/text...",
+                                        color = Color(0x80FFFFFF),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        )
+
+                        Button(
+                            onClick = {
+                                if (manualText.isNotEmpty()) {
+                                    usageTracker.setCustomIcon(app.packageName, manualText)
+                                    manualText = ""
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0x22FFFFFF)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(38.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text(
+                                text = if (lang == "ja") "適用" else "Apply",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (currentCustomIcon != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    usageTracker.setCustomIcon(app.packageName, null)
+                                },
+                                border = BorderStroke(1.dp, Color(0x40FF5252)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF5252)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(38.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp)
+                            ) {
+                                Text(
+                                    text = if (lang == "ja") "リセット" else "Reset",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    // Custom image selection row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x0DFFFFFF))
+                            .border(1.dp, Color(0x15FFFFFF), RoundedCornerShape(8.dp))
+                            .clickable {
+                                customIconLauncher.launch("image/*")
+                            }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Image,
+                                contentDescription = "Select Custom Image",
+                                tint = Color(0xFFA5D6A7),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = if (lang == "ja") "画像ファイルを選択して設定" else "Select Custom Image File",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        if (currentCustomIcon?.startsWith("image:") == true) {
+                            val path = currentCustomIcon.substringAfter("image:")
+                            val file = remember(path) { File(path) }
+                            AsyncImage(
+                                model = file,
+                                contentDescription = "Selected Custom Icon Image",
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .border(1.dp, Color(0x30FFFFFF), RoundedCornerShape(4.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.ArrowForwardIos,
+                                contentDescription = "Select Icon Image",
+                                tint = Color(0x80FFFFFF),
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                     }
                 }
 
@@ -1853,3 +2376,5 @@ fun AppVectorRadarChart(
         }
     }
 }
+
+

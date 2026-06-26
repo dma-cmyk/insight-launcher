@@ -60,9 +60,11 @@ class AppLauncherViewModel(
     // Expose background image URL reactively
     val currentBgUrl: StateFlow<String> = settingsManager.bgImageUrl
     val viewMode: StateFlow<String> = settingsManager.viewMode
+    val iconShape: StateFlow<String> = settingsManager.iconShape
     val lastLaunchTimes: StateFlow<Map<String, Long>> = usageTracker.lastLaunchTimes
     val launchCounts: StateFlow<Map<String, Int>> = usageTracker.launchCounts
-    val favorites: StateFlow<Set<String>> = usageTracker.favorites
+    val favorites: StateFlow<List<String>> = usageTracker.favorites
+    val customIcons: StateFlow<Map<String, String>> = usageTracker.customIcons
 
     // Combine installed apps with search query and vector search settings
     val appListState: StateFlow<List<InstalledApp>> = combine(
@@ -222,8 +224,20 @@ class AppLauncherViewModel(
         settingsManager.setViewMode(mode)
     }
 
+    fun setIconShape(shape: String) {
+        settingsManager.setIconShape(shape)
+    }
+
     fun toggleFavorite(packageName: String) {
         usageTracker.toggleFavorite(packageName)
+    }
+
+    fun saveFavoritesOrder(newList: List<String>) {
+        usageTracker.saveFavorites(newList)
+    }
+
+    fun setCustomIcon(packageName: String, icon: String?) {
+        usageTracker.setCustomIcon(packageName, icon)
     }
 
     private val _isMergingCategories = MutableStateFlow(false)
@@ -437,6 +451,53 @@ class AppLauncherViewModel(
             _selectedApp.value = null
             Toast.makeText(context, Localization.get("clear_cache_success", lang), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private val _isAssistantLoading = MutableStateFlow(false)
+    val isAssistantLoading: StateFlow<Boolean> = _isAssistantLoading.asStateFlow()
+
+    private val _assistantResponse = MutableStateFlow<com.example.data.GeminiAssistantResponse?>(null)
+    val assistantResponse: StateFlow<com.example.data.GeminiAssistantResponse?> = _assistantResponse.asStateFlow()
+
+    fun askAiAssistant(query: String) {
+        if (query.isBlank()) return
+        viewModelScope.launch {
+            _isAssistantLoading.value = true
+            try {
+                val apps = repository.getAllAppInfosDirect()
+                val customApiKey = settingsManager.getGeminiApiKey()
+                val modelName = settingsManager.getPrimaryModel()
+                val lang = settingsManager.getAiLanguage()
+                
+                val response = com.example.data.GeminiClient.askAssistant(
+                    userInstruction = query,
+                    apps = apps,
+                    modelName = modelName,
+                    customApiKey = customApiKey,
+                    languageCode = lang
+                )
+                _assistantResponse.value = response
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in askAiAssistant", e)
+                val lang = settingsManager.getAiLanguage()
+                _assistantResponse.value = com.example.data.GeminiAssistantResponse(
+                    headline = if (lang == "ja") "エラーが発生しました" else "Error occurred",
+                    answer = if (lang == "ja") "リクエストの処理中にエラーが発生しました: ${e.localizedMessage}" else "Failed to process request: ${e.localizedMessage}",
+                    relevantPackages = emptyList(),
+                    suggestions = listOf(
+                        if (lang == "ja") "再試行" else "Retry",
+                        if (lang == "ja") "ホームに戻る" else "Back to Home"
+                    )
+                )
+            } finally {
+                _isAssistantLoading.value = false
+            }
+        }
+    }
+
+    fun clearAssistantState() {
+        _assistantResponse.value = null
+        _isAssistantLoading.value = false
     }
 }
 

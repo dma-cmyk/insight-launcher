@@ -15,8 +15,11 @@ class UsageTracker(context: Context) {
     private val _launchCounts = MutableStateFlow<Map<String, Int>>(loadAllLaunchCounts())
     val launchCounts: StateFlow<Map<String, Int>> = _launchCounts
 
-    private val _favorites = MutableStateFlow<Set<String>>(loadAllFavorites())
-    val favorites: StateFlow<Set<String>> = _favorites
+    private val _favorites = MutableStateFlow<List<String>>(loadAllFavorites())
+    val favorites: StateFlow<List<String>> = _favorites
+
+    private val _customIcons = MutableStateFlow<Map<String, String>>(loadAllCustomIcons())
+    val customIcons: StateFlow<Map<String, String>> = _customIcons
 
     fun recordLaunch(packageName: String) {
         val currentCount = prefs.getInt("count_$packageName", 0)
@@ -46,32 +49,51 @@ class UsageTracker(context: Context) {
         return prefs.getLong("time_$packageName", 0L)
     }
 
-    fun toggleFavorite(packageName: String) {
-        val isFav = _favorites.value.contains(packageName)
-        val newFav = !isFav
-        
+    fun saveFavorites(newList: List<String>) {
+        _favorites.value = newList
+        val joined = newList.joinToString(",")
         prefs.edit()
-            .putBoolean("fav_$packageName", newFav)
+            .putString("fav_order_list", joined)
             .apply()
+    }
 
-        val updatedFavorites = _favorites.value.toMutableSet()
-        if (newFav) {
-            updatedFavorites.add(packageName)
+    fun toggleFavorite(packageName: String) {
+        val currentList = _favorites.value.toMutableList()
+        val isFav = currentList.contains(packageName)
+        if (isFav) {
+            currentList.remove(packageName)
+            prefs.edit().putBoolean("fav_$packageName", false).apply()
         } else {
-            updatedFavorites.remove(packageName)
+            currentList.add(packageName)
+            prefs.edit().putBoolean("fav_$packageName", true).apply()
         }
-        _favorites.value = updatedFavorites
+        saveFavorites(currentList)
     }
 
     fun isFavorite(packageName: String): Boolean {
         return _favorites.value.contains(packageName)
     }
 
+    fun setCustomIcon(packageName: String, icon: String?) {
+        if (icon == null) {
+            prefs.edit().remove("custom_icon_$packageName").apply()
+        } else {
+            prefs.edit().putString("custom_icon_$packageName", icon).apply()
+        }
+        val updated = _customIcons.value.toMutableMap()
+        if (icon == null) {
+            updated.remove(packageName)
+        } else {
+            updated[packageName] = icon
+        }
+        _customIcons.value = updated
+    }
+
     fun clearStats() {
         prefs.edit().clear().apply()
         _lastLaunchTimes.value = emptyMap()
         _launchCounts.value = emptyMap()
-        _favorites.value = emptySet()
+        _favorites.value = emptyList()
     }
 
     private fun loadAllLastLaunchTimes(): Map<String, Long> {
@@ -94,13 +116,27 @@ class UsageTracker(context: Context) {
         return map
     }
 
-    private fun loadAllFavorites(): Set<String> {
-        val set = mutableSetOf<String>()
+    private fun loadAllFavorites(): List<String> {
+        val orderedStr = prefs.getString("fav_order_list", null)
+        if (orderedStr != null) {
+            return if (orderedStr.isEmpty()) emptyList() else orderedStr.split(",")
+        }
+        val list = mutableListOf<String>()
         prefs.all.forEach { (key, value) ->
             if (key.startsWith("fav_") && value is Boolean && value) {
-                set.add(key.substringAfter("fav_"))
+                list.add(key.substringAfter("fav_"))
             }
         }
-        return set
+        return list
+    }
+
+    private fun loadAllCustomIcons(): Map<String, String> {
+        val map = mutableMapOf<String, String>()
+        prefs.all.forEach { (key, value) ->
+            if (key.startsWith("custom_icon_") && value is String) {
+                map[key.substringAfter("custom_icon_")] = value
+            }
+        }
+        return map
     }
 }
