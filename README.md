@@ -23,10 +23,12 @@
     <tr>
       <td align="center"><b>リストビュー (List View)</b><br>アプリ詳細とAIの解析結果を表示</td>
       <td align="center"><b>グリッドビュー (Grid View)</b><br>スッキリ並ぶ3列レイアウト（解析バッジ付）</td>
+      <td align="center"><b>AIアシスタント (AI Assistant)</b><br>チャット＆AIの記憶(Wiki)管理画面</td>
     </tr>
     <tr>
-      <td valign="top"><img src="docs/images/screenshot_list.png" width="300" alt="List View" /></td>
-      <td valign="top"><img src="docs/images/screenshot_grid.png" width="300" alt="Grid View" /></td>
+      <td valign="top"><img src="docs/images/screenshot_list.png" width="250" alt="List View" /></td>
+      <td valign="top"><img src="docs/images/screenshot_grid.png" width="250" alt="Grid View" /></td>
+      <td valign="top"><img src="docs/images/screenshot_assistant.png" width="250" alt="AI Assistant" /></td>
     </tr>
   </table>
 </div>
