@@ -175,7 +175,8 @@ class AppLauncherViewModel(
                     if (appInfo.embedding.isNullOrBlank() && appInfo.category.isNotBlank()) {
                         Log.d(TAG, "Backfilling missing embedding for ${appInfo.label}")
                         val embedText = "Label: ${appInfo.label}. Category: ${appInfo.category}. Summary: ${appInfo.summary}. Tags: ${appInfo.tags}"
-                        val vector = com.example.data.GeminiClient.getEmbedding(embedText, customApiKey)
+                        val embeddingModel = settingsManager.getEmbeddingModel()
+                        val vector = com.example.data.GeminiClient.getEmbedding(embedText, customApiKey, modelName = embeddingModel)
                         if (vector != null) {
                             val updated = appInfo.copy(embedding = vector.joinToString(","))
                             repository.updateAppInfo(updated)
@@ -250,7 +251,8 @@ class AppLauncherViewModel(
             _isVectorSearching.value = true
             try {
                 val apiKey = settingsManager.getGeminiApiKey()
-                val vector = com.example.data.GeminiClient.getEmbedding(query, apiKey)
+                val embeddingModel = settingsManager.getEmbeddingModel()
+                val vector = com.example.data.GeminiClient.getEmbedding(query, apiKey, modelName = embeddingModel)
                 _queryEmbedding.value = vector
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching query embedding", e)

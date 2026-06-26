@@ -559,7 +559,7 @@ object GeminiClient {
     suspend fun getEmbedding(
         text: String,
         customApiKey: String? = null,
-        modelName: String = "text-embedding-004"
+        modelName: String = "gemini-embedding-001"
     ): List<Float>? = withContext(Dispatchers.IO) {
         val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
         if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {

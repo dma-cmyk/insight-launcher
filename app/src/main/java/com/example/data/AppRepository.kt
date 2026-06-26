@@ -150,17 +150,21 @@ class AppRepository(private val appDao: AppDao) {
             val linksJson = serializeLinks(analysis.relatedLinks)
 
             // Try to fetch embedding for semantic search
+            val curEmbeddingModel = settingsManager.getEmbeddingModel().removePrefix("models/")
             val embedMsg = when (aiLanguage) {
-                "ja" -> "%s のベクトル作成中...\nモデル: text-embedding-004"
-                "ko" -> "%s 벡터 생성 중...\n모델: text-embedding-004"
-                "zh" -> "正在生成 %s 的向量...\n模型: text-embedding-004"
-                else -> "Generating embedding for %s...\nModel: text-embedding-004"
+                "ja" -> "%s のベクトル作成中...\nモデル: $curEmbeddingModel"
+                "ko" -> "%s 벡터 생성 중...\n모델: $curEmbeddingModel"
+                "zh" -> "正在生成 %s 的向量...\n模型: $curEmbeddingModel"
+                else -> "Generating embedding for %s...\nModel: $curEmbeddingModel"
             }
             onStatusUpdate?.invoke(String.format(embedMsg, label))
 
             val embedText = "Label: $label. Category: ${analysis.category}. Summary: ${analysis.summary}. Tags: $tagsCsv"
+            // Add a small delay to avoid burst rate limit for embedding
+            delay(800)
+            val embeddingModel = settingsManager.getEmbeddingModel()
             val embeddingVector = try {
-                GeminiClient.getEmbedding(embedText, customApiKey)
+                GeminiClient.getEmbedding(embedText, customApiKey, modelName = embeddingModel)
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching embedding vector: ${e.message}")
                 null
@@ -257,17 +261,21 @@ class AppRepository(private val appDao: AppDao) {
                     val linksJson = serializeLinks(result.relatedLinks)
  
                     // Show embedding status
+                    val curBulkEmbeddingModel = settingsManager.getEmbeddingModel().removePrefix("models/")
                     val embedMsg = when (aiLanguage) {
-                        "ja" -> "ベクトル作成中... (%d/%d)\nモデル: text-embedding-004\n対象: %s"
-                        "ko" -> "벡터 생성 중... (%d/%d)\n모델: text-embedding-004\n대상: %s"
-                        "zh" -> "向量生成中... (%d/%d)\n模型: text-embedding-004\n对象: %s"
-                        else -> "Generating embedding... (%d/%d)\nModel: text-embedding-004\nApp: %s"
+                        "ja" -> "ベクトル作成中... (%d/%d)\nモデル: $curBulkEmbeddingModel\n対象: %s"
+                        "ko" -> "벡터 생성 중... (%d/%d)\n모델: $curBulkEmbeddingModel\n대상: %s"
+                        "zh" -> "向量生成中... (%d/%d)\n模型: $curBulkEmbeddingModel\n对象: %s"
+                        else -> "Generating embedding... (%d/%d)\nModel: $curBulkEmbeddingModel\nApp: %s"
                     }
                     onProgress(processedCount + resIndex, total, String.format(embedMsg, processedCount + resIndex, total, label))
  
                     val embedText = "Label: $label. Category: ${result.category}. Summary: ${result.summary}. Tags: $tagsCsv"
+                    // Add a small delay to avoid hitting the Embedding rate limit (100 RPM / burst)
+                    delay(800)
+                    val bulkEmbeddingModel = settingsManager.getEmbeddingModel()
                     val embeddingVector = try {
-                        GeminiClient.getEmbedding(embedText, customApiKey)
+                        GeminiClient.getEmbedding(embedText, customApiKey, modelName = bulkEmbeddingModel)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error fetching embedding vector in bulk: ${e.message}")
                         null
