@@ -22,6 +22,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -49,6 +51,7 @@ fun SettingsScreen(
     var backupModel by remember { mutableStateOf(viewModel.settingsManager.getBackupModel()) }
     var embeddingModel by remember { mutableStateOf(viewModel.settingsManager.getEmbeddingModel()) }
     var geminiApiKey by remember { mutableStateOf(viewModel.settingsManager.getGeminiApiKey()) }
+    var isApiKeyVisible by remember { mutableStateOf(false) }
     val currentBgUrl by viewModel.currentBgUrl.collectAsState()
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
@@ -221,6 +224,19 @@ fun SettingsScreen(
                             },
                             placeholder = { Text(Localization.get("gemini_api_key_placeholder", aiLanguage), color = Color(0x66FFFFFF), fontSize = 12.sp) },
                             textStyle = LocalTextStyle.current.copy(color = Color.White),
+                            visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                val image = if (isApiKeyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                                val description = if (isApiKeyVisible) "Hide API Key" else "Show API Key"
+                                IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
+                                    Icon(
+                                        imageVector = image,
+                                        contentDescription = description,
+                                        tint = Color(0xB2FFFFFF),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFFEF5350),
                                 unfocusedBorderColor = Color(0x40FFFFFF),

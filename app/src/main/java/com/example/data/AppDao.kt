@@ -34,4 +34,20 @@ interface AppDao {
 
     @Query("DELETE FROM app_info_table")
     suspend fun clearAllApps()
+
+    // LLM Wiki (AI Memory) operations
+    @Query("SELECT * FROM llm_wiki_table ORDER BY lastUpdated DESC")
+    fun getAllWikiEntriesFlow(): Flow<List<LlmWikiEntry>>
+
+    @Query("SELECT * FROM llm_wiki_table ORDER BY lastUpdated DESC")
+    suspend fun getAllWikiEntriesDirect(): List<LlmWikiEntry>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWikiEntry(entry: LlmWikiEntry)
+
+    @Query("DELETE FROM llm_wiki_table WHERE id = :id")
+    suspend fun deleteWikiEntryById(id: Long)
+
+    @Query("DELETE FROM llm_wiki_table")
+    suspend fun clearAllWikiEntries()
 }

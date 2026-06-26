@@ -434,6 +434,7 @@ object GeminiClient {
     suspend fun askAssistant(
         userInstruction: String,
         apps: List<AppInfo>,
+        wikiEntries: List<LlmWikiEntry>,
         modelName: String,
         customApiKey: String? = null,
         languageCode: String = "ja"
@@ -467,8 +468,22 @@ object GeminiClient {
         }
         appsJsonBuilder.append("]")
 
+        val wikiContext = if (wikiEntries.isNotEmpty()) {
+            val builder = StringBuilder("\n--- LLM WIKI / AI MEMORIES (IMPORTANT FACTS, CONTEXT, AND PREFERENCES TO ALWAYS REMEMBER) ---\n")
+            wikiEntries.forEach { entry ->
+                builder.append("Title: ${entry.title}\nCategory: ${entry.category}\nContent: ${entry.content}\n\n")
+            }
+            builder.append("------------------------------------------------------------------------------------\n")
+            builder.toString()
+        } else {
+            ""
+        }
+
         val prompt = """
             You are a smart, friendly AI Assistant inside a modern Android launcher called AI App Launcher.
+            
+            $wikiContext
+            
             The user gave you this instruction/query:
             "$userInstruction"
 
@@ -477,8 +492,9 @@ object GeminiClient {
 
             Your tasks:
             1. Analyze the user's instruction. If they are looking for specific apps, categories, features, or recommendations, search through their installed apps list.
-            2. Produce a "headline" summarizing your recommendation or response (short, punchy, bold title, e.g., "🎯 効率化アプリのご提案！" or "💬 友人と繋がるSNSツール").
+            2. Produce a "headline" summarizing your recommendation or response (short, punchy, bold title, e.g., "🎯 効率化アプリのご提案！" or "💬 友友人繋がるSNSツール").
             3. Produce an "answer" (detailed explanation in $langName. Be friendly and engaging. Support bullet points, paragraphs, and emojis. It will be displayed in a very large and beautiful format, so make sure it's highly readable and structured).
+               If the user asks about facts or instructions you have saved in your LLM WIKI/memories (shown above), use that stored knowledge to answer accurately!
             4. Identify up to 6 "relevantPackages" (exact package names from the list) that are most relevant to the user's query so we can display them as clickable app cards. If the query is a general question (e.g., "tell me a joke"), this can be empty or list 1-2 most frequently used apps as helpful suggestions.
             5. Provide 3 "suggestions" (short follow-up queries or questions in $langName, e.g., "ゲームを探して", "SNSアプリはどれ？").
 
@@ -535,6 +551,79 @@ object GeminiClient {
                     if (languageCode == "ja") "お気に入りアプリ" else "Favorites"
                 )
             )
+        }
+    }
+
+    suspend fun extractWikiEntry(
+        userPrompt: String,
+        aiAnswer: String,
+        modelName: String,
+        customApiKey: String? = null,
+        languageCode: String = "ja"
+    ): LlmWikiEntry? = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") return@withContext null
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val langName = when (languageCode) {
+            "en" -> "English"
+            "ko" -> "Korean"
+            "zh" -> "Chinese"
+            else -> "Japanese"
+        }
+
+        val prompt = """
+            You are a memory consolidation module for an AI Assistant inside an Android launcher.
+            Based on the following user query and AI response, extract a single important fact, custom instruction, user preference, or piece of knowledge that should be stored in the AI's long-term memory (LLM Wiki) so the AI won't forget it in future sessions.
+            
+            User query: "$userPrompt"
+            AI response: "$aiAnswer"
+            
+            Your tasks:
+            1. Formulate a short, descriptive title for this memory in $langName (e.g., "ユーザーはRPGゲームが好き" or "AIは要約時に箇条書きを使うこと").
+            2. Extract/summarize the core fact, preference, or instruction in $langName. Keep it concise, clear, and actionable.
+            3. Choose an appropriate category (e.g., "Preference", "Instruction", "Fact", "General").
+            
+            Format your response STRICTLY as a JSON object adhering to the schema.
+        """.trimIndent()
+
+        val schema = mapOf(
+            "type" to "OBJECT",
+            "properties" to mapOf(
+                "title" to mapOf("type" to "STRING", "description" to "Descriptive title of the memory in $langName"),
+                "content" to mapOf("type" to "STRING", "description" to "Concise fact, preference, or instruction in $langName"),
+                "category" to mapOf("type" to "STRING", "description" to "Category of the memory (e.g., Preference, Instruction, Fact)")
+            ),
+            "required" to listOf("title", "content", "category")
+        )
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(GeminiPart(text = prompt))
+            )),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = "application/json",
+                responseSchema = schema,
+                temperature = 0.3
+            )
+        )
+
+        try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            if (jsonText != null) {
+                val json = org.json.JSONObject(jsonText)
+                LlmWikiEntry(
+                    title = json.optString("title", "Saved Memory"),
+                    content = json.optString("content", ""),
+                    category = json.optString("category", "General")
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "extractWikiEntry failed: ${e.message}", e)
+            null
         }
     }
 }

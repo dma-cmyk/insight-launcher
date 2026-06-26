@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -58,8 +60,13 @@ fun AiAssistantScreen(
     val assistantResponse by viewModel.assistantResponse.collectAsState()
     val apps by viewModel.appListState.collectAsState()
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
+    val wikiEntries by viewModel.wikiEntries.collectAsState()
     
     var textInput by remember { mutableStateOf("") }
+    var activeTab by remember { mutableStateOf(0) } // 0 = Chat, 1 = LLM Wiki
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingEntry by remember { mutableStateOf<com.example.data.LlmWikiEntry?>(null) }
+    var searchWikiQuery by remember { mutableStateOf("") }
     
     // Voice recognition launcher
     val speechRecognizerLauncher = rememberLauncherForActivityResult(
@@ -192,6 +199,37 @@ fun AiAssistantScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
             ) {
+                // Modern Pill Tab Switcher
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp)
+                        .background(Color(0x11FFFFFF), RoundedCornerShape(24.dp))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val tabs = if (aiLanguage == "ja") listOf("チャット", "AIの記憶 (Wiki)") else listOf("Chat", "AI Memory (Wiki)")
+                    tabs.forEachIndexed { index, title ->
+                        val isSelected = activeTab == index
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(if (isSelected) Color(0xFFEF5350) else Color.Transparent)
+                                .clickable { activeTab = index }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = title,
+                                color = if (isSelected) Color.White else Color(0x99FFFFFF),
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+
                 // Central scrollable content area
                 Box(
                     modifier = Modifier
@@ -199,14 +237,16 @@ fun AiAssistantScreen(
                         .fillMaxWidth(),
                     contentAlignment = Alignment.TopCenter
                 ) {
-                    if (assistantResponse == null && !isAssistantLoading) {
+                    if (activeTab == 0) {
+                        if (assistantResponse == null && !isAssistantLoading) {
                         // --- GREETING AND STARTERS VIEW ---
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 40.dp),
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             // Pulsing glowing AI icon
                             val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -369,6 +409,71 @@ fun AiAssistantScreen(
                                             lineHeight = 26.sp,
                                             modifier = Modifier.padding(20.dp)
                                         )
+                                    }
+                                }
+
+                                // 2.5 Extract Memory Button
+                                item {
+                                    val isExtracting by viewModel.isExtractingWiki.collectAsState()
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color(0x15EF5350)),
+                                        shape = RoundedCornerShape(20.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, Color(0x33EF5350), RoundedCornerShape(20.dp))
+                                            .clickable {
+                                                viewModel.extractAndSaveWikiFromConversation(
+                                                    userPrompt = textInput.ifBlank { "App suggestions" },
+                                                    aiAnswer = response.answer
+                                                )
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            if (isExtracting) {
+                                                CircularProgressIndicator(
+                                                    color = Color(0xFFEF5350),
+                                                    modifier = Modifier.size(20.dp),
+                                                    strokeWidth = 2.dp
+                                                )
+                                                Text(
+                                                    text = if (aiLanguage == "ja") "会話から記憶を整理中..." else "Consolidating conversation memories...",
+                                                    color = Color.White,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = Icons.Default.Bookmark,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFEF5350),
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = if (aiLanguage == "ja") "💡 会話からWikiエントリーを生成" else "💡 Extract & Save Wiki Entry",
+                                                        color = Color.White,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                    Text(
+                                                        text = if (aiLanguage == "ja") "会話内容をAIの記憶に登録し、次回以降の対話に反映します" else "Saves this detail to AI Memory so it won't forget",
+                                                        color = Color(0x80FFFFFF),
+                                                        fontSize = 11.sp,
+                                                        lineHeight = 15.sp
+                                                    )
+                                                }
+                                                Icon(
+                                                    imageVector = Icons.Default.ArrowForward,
+                                                    contentDescription = null,
+                                                    tint = Color(0x80FFFFFF),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
 
@@ -558,9 +663,270 @@ fun AiAssistantScreen(
                             }
                         }
                     }
-                }
+                } else {
+                    // --- LLM WIKI / AI MEMORY SCREEN ---
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Header Banner
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0x1190CAF9)),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, Color(0x2290CAF9), RoundedCornerShape(16.dp))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = if (aiLanguage == "ja") "🧠 AIの長期記憶 (LLM Wiki)" else "🧠 AI Long-term Memory (LLM Wiki)",
+                                    color = Color(0xFF90CAF9),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (aiLanguage == "ja") 
+                                        "ここに保存された事実や設定・指示は、AIアシスタントが会話をする際に常に前提知識として参照されます。" 
+                                        else "Facts, preferences, and instructions saved here are automatically fed to the AI as context, so it never forgets them.",
+                                    color = Color(0xB3FFFFFF),
+                                    fontSize = 12.sp,
+                                    lineHeight = 18.sp
+                                )
+                            }
+                        }
 
-                // --- BOTTOM CAPSULE INPUT AREA ---
+                        // Actions Bar: Search, Add
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Search Input
+                            OutlinedTextField(
+                                value = searchWikiQuery,
+                                onValueChange = { searchWikiQuery = it },
+                                placeholder = { 
+                                    Text(
+                                        if (aiLanguage == "ja") "記憶を検索..." else "Search memories...", 
+                                        fontSize = 13.sp,
+                                        color = Color(0x66FFFFFF)
+                                    ) 
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = Color(0x80FFFFFF),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(50.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFFEF5350),
+                                    unfocusedBorderColor = Color(0x22FFFFFF),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                )
+                            )
+
+                            // Add Button
+                            Button(
+                                onClick = { showAddDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF5350)),
+                                shape = RoundedCornerShape(24.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp),
+                                modifier = Modifier.height(44.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Memory",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (aiLanguage == "ja") "追加" else "Add",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Memories List
+                        val filteredWikis = remember(wikiEntries, searchWikiQuery) {
+                            if (searchWikiQuery.isBlank()) {
+                                wikiEntries
+                            } else {
+                                wikiEntries.filter {
+                                    it.title.contains(searchWikiQuery, ignoreCase = true) ||
+                                    it.content.contains(searchWikiQuery, ignoreCase = true) ||
+                                    it.category.contains(searchWikiQuery, ignoreCase = true)
+                                }
+                            }
+                        }
+
+                        if (filteredWikis.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = Color(0x33FFFFFF),
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Text(
+                                        text = if (aiLanguage == "ja") "記憶はまだありません" else "No memories found",
+                                        color = Color(0x66FFFFFF),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (aiLanguage == "ja") 
+                                            "チャットの回答カードにある「💡 会話をAIの記憶に登録」を押すか、右上の「追加」ボタンから登録してください。" 
+                                            else "Click '💡 Save this conversation' during chat, or use the 'Add' button to record memories manually.",
+                                        color = Color(0x40FFFFFF),
+                                        fontSize = 11.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 24.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                contentPadding = PaddingValues(bottom = 24.dp)
+                            ) {
+                                items(filteredWikis, key = { it.id }) { entry ->
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color(0x12FFFFFF)),
+                                        shape = RoundedCornerShape(16.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(16.dp))
+                                    ) {
+                                        Column(modifier = Modifier.padding(14.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Category Badge
+                                                val badgeColor = when (entry.category.lowercase()) {
+                                                    "preference" -> Color(0xFF81C784)
+                                                    "instruction" -> Color(0xFFB39DDB)
+                                                    "fact" -> Color(0xFF90CAF9)
+                                                    else -> Color(0xFFB0BEC5)
+                                                }
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(badgeColor.copy(alpha = 0.2f))
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = entry.category.uppercase(),
+                                                        color = badgeColor,
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Black
+                                                    )
+                                                }
+
+                                                // Action buttons
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    IconButton(
+                                                        onClick = { editingEntry = entry },
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Edit,
+                                                            contentDescription = "Edit",
+                                                            tint = Color(0xB3FFFFFF),
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                    IconButton(
+                                                        onClick = { viewModel.deleteWikiEntry(entry.id) },
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Delete,
+                                                            contentDescription = "Delete",
+                                                            tint = Color(0xFFEF5350),
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+
+                                            Text(
+                                                text = entry.title,
+                                                color = Color.White,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            Text(
+                                                text = entry.content,
+                                                color = Color(0xCCFFFFFF),
+                                                fontSize = 13.sp,
+                                                lineHeight = 20.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Clear all memories button at the bottom of the list
+                                item {
+                                    TextButton(
+                                        onClick = { viewModel.clearAllWikiEntries() },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFEF5350))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = if (aiLanguage == "ja") "すべての記憶を消去" else "Clear All Memories",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- BOTTOM CAPSULE INPUT AREA ---
+            AnimatedVisibility(visible = activeTab == 0) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -666,7 +1032,193 @@ fun AiAssistantScreen(
                     }
                 }
             }
+            }
         }
+    }
+
+    if (showAddDialog) {
+        var title by remember { mutableStateOf("") }
+        var content by remember { mutableStateOf("") }
+        var category by remember { mutableStateOf("Preference") }
+        val categories = listOf("Preference", "Instruction", "Fact", "General")
+        
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text(if (aiLanguage == "ja") "記憶を追加" else "Add Memory", color = Color.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text(if (aiLanguage == "ja") "タイトル" else "Title") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFEF5350),
+                            unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350),
+                            unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                    OutlinedTextField(
+                        value = content,
+                        onValueChange = { content = it },
+                        label = { Text(if (aiLanguage == "ja") "記憶内容" else "Memory Content") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFEF5350),
+                            unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350),
+                            unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                    Text(text = if (aiLanguage == "ja") "カテゴリー" else "Category", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        categories.forEach { cat ->
+                            val isSelected = category == cat
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isSelected) Color(0xFFEF5350) else Color(0x1BFFFFFF))
+                                    .clickable { category = cat }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = cat,
+                                    color = if (isSelected) Color.White else Color(0xCCFFFFFF),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (title.isNotBlank() && content.isNotBlank()) {
+                            viewModel.saveWikiEntry(
+                                com.example.data.LlmWikiEntry(
+                                    title = title,
+                                    content = content,
+                                    category = category
+                                )
+                            )
+                            showAddDialog = false
+                        }
+                    }
+                ) {
+                    Text(if (aiLanguage == "ja") "保存" else "Save", color = Color(0xFFEF5350))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text(if (aiLanguage == "ja") "キャンセル" else "Cancel", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF212121),
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    if (editingEntry != null) {
+        var title by remember { mutableStateOf(editingEntry!!.title) }
+        var content by remember { mutableStateOf(editingEntry!!.content) }
+        var category by remember { mutableStateOf(editingEntry!!.category) }
+        val categories = listOf("Preference", "Instruction", "Fact", "General")
+        
+        AlertDialog(
+            onDismissRequest = { editingEntry = null },
+            title = { Text(if (aiLanguage == "ja") "記憶を編集" else "Edit Memory", color = Color.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text(if (aiLanguage == "ja") "タイトル" else "Title") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFEF5350),
+                            unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350),
+                            unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                    OutlinedTextField(
+                        value = content,
+                        onValueChange = { content = it },
+                        label = { Text(if (aiLanguage == "ja") "記憶内容" else "Memory Content") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFEF5350),
+                            unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350),
+                            unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                    Text(text = if (aiLanguage == "ja") "カテゴリー" else "Category", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        categories.forEach { cat ->
+                            val isSelected = category == cat
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isSelected) Color(0xFFEF5350) else Color(0x1BFFFFFF))
+                                    .clickable { category = cat }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = cat,
+                                    color = if (isSelected) Color.White else Color(0xCCFFFFFF),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (title.isNotBlank() && content.isNotBlank()) {
+                            viewModel.saveWikiEntry(
+                                editingEntry!!.copy(
+                                    title = title,
+                                    content = content,
+                                    category = category,
+                                    lastUpdated = System.currentTimeMillis()
+                                )
+                            )
+                            editingEntry = null
+                        }
+                    }
+                ) {
+                    Text(if (aiLanguage == "ja") "保存" else "Save", color = Color(0xFFEF5350))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingEntry = null }) {
+                    Text(if (aiLanguage == "ja") "キャンセル" else "Cancel", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF212121),
+            shape = RoundedCornerShape(20.dp)
+        )
     }
 }
 }

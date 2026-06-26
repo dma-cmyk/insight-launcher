@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.AppInfo
 import com.example.data.AppRepository
+import com.example.data.LlmWikiEntry
 import com.example.data.InstalledApp
 import com.example.data.SettingsManager
 import com.example.data.UsageTracker
@@ -459,6 +460,68 @@ class AppLauncherViewModel(
     private val _assistantResponse = MutableStateFlow<com.example.data.GeminiAssistantResponse?>(null)
     val assistantResponse: StateFlow<com.example.data.GeminiAssistantResponse?> = _assistantResponse.asStateFlow()
 
+    val wikiEntries: StateFlow<List<LlmWikiEntry>> = repository.allWikiEntriesFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun saveWikiEntry(entry: LlmWikiEntry) {
+        viewModelScope.launch {
+            repository.insertWikiEntry(entry)
+        }
+    }
+
+    fun deleteWikiEntry(id: Long) {
+        viewModelScope.launch {
+            repository.deleteWikiEntryById(id)
+        }
+    }
+
+    fun clearAllWikiEntries() {
+        viewModelScope.launch {
+            repository.clearAllWikiEntries()
+        }
+    }
+
+    private val _isExtractingWiki = MutableStateFlow(false)
+    val isExtractingWiki: StateFlow<Boolean> = _isExtractingWiki.asStateFlow()
+
+    fun extractAndSaveWikiFromConversation(userPrompt: String, aiAnswer: String) {
+        viewModelScope.launch {
+            _isExtractingWiki.value = true
+            try {
+                val customApiKey = settingsManager.getGeminiApiKey()
+                val modelName = settingsManager.getPrimaryModel()
+                val lang = settingsManager.getAiLanguage()
+                
+                val entry = com.example.data.GeminiClient.extractWikiEntry(
+                    userPrompt = userPrompt,
+                    aiAnswer = aiAnswer,
+                    modelName = modelName,
+                    customApiKey = customApiKey,
+                    languageCode = lang
+                )
+                if (entry != null) {
+                    repository.insertWikiEntry(entry)
+                    val msg = if (lang == "ja") "会話からWikiエントリーを抽出して保存しました: ${entry.title}" else "Extracted and saved Wiki entry: ${entry.title}"
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                } else {
+                    val msg = if (lang == "ja") "Wikiエントリーを抽出できませんでした（APIキーや返答を確認してください）" else "Could not extract Wiki entry"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error extracting Wiki", e)
+                val lang = settingsManager.getAiLanguage()
+                val msg = if (lang == "ja") "エラーが発生しました: ${e.localizedMessage}" else "Error: ${e.localizedMessage}"
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            } finally {
+                _isExtractingWiki.value = false
+            }
+        }
+    }
+
     fun askAiAssistant(query: String) {
         if (query.isBlank()) return
         viewModelScope.launch {
@@ -468,10 +531,12 @@ class AppLauncherViewModel(
                 val customApiKey = settingsManager.getGeminiApiKey()
                 val modelName = settingsManager.getPrimaryModel()
                 val lang = settingsManager.getAiLanguage()
+                val currentWikis = repository.getAllWikiEntriesDirect()
                 
                 val response = com.example.data.GeminiClient.askAssistant(
                     userInstruction = query,
                     apps = apps,
+                    wikiEntries = currentWikis,
                     modelName = modelName,
                     customApiKey = customApiKey,
                     languageCode = lang

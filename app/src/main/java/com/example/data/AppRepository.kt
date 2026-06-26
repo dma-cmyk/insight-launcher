@@ -204,4 +204,23 @@ class AppRepository(private val appDao: AppDao) {
             false
         }
     }
+
+    // LLM Wiki (AI Memory) operations
+    val allWikiEntriesFlow: Flow<List<LlmWikiEntry>> = appDao.getAllWikiEntriesFlow()
+
+    suspend fun getAllWikiEntriesDirect(): List<LlmWikiEntry> = withContext(Dispatchers.IO) {
+        appDao.getAllWikiEntriesDirect()
+    }
+
+    suspend fun insertWikiEntry(entry: LlmWikiEntry) = withContext(Dispatchers.IO) {
+        appDao.insertWikiEntry(entry)
+    }
+
+    suspend fun deleteWikiEntryById(id: Long) = withContext(Dispatchers.IO) {
+        appDao.deleteWikiEntryById(id)
+    }
+
+    suspend fun clearAllWikiEntries() = withContext(Dispatchers.IO) {
+        appDao.clearAllWikiEntries()
+    }
 }
