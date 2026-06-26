@@ -41,7 +41,11 @@
 
 ## 👑 アップデート情報
 
-* **🤖 Model Context Protocol (MCP) 連携機能の搭載 (v1.1.0) [NEW]**
+* **⚡ MCP 連携動作の安定化と JSON パース処理の堅牢化 (v1.1.1) [NEW]**
+  - AIアシスタントが MCP ツールを実行する際、レスポンススキーマの不整合による API エラーを防ぐため、Function Calling 実行時の `generationConfig` 制約（responseMimeType/responseSchema）を動的に切り替えるよう最適化しました。
+  - Gemini が最終的な回答を Markdown のコードブロック（\`\`\`json ... \`\`\`）で囲って返してきた場合でも、エラーなく正しく JSON パースを行えるようパース前処理を追加しました。
+
+* **🤖 Model Context Protocol (MCP) 連携機能の搭載 (v1.1.0)**
   - AIアシスタントとの会話において、Model Context Protocol (MCP) をサポートしました。
   - デバイス情報の取得、アプリ起動、数式評価、天気情報の取得などの**ビルトインMCPツール**を搭載し、AIがリアルタイムデータやシステム連携を正確に行えるようになりました。
   - 設定画面から、HTTP接続による**カスタム外部MCPサーバー**を自由に追加・管理（有効化/無効化/削除）できるようになりました。

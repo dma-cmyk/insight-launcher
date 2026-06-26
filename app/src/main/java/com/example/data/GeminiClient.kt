@@ -598,8 +598,8 @@ object GeminiClient {
                     contents = contents,
                     tools = geminiTools,
                     generationConfig = GeminiGenerationConfig(
-                        responseMimeType = "application/json",
-                        responseSchema = schema,
+                        responseMimeType = if (geminiTools == null) "application/json" else null,
+                        responseSchema = if (geminiTools == null) schema else null,
                         temperature = 0.4
                     )
                 )
@@ -652,8 +652,15 @@ object GeminiClient {
             }
 
             if (responseText != null) {
+                var cleanedJson = responseText.trim()
+                if (cleanedJson.startsWith("```")) {
+                    cleanedJson = cleanedJson.replaceFirst(Regex("^```(?:json)?\\s*"), "")
+                    cleanedJson = cleanedJson.replace(Regex("\\s*```$"), "")
+                }
+                cleanedJson = cleanedJson.trim()
+
                 val adapter = moshi.adapter(GeminiAssistantResponse::class.java)
-                adapter.fromJson(responseText)
+                adapter.fromJson(cleanedJson)
             } else {
                 null
             }
