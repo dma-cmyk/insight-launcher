@@ -1089,29 +1089,61 @@ fun AppDetailsDialog(
                 ) {
                     Button(
                         onClick = onLaunch,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2563EB),
+                            contentColor = Color.White
+                        ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
-                            .weight(1.2f)
+                            .weight(1f)
+                            .height(48.dp)
                             .testTag("launch_app_button")
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = "Launch", tint = Color.White)
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = "Launch",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(Localization.get("open_app", lang).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 0.5.sp)
+                        Text(
+                            text = Localization.get("open_app", lang).uppercase(),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.5.sp,
+                            maxLines = 1
+                        )
                     }
 
                     OutlinedButton(
                         onClick = onOpenSettings,
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White,
+                            containerColor = Color(0x0AFFFFFF)
+                        ),
                         border = BorderStroke(1.dp, Color(0x33FFFFFF)),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
-                            .weight(0.8f)
+                            .weight(1f)
+                            .height(48.dp)
                             .testTag("open_settings_app_button")
                     ) {
-                        Icon(Icons.Default.Settings, contentDescription = "App Settings", modifier = Modifier.size(14.dp))
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "App Settings",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(Localization.get("open_settings_btn", lang).uppercase(), fontSize = 11.sp, letterSpacing = 0.5.sp)
+                        Text(
+                            text = Localization.get("open_settings_btn", lang).uppercase(),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            letterSpacing = 0.5.sp,
+                            maxLines = 1
+                        )
                     }
                 }
 

@@ -126,7 +126,10 @@ object Localization {
         "vector_title" to "AI多次元ベクトル特性解析",
         "merge_categories_title" to "似たカテゴリを統合",
         "merge_categories_desc" to "AIが細分化されたカテゴリを分析し、意味の近いものを自動でまとめます。",
-        "merge_categories_btn" to "カテゴリを統合する"
+        "merge_categories_btn" to "カテゴリを統合する",
+        "set_default_home_title" to "デフォルトのホームアプリに設定",
+        "set_default_home_desc" to "本アプリをデフォルトのホーム（ランチャー）として登録し、いつでもAI分類やスマート検索、関連リンクへの素早いアクセスができるようにします。",
+        "set_default_home_btn" to "デフォルトのアプリ設定を開く"
     )
 
     private val englishMap = mapOf(
@@ -239,7 +242,10 @@ object Localization {
         "vector_title" to "AI Vector Characteristic Profile",
         "merge_categories_title" to "Merge Similar Categories",
         "merge_categories_desc" to "Automatically analyze and merge fragmented app categories into broader, unified groups using AI.",
-        "merge_categories_btn" to "Merge Categories Now"
+        "merge_categories_btn" to "Merge Categories Now",
+        "set_default_home_title" to "Set Default Home App",
+        "set_default_home_desc" to "Set this launcher as your default home app so you can use AI organization, smart search, and quick links anytime.",
+        "set_default_home_btn" to "Open Default App Settings"
     )
 
     private val koreanMap = mapOf(
@@ -352,7 +358,10 @@ object Localization {
         "vector_title" to "AI 벡터 다차원 분석",
         "merge_categories_title" to "유사한 카테고리 통합",
         "merge_categories_desc" to "AI가 세분화된 카테고리를 분석하여 의미가 비슷한 것들을 자동으로 통합합니다.",
-        "merge_categories_btn" to "카테고리 통합하기"
+        "merge_categories_btn" to "카테고리 통합하기",
+        "set_default_home_title" to "기본 홈 앱으로 설정",
+        "set_default_home_desc" to "이 런처를 기본 홈 앱으로 설정하여 언제든지 AI 카테고리 분류, 스마트 검색, 유용한 링크를 편리하게 이용해 보세요.",
+        "set_default_home_btn" to "기본 앱 설정 열기"
     )
 
     private val chineseMap = mapOf(
@@ -465,6 +474,9 @@ object Localization {
         "vector_title" to "AI 向量多维特征分析",
         "merge_categories_title" to "合并相似分类",
         "merge_categories_desc" to "AI将自动分析细分的类别，并将语义相近的类别整合在一起。",
-        "merge_categories_btn" to "合并类别"
+        "merge_categories_btn" to "合并类别",
+        "set_default_home_title" to "设置为默认主屏幕应用",
+        "set_default_home_desc" to "将此启动器设置为您的默认主屏幕应用，以便随时使用 AI 智能分类、智能搜索和实用相关链接。",
+        "set_default_home_btn" to "打开默认应用设置"
     )
 }

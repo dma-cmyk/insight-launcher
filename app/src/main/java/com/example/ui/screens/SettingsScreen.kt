@@ -26,6 +26,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import java.io.File
 import android.widget.Toast
+import android.content.Intent
+import android.provider.Settings
 import com.example.data.SettingsManager
 import com.example.ui.AppLauncherViewModel
 import com.example.ui.Localization
@@ -442,6 +444,56 @@ fun SettingsScreen(
                         } else {
                             Text(Localization.get("merge_categories_btn", aiLanguage), fontWeight = FontWeight.Bold, color = Color.White)
                         }
+                    }
+                }
+            }
+
+            // Default Launcher Configuration Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Home, contentDescription = "Default Home", tint = Color(0xFF64B5F6))
+                        Text(Localization.get("set_default_home_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Text(
+                        Localization.get("set_default_home_desc", aiLanguage),
+                        fontSize = 12.sp,
+                        color = Color(0xB2FFFFFF),
+                        lineHeight = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Button(
+                        onClick = {
+                            try {
+                                val intent = Intent(Settings.ACTION_HOME_SETTINGS)
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                try {
+                                    val intent = Intent(Settings.ACTION_SETTINGS)
+                                    context.startActivity(intent)
+                                } catch (ex: Exception) {
+                                    Toast.makeText(context, "Could not open settings", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("set_default_home_button")
+                    ) {
+                        Text(Localization.get("set_default_home_btn", aiLanguage), fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
