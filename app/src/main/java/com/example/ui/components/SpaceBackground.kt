@@ -130,10 +130,17 @@ fun SpaceBackground(
                         .fillMaxSize()
                         .graphicsLayer {
                             // Parallax shifting with subtle zoom scaling to prevent black edge reveals
-                            scaleX = 1.15f
-                            scaleY = 1.15f
-                            translationX = -scrollOffsetX * 50f
-                            translationY = -scrollOffsetY * 30f
+                            // The user suggested a full rotation horizontally instead of panning.
+                            // To prevent black edges during rotation, scale up to cover the diagonal.
+                            scaleX = 2.2f
+                            scaleY = 2.2f
+                            
+                            // Rotate horizontally (e.g. 60 degrees per page)
+                            rotationZ = (scrollOffsetX * 45f) % 360f
+                            
+                            // Vertical translation remains subtle
+                            val maxTransY = size.height * 0.2f
+                            translationY = (-scrollOffsetY * 30f).coerceIn(-maxTransY, maxTransY)
                         }
                 )
                 // Add high-contrast background overlay + repeating stardust grid overlay

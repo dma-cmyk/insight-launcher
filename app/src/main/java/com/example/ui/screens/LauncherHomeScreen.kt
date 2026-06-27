@@ -200,7 +200,7 @@ fun LauncherHomeScreen(
             } else {
                 0f
             }
-            Pair(realPage + pagerState.currentPageOffsetFraction, yOffset)
+            Pair((page + pagerState.currentPageOffsetFraction).toFloat(), yOffset)
         }.collect { (x, y) ->
             onScrollOffsetChanged(x, y / 1000f)
         }
