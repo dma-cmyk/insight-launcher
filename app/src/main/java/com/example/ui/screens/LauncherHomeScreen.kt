@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -1303,20 +1304,29 @@ fun FavoriteReorderableContent(
     aiLanguage: String,
     viewModel: AppLauncherViewModel
 ) {
-    var dragList by remember(pageApps) { mutableStateOf(pageApps) }
+    var dragList by remember { mutableStateOf(pageApps) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
+    LaunchedEffect(pageApps) {
+        if (draggingIndex == null) {
+            dragList = pageApps
+        }
+    }
+
     val itemPositions = remember { mutableStateMapOf<Int, Rect>() }
+    var containerCoords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(dragList) {
+            .onGloballyPositioned { containerCoords = it }
+            .pointerInput(Unit) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { startOffset ->
+                        val rootOffset = containerCoords?.localToWindow(startOffset) ?: startOffset
                         val matchedIndex = itemPositions.entries.firstOrNull { (_, rect) ->
-                            rect.contains(startOffset)
+                            rect.contains(rootOffset)
                         }?.key
                         if (matchedIndex != null && matchedIndex < dragList.size) {
                             draggingIndex = matchedIndex
@@ -1335,12 +1345,14 @@ fun FavoriteReorderableContent(
                                 }?.key
                                 if (targetIndex != null && targetIndex < dragList.size) {
                                     val mutable = dragList.toMutableList()
-                                    java.util.Collections.swap(mutable, draggingIndex!!, targetIndex)
+                                    val temp = mutable[draggingIndex!!]
+                                    mutable[draggingIndex!!] = mutable[targetIndex]
+                                    mutable[targetIndex] = temp
                                     dragList = mutable
 
                                     val targetBounds = itemPositions[targetIndex]
                                     if (targetBounds != null) {
-                                        dragOffset += originalBounds.topLeft - targetBounds.topLeft
+                                        dragOffset += originalBounds.center - targetBounds.center
                                     }
                                     draggingIndex = targetIndex
                                 }
@@ -1385,35 +1397,37 @@ fun FavoriteReorderableContent(
                             if (i < rowApps.size && itemIndex < dragList.size) {
                                 val app = dragList[itemIndex]
                                 val isCurrentDragging = draggingIndex == itemIndex
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .onGloballyPositioned { coords ->
-                                            itemPositions[itemIndex] = coords.boundsInParent()
-                                        }
-                                        .zIndex(if (isCurrentDragging) 10f else 1f)
-                                        .offset {
-                                            if (isCurrentDragging) {
-                                                IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
-                                            } else {
-                                                IntOffset.Zero
+                                key(app.packageName) {
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .onGloballyPositioned { coords ->
+                                                itemPositions[itemIndex] = coords.boundsInWindow()
                                             }
-                                        }
-                                        .graphicsLayer {
-                                            if (isCurrentDragging) {
-                                                scaleX = 1.12f
-                                                scaleY = 1.12f
-                                                alpha = 0.9f
+                                            .zIndex(if (isCurrentDragging) 10f else 1f)
+                                            .offset {
+                                                if (isCurrentDragging) {
+                                                    IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
+                                                } else {
+                                                    IntOffset.Zero
+                                                }
                                             }
-                                        }
-                                ) {
-                                    AppGridItem(
-                                        app = app,
-                                        onClick = { viewModel.selectApp(app) },
-                                        aiLanguage = aiLanguage,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        isFavorite = true
-                                    )
+                                            .graphicsLayer {
+                                                if (isCurrentDragging) {
+                                                    scaleX = 1.12f
+                                                    scaleY = 1.12f
+                                                    alpha = 0.9f
+                                                }
+                                            }
+                                    ) {
+                                        AppGridItem(
+                                            app = app,
+                                            onClick = { viewModel.selectApp(app) },
+                                            aiLanguage = aiLanguage,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            isFavorite = true
+                                        )
+                                    }
                                 }
                             } else {
                                 Spacer(modifier = Modifier.weight(1f))
@@ -1431,36 +1445,38 @@ fun FavoriteReorderableContent(
             ) {
                 dragList.forEachIndexed { itemIndex, app ->
                     val isCurrentDragging = draggingIndex == itemIndex
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .onGloballyPositioned { coords ->
-                                itemPositions[itemIndex] = coords.boundsInParent()
-                            }
-                            .zIndex(if (isCurrentDragging) 10f else 1f)
-                            .offset {
-                                if (isCurrentDragging) {
-                                    IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
-                                } else {
-                                    IntOffset.Zero
+                    key(app.packageName) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .onGloballyPositioned { coords ->
+                                    itemPositions[itemIndex] = coords.boundsInWindow()
                                 }
-                            }
-                            .graphicsLayer {
-                                if (isCurrentDragging) {
-                                    scaleX = 1.05f
-                                    scaleY = 1.05f
-                                    alpha = 0.9f
+                                .zIndex(if (isCurrentDragging) 10f else 1f)
+                                .offset {
+                                    if (isCurrentDragging) {
+                                        IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
+                                    } else {
+                                        IntOffset.Zero
+                                    }
                                 }
-                            }
-                    ) {
-                        AppListItem(
-                            app = app,
-                            onClick = { viewModel.selectApp(app) },
-                            aiLanguage = aiLanguage,
-                            modifier = Modifier.fillMaxWidth(),
-                            isFavorite = true
-                        )
+                                .graphicsLayer {
+                                    if (isCurrentDragging) {
+                                        scaleX = 1.05f
+                                        scaleY = 1.05f
+                                        alpha = 0.9f
+                                    }
+                                }
+                        ) {
+                            AppListItem(
+                                app = app,
+                                onClick = { viewModel.selectApp(app) },
+                                aiLanguage = aiLanguage,
+                                modifier = Modifier.fillMaxWidth(),
+                                isFavorite = true
+                            )
+                        }
                     }
                 }
             }
