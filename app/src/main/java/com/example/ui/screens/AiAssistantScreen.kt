@@ -587,7 +587,8 @@ fun AiAssistantScreen(
                                                 packageName = item["packageName"]?.toString() ?: "",
                                                 description = item["description"]?.toString() ?: "",
                                                 playStoreUrl = item["playStoreUrl"]?.toString() ?: "",
-                                                category = item["category"]?.toString() ?: "General"
+                                                category = item["category"]?.toString() ?: "General",
+                                                iconUrl = item["iconUrl"]?.toString()
                                             )
                                         } else {
                                             null
@@ -645,12 +646,21 @@ fun AiAssistantScreen(
                                                         .background(Color(0x22FFFFFF)),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.ShoppingCart,
-                                                        contentDescription = null,
-                                                        tint = Color(0xFFEF5350),
-                                                        modifier = Modifier.size(28.dp)
-                                                    )
+                                                    if (!storeApp.iconUrl.isNullOrBlank()) {
+                                                        coil.compose.AsyncImage(
+                                                            model = storeApp.iconUrl,
+                                                            contentDescription = "App Icon",
+                                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                                            modifier = Modifier.fillMaxSize()
+                                                        )
+                                                    } else {
+                                                        Icon(
+                                                            imageVector = Icons.Default.ShoppingCart,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFFEF5350),
+                                                            modifier = Modifier.size(28.dp)
+                                                        )
+                                                    }
                                                 }
 
                                                 Column(modifier = Modifier.weight(1f)) {
@@ -669,7 +679,7 @@ fun AiAssistantScreen(
                                                         )
                                                         Box(
                                                             modifier = Modifier
-                                                                .clip(RoundedCornerShape(6.dp))
+                                                                .clip(RoundedCornerShape(4.dp))
                                                                 .background(Color(0x33EF5350))
                                                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                                                         ) {
@@ -677,13 +687,13 @@ fun AiAssistantScreen(
                                                                 text = storeApp.category,
                                                                 color = Color(0xFFEF5350),
                                                                 fontSize = 9.sp,
-                                                                fontWeight = FontWeight.Black
+                                                                fontWeight = FontWeight.Bold
                                                             )
                                                         }
                                                     }
                                                     Text(
                                                         text = storeApp.packageName,
-                                                        color = Color(0x80FFFFFF),
+                                                        color = Color(0x99FFFFFF),
                                                         fontSize = 11.sp,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
@@ -702,7 +712,7 @@ fun AiAssistantScreen(
                                                     IconButton(
                                                         onClick = {
                                                             pendingWikiEntry = com.example.data.LlmWikiEntry(
-                                                                title = storeApp.name,
+                                                                title = storeApp.name.ifEmpty { "Play Store App" },
                                                                 content = "${storeApp.description}\n\n[Details]\n• Package: ${storeApp.packageName}\n• Category: ${storeApp.category}\n• URL: ${storeApp.playStoreUrl}",
                                                                 category = "Fact",
                                                                 tags = listOf("App", "PlayStore", storeApp.category, "Recommendation", storeApp.name.take(10).replace(" ", ""))
@@ -723,21 +733,19 @@ fun AiAssistantScreen(
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                     IconButton(
                                                         onClick = {
-                                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(storeApp.playStoreUrl)).apply {
-                                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                            }
-                                                            context.startActivity(intent)
+                                                            val query = if (aiLanguage == "ja") "Playストアアプリ「${storeApp.name}」(${storeApp.packageName}) の詳細を教えてください" else "Tell me more about Play Store app '${storeApp.name}' (${storeApp.packageName})"
+                                                            viewModel.askAiAssistant(query)
                                                         },
                                                         modifier = Modifier
                                                             .clip(CircleShape)
-                                                            .background(Color(0xFFEF5350))
+                                                            .background(Color(0x33EF5350))
                                                             .size(36.dp)
                                                     ) {
                                                         Icon(
-                                                            imageVector = Icons.Default.ArrowForward,
-                                                            contentDescription = "Install from Play Store",
-                                                            tint = Color.White,
-                                                            modifier = Modifier.size(20.dp)
+                                                            imageVector = Icons.Default.Search,
+                                                            contentDescription = "Search details",
+                                                            tint = Color(0xFFEF5350),
+                                                            modifier = Modifier.size(18.dp)
                                                         )
                                                     }
                                                 }
@@ -815,10 +823,14 @@ fun AiAssistantScreen(
                                                     .fillMaxWidth()
                                                     .border(1.dp, Color(0x2290CAF9), RoundedCornerShape(16.dp))
                                                     .clickable {
-                                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(repo.htmlUrl)).apply {
-                                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                        try {
+                                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(repo.htmlUrl)).apply {
+                                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                            }
+                                                            context.startActivity(intent)
+                                                        } catch (e: Exception) {
+                                                            android.widget.Toast.makeText(context, "Cannot open URL", android.widget.Toast.LENGTH_SHORT).show()
                                                         }
-                                                        context.startActivity(intent)
                                                     }
                                             ) {
                                                 Column(modifier = Modifier.padding(14.dp)) {
@@ -833,19 +845,29 @@ fun AiAssistantScreen(
                                                             modifier = Modifier.weight(1f)
                                                         ) {
                                                             // Owner icon fallback
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .size(24.dp)
-                                                                    .clip(CircleShape)
-                                                                    .background(Color(0x22FFFFFF)),
-                                                                contentAlignment = Alignment.Center
-                                                            ) {
-                                                                Text(
-                                                                    text = repo.owner.login.take(1).uppercase(),
-                                                                    color = Color(0xFF90CAF9),
-                                                                    fontSize = 10.sp,
-                                                                    fontWeight = FontWeight.Black
+                                                            if (!repo.owner.avatarUrl.isNullOrBlank()) {
+                                                                coil.compose.AsyncImage(
+                                                                    model = repo.owner.avatarUrl,
+                                                                    contentDescription = "Owner avatar",
+                                                                    modifier = Modifier
+                                                                        .size(24.dp)
+                                                                        .clip(CircleShape)
                                                                 )
+                                                            } else {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .size(24.dp)
+                                                                        .clip(CircleShape)
+                                                                        .background(Color(0x22FFFFFF)),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Default.Code,
+                                                                        contentDescription = null,
+                                                                        tint = Color(0xFF90CAF9),
+                                                                        modifier = Modifier.size(14.dp)
+                                                                    )
+                                                                }
                                                             }
                                                             Text(
                                                                 text = repo.owner.login,
@@ -896,6 +918,23 @@ fun AiAssistantScreen(
                                                                 Icon(
                                                                     imageVector = Icons.Default.BookmarkAdd,
                                                                     contentDescription = "Save to Wiki",
+                                                                    tint = Color(0xFF90CAF9),
+                                                                    modifier = Modifier.size(14.dp)
+                                                                )
+                                                            }
+                                                            IconButton(
+                                                                onClick = {
+                                                                    val query = if (aiLanguage == "ja") "GitHubリポジトリ「${repo.fullName}」の詳細を教えてください" else "Tell me more about GitHub repository '${repo.fullName}'"
+                                                                    viewModel.askAiAssistant(query)
+                                                                },
+                                                                modifier = Modifier
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(0x3390CAF9))
+                                                                    .size(24.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.Search,
+                                                                    contentDescription = "Search details",
                                                                     tint = Color(0xFF90CAF9),
                                                                     modifier = Modifier.size(14.dp)
                                                                 )

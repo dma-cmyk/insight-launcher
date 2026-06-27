@@ -841,7 +841,8 @@ object GeminiClient {
                             "packageName" to mapOf("type" to "STRING", "description" to "Android package name (e.g. com.android.chrome)"),
                             "description" to mapOf("type" to "STRING", "description" to "Brief explanation of why this app is recommended, written in $langName"),
                             "playStoreUrl" to mapOf("type" to "STRING", "description" to "Play store direct URL or search URL"),
-                            "category" to mapOf("type" to "STRING", "description" to "Category name (e.g. Utility, Social, Dev, Productivity)")
+                            "category" to mapOf("type" to "STRING", "description" to "Category name (e.g. Utility, Social, Dev, Productivity)"),
+                            "iconUrl" to mapOf("type" to "STRING", "description" to "A high-quality icon URL of the app. It MUST be a valid image URL. If unknown, omit.", "nullable" to true)
                         ),
                         "required" to listOf("name", "packageName", "description", "playStoreUrl")
                     ),
@@ -922,18 +923,7 @@ object GeminiClient {
 
                     Log.d(TAG, "MCP tool result: $toolResult")
 
-                    val resultMap = try {
-                        val obj = org.json.JSONObject(toolResult)
-                        val map = mutableMapOf<String, Any>()
-                        val keys = obj.keys()
-                        while (keys.hasNext()) {
-                            val key = keys.next()
-                            map[key] = obj.get(key)
-                        }
-                        mapOf("result" to map)
-                    } catch (e: Exception) {
-                        mapOf("result" to toolResult)
-                    }
+                    val resultMap = mapOf("result" to toolResult)
 
                     // Add function response turn
                     contents.add(GeminiContent(
@@ -1441,7 +1431,8 @@ data class RecommendedStoreApp(
     val packageName: String,
     val description: String,
     val playStoreUrl: String,
-    val category: String = "General"
+    val category: String = "General",
+    val iconUrl: String? = null
 )
 
 @JsonClass(generateAdapter = true)
