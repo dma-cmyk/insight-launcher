@@ -930,7 +930,7 @@ fun LauncherHomeScreen(
 
                         // Option 2: Toggle View Mode (Center)
                         val layoutLabel = if (viewMode == "GRID") {
-                            if (aiLanguage == "ja") "表示：リスト" else if (aiLanguage == "ko") "보기: リスト" else if (aiLanguage == "zh") "显示：列表" else "View: List"
+                            if (aiLanguage == "ja") "表示：リスト" else if (aiLanguage == "ko") "보기: 리스트" else if (aiLanguage == "zh") "显示：列表" else "View: List"
                         } else {
                             if (aiLanguage == "ja") "表示：グリッド" else if (aiLanguage == "ko") "보기: 그리드" else if (aiLanguage == "zh") "显示：网格" else "View: Grid"
                         }
@@ -1335,7 +1335,7 @@ fun FavoriteReorderableContent(
                                 }?.key
                                 if (targetIndex != null && targetIndex < dragList.size) {
                                     val mutable = dragList.toMutableList()
-                                    Collections.swap(mutable, draggingIndex!!, targetIndex)
+                                    java.util.Collections.swap(mutable, draggingIndex!!, targetIndex)
                                     dragList = mutable
 
                                     val targetBounds = itemPositions[targetIndex]

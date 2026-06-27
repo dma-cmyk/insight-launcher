@@ -847,10 +847,14 @@ object GeminiClient {
         val mcpTools = if (isGemma) emptyList() else (mcpManager?.getAvailableTools() ?: emptyList())
         val geminiTools = if (mcpTools.isNotEmpty()) {
             listOf(GeminiTool(functionDeclarations = mcpTools.map {
+                val params = it.inputSchema
+                val properties = params["properties"] as? Map<*, *>
+                val cleanedParams = if (properties.isNullOrEmpty()) null else params
+                
                 GeminiFunctionDeclaration(
                     name = it.name,
                     description = it.description,
-                    parameters = it.inputSchema
+                    parameters = cleanedParams
                 )
             }))
         } else null
@@ -905,13 +909,26 @@ object GeminiClient {
 
                     Log.d(TAG, "MCP tool result: $toolResult")
 
+                    val resultMap = try {
+                        val obj = org.json.JSONObject(toolResult)
+                        val map = mutableMapOf<String, Any>()
+                        val keys = obj.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            map[key] = obj.get(key)
+                        }
+                        mapOf("result" to map)
+                    } catch (e: Exception) {
+                        mapOf("result" to toolResult)
+                    }
+
                     // Add function response turn
                     contents.add(GeminiContent(
                         role = "function",
                         parts = listOf(GeminiPart(
                             functionResponse = GeminiFunctionResponse(
                                 name = functionCall.name,
-                                response = mapOf("content" to toolResult)
+                                response = resultMap
                             )
                         ))
                     ))
@@ -1063,6 +1080,6 @@ data class GeminiAssistantResponse(
     val answer: String,
     val relevantPackages: List<String>?,
     val suggestions: List<String>?,
-    val recommendedStoreApps: List<RecommendedStoreApp>? = null,
+    val recommendedStoreApps: List<Map<String, Any>>? = null,
     val githubSearchQuery: String? = null
 )

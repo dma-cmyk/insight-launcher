@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.RecommendedStoreApp
 import com.example.ui.AppLauncherViewModel
 import com.example.ui.Localization
 import com.example.ui.components.AppIconImage
@@ -561,7 +562,20 @@ fun AiAssistantScreen(
                                 }
 
                                 // 3.1 Recommended Play Store Apps
-                                val recommendedStoreApps = response.recommendedStoreApps ?: emptyList()
+                                val recommendedStoreAppsRaw = response.recommendedStoreApps ?: emptyList()
+                                val recommendedStoreApps = recommendedStoreAppsRaw.mapNotNull {
+                                    try {
+                                        RecommendedStoreApp(
+                                            name = it["name"]?.toString() ?: "",
+                                            packageName = it["packageName"]?.toString() ?: "",
+                                            description = it["description"]?.toString() ?: "",
+                                            playStoreUrl = it["playStoreUrl"]?.toString() ?: "",
+                                            category = it["category"]?.toString() ?: "General"
+                                        )
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+                                }
                                 if (recommendedStoreApps.isNotEmpty()) {
                                     item {
                                         Spacer(modifier = Modifier.height(12.dp))
