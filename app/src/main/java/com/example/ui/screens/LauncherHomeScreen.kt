@@ -9,6 +9,7 @@ import java.io.File
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -56,6 +57,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -129,6 +132,7 @@ fun LauncherHomeScreen(
     val analysisProgressPercent by viewModel.analysisProgressPercent.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
     val selectedApp by viewModel.selectedApp.collectAsState()
+    val bgLuminance by viewModel.bgLuminance.collectAsState()
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
     val lastLaunchTimes by viewModel.lastLaunchTimes.collectAsState()
     val launchCounts by viewModel.launchCounts.collectAsState()
@@ -251,53 +255,6 @@ fun LauncherHomeScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // Floating pull-out tab & Swipe detector on the right edge to open AI Assistant
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(40.dp)
-                    .align(Alignment.CenterEnd)
-                    .zIndex(50f)
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures { change, dragAmount ->
-                            // Left swipe from right edge
-                            if (dragAmount < -8f) {
-                                onNavigateToAiAssistant()
-                            }
-                        }
-                    }
-            ) {
-                // Sleek pull tab indicating AI pull-out assistant
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
-                        .background(Color(0x3342A5F5)) // transparent blue theme
-                        .border(1.dp, Color(0x6690CAF9), RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
-                        .clickable { onNavigateToAiAssistant() }
-                        .padding(horizontal = 4.dp, vertical = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = Color(0xFF90CAF9),
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ChevronLeft,
-                            contentDescription = if (aiLanguage == "ja") "スワイプまたはタップでAIアシスタントを開く" else "Swipe left or tap to open AI Assistant",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-
             Column(modifier = Modifier.fillMaxSize()) {
                 // 1. High Density Capsule Search Bar & Layout Switchers
                 Row(
@@ -464,23 +421,7 @@ fun LauncherHomeScreen(
                         }
                     }
 
-                    // Settings button in a compact header style next to the search bar
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x15FFFFFF))
-                            .border(1.dp, Color(0x20FFFFFF), CircleShape)
-                            .testTag("navigate_to_settings_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    // Top settings button moved to the bottom floating navigation dock for better reachability
                 }
 
                 // High Density Interactive Category Filter Chips
@@ -668,7 +609,7 @@ fun LauncherHomeScreen(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(bottom = 130.dp)
                     ) {
                         item {
                             Text(
@@ -806,7 +747,7 @@ fun LauncherHomeScreen(
                             LazyColumn(
                                 state = listState,
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp)
+                                contentPadding = PaddingValues(bottom = 130.dp)
                             ) {
                                 if (pageApps.isEmpty() && (currentCategory == "RECENT" || currentCategory == "MOST_USED")) {
                                     item {
@@ -890,6 +831,170 @@ fun LauncherHomeScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+               // 6. Floating Navigation Dock (Floating Capsule)
+            val isBgDark = bgLuminance < 0.45f
+            
+
+
+            // Modern, minimalist, and futuristic glassmorphism floating dock
+            // High opacity (95%) to heavily obscure the background text while maintaining a subtle glass feel
+            val targetDockBgColor = if (isBgDark) Color(0xF20F1115) else Color(0xF2181A20) // Deep dark gray, mostly opaque
+            val targetDockBorderTop = if (isBgDark) Color(0x4DFFFFFF) else Color(0x33FFFFFF) // Subtle glow on top
+            val targetDockBorderBottom = if (isBgDark) Color(0x0FFFFFFF) else Color(0x05FFFFFF)
+            val targetDockContentColor = Color(0xFFFFFFFF) // Pure clean white
+            val targetDockSecondaryTint = Color(0xFFFFFFFF) 
+
+            val dockBgColor by animateColorAsState(targetValue = targetDockBgColor, label = "dock_bg_color")
+            val dockBorderTop by animateColorAsState(targetValue = targetDockBorderTop, label = "dock_border_top")
+            val dockBorderBottom by animateColorAsState(targetValue = targetDockBorderBottom, label = "dock_border_bottom")
+            val dockContentColor by animateColorAsState(targetValue = targetDockContentColor, label = "dock_content_color")
+            val dockSecondaryTint by animateColorAsState(targetValue = targetDockSecondaryTint, label = "dock_secondary_tint")
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp)
+                    .navigationBarsPadding()
+                    .zIndex(45f)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = dockBgColor,
+                    border = BorderStroke(
+                        0.5.dp,
+                        Brush.verticalGradient(
+                            colors = listOf(dockBorderTop, dockBorderBottom) // dynamic highlights
+                        )
+                    ),
+                    shadowElevation = 16.dp,
+                    modifier = Modifier
+                        .widthIn(min = 320.dp, max = 400.dp)
+                        .fillMaxWidth(0.92f)
+                        .testTag("floating_navigation_dock")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Option 1: AI Assistant (Left)
+                        val aiLabel = if (aiLanguage == "ja") "AIアシスタント" else if (aiLanguage == "ko") "AI 어시스턴트" else if (aiLanguage == "zh") "AI助手" else "AI Assistant"
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable {
+                                    onNavigateToAiAssistant()
+                                }
+                                .padding(vertical = 6.dp)
+                                .weight(1f)
+                                .heightIn(min = 52.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.size(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Chat,
+                                    contentDescription = aiLabel,
+                                    tint = dockContentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = dockSecondaryTint,
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = 2.dp, y = (-2).dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = aiLabel,
+                                color = dockContentColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // Option 2: Toggle View Mode (Center)
+                        val layoutLabel = if (viewMode == "GRID") {
+                            if (aiLanguage == "ja") "表示：リスト" else if (aiLanguage == "ko") "보기: リスト" else if (aiLanguage == "zh") "显示：列表" else "View: List"
+                        } else {
+                            if (aiLanguage == "ja") "表示：グリッド" else if (aiLanguage == "ko") "보기: 그리드" else if (aiLanguage == "zh") "显示：网格" else "View: Grid"
+                        }
+                        val layoutIcon = if (viewMode == "GRID") Icons.Default.List else Icons.Default.GridView
+                        
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable {
+                                    val nextMode = if (viewMode == "GRID") "LIST" else "GRID"
+                                    viewModel.setViewMode(nextMode)
+                                }
+                                .padding(vertical = 6.dp)
+                                .weight(1.2f)
+                                .heightIn(min = 52.dp)
+                        ) {
+                            Icon(
+                                imageVector = layoutIcon,
+                                contentDescription = layoutLabel,
+                                tint = dockContentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = layoutLabel,
+                                color = dockContentColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // Option 3: Settings (Right)
+                        val settingsLabel = Localization.get("settings_title", aiLanguage)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable {
+                                    onNavigateToSettings()
+                                }
+                                .padding(vertical = 6.dp)
+                                .weight(1f)
+                                .heightIn(min = 52.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = settingsLabel,
+                                tint = dockContentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = settingsLabel,
+                                color = dockContentColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
@@ -1258,7 +1363,7 @@ fun FavoriteReorderableContent(
                     }
                 )
             }
-            .padding(bottom = 80.dp)
+            .padding(bottom = 130.dp)
     ) {
         if (viewMode == "GRID") {
             Column(
