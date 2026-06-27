@@ -658,12 +658,96 @@ class AppLauncherViewModel(
     fun deleteWikiEntry(id: Long) {
         viewModelScope.launch {
             repository.deleteWikiEntryById(id)
+            // Cleanup related link IDs in other entries
+            val allEntries = repository.getAllWikiEntriesDirect()
+            allEntries.forEach { entry ->
+                if (entry.relatedLinkIds.contains(id)) {
+                    val updatedIds = entry.relatedLinkIds.filter { it != id }
+                    repository.insertWikiEntry(entry.copy(relatedLinkIds = updatedIds))
+                }
+            }
         }
     }
 
     fun clearAllWikiEntries() {
         viewModelScope.launch {
             repository.clearAllWikiEntries()
+        }
+    }
+
+    private val _isAutoLinking = MutableStateFlow(false)
+    val isAutoLinking: StateFlow<Boolean> = _isAutoLinking.asStateFlow()
+
+    fun autoLinkWikiEntries() {
+        viewModelScope.launch {
+            _isAutoLinking.value = true
+            try {
+                val currentWikis = repository.getAllWikiEntriesDirect()
+                if (currentWikis.size < 2) return@launch
+                
+                val customApiKey = settingsManager.getGeminiApiKey()
+                val modelName = settingsManager.getPrimaryModel()
+                
+                val updatedWikis = com.example.data.GeminiClient.autoLinkWikis(
+                    wikis = currentWikis,
+                    modelName = modelName,
+                    customApiKey = customApiKey
+                )
+                
+                updatedWikis.forEach {
+                    repository.insertWikiEntry(it)
+                }
+                
+                val lang = settingsManager.getAiLanguage()
+                val msg = if (lang == "ja") "記憶の関連リンクを自動整理しました" else "Successfully auto-linked memories"
+                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Error auto linking wikis", e)
+                val lang = settingsManager.getAiLanguage()
+                val msg = if (lang == "ja") "自動整理に失敗しました: ${e.localizedMessage}" else "Failed to auto-link: ${e.localizedMessage}"
+                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+            } finally {
+                _isAutoLinking.value = false
+            }
+        }
+    }
+
+    private val _isBulkOrganizing = MutableStateFlow(false)
+    val isBulkOrganizing: StateFlow<Boolean> = _isBulkOrganizing.asStateFlow()
+
+    fun bulkOrganizeWikiEntries() {
+        viewModelScope.launch {
+            _isBulkOrganizing.value = true
+            try {
+                val currentWikis = repository.getAllWikiEntriesDirect()
+                if (currentWikis.isEmpty()) return@launch
+                
+                val customApiKey = settingsManager.getGeminiApiKey()
+                val modelName = settingsManager.getPrimaryModel()
+                
+                val updatedWikis = com.example.data.GeminiClient.bulkOrganizeWikis(
+                    wikis = currentWikis,
+                    modelName = modelName,
+                    customApiKey = customApiKey
+                )
+                
+                updatedWikis.forEach {
+                    repository.insertWikiEntry(it)
+                }
+                
+                val lang = settingsManager.getAiLanguage()
+                val msg = if (lang == "ja") "記憶のカテゴリーとタグを一括整理しました" else "Successfully organized memories"
+                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Error bulk organizing wikis", e)
+                val lang = settingsManager.getAiLanguage()
+                val msg = if (lang == "ja") "一括整理に失敗しました: ${e.localizedMessage}" else "Failed to organize: ${e.localizedMessage}"
+                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+            } finally {
+                _isBulkOrganizing.value = false
+            }
         }
     }
 

@@ -67,7 +67,7 @@ fun AiAssistantScreen(
     
     var textInput by remember { mutableStateOf("") }
     var activeTab by remember { mutableStateOf(0) } // 0 = Chat, 1 = LLM Wiki
-    var showAddDialog by remember { mutableStateOf(false) }
+    var pendingWikiEntry by remember { mutableStateOf<com.example.data.LlmWikiEntry?>(null) }
     var editingEntry by remember { mutableStateOf<com.example.data.LlmWikiEntry?>(null) }
     var searchWikiQuery by remember { mutableStateOf("") }
     
@@ -408,13 +408,26 @@ fun AiAssistantScreen(
                                             .fillMaxWidth()
                                             .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(20.dp))
                                     ) {
-                                        Text(
-                                            text = response.answer,
-                                            color = Color(0xEEFFFFFF),
-                                            fontSize = 16.sp,
-                                            lineHeight = 26.sp,
-                                            modifier = Modifier.padding(20.dp)
-                                        )
+                                        Column {
+                                            if (!response.headerImageUrl.isNullOrBlank()) {
+                                                coil.compose.AsyncImage(
+                                                    model = response.headerImageUrl,
+                                                    contentDescription = "Header Image",
+                                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .heightIn(max = 200.dp)
+                                                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                                                )
+                                            }
+                                            Text(
+                                                text = response.answer,
+                                                color = Color(0xEEFFFFFF),
+                                                fontSize = 16.sp,
+                                                lineHeight = 26.sp,
+                                                modifier = Modifier.padding(20.dp)
+                                            )
+                                        }
                                     }
                                 }
 
@@ -685,24 +698,48 @@ fun AiAssistantScreen(
                                                     )
                                                 }
 
-                                                IconButton(
-                                                    onClick = {
-                                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(storeApp.playStoreUrl)).apply {
-                                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                        }
-                                                        context.startActivity(intent)
-                                                    },
-                                                    modifier = Modifier
-                                                        .clip(CircleShape)
-                                                        .background(Color(0xFFEF5350))
-                                                        .size(36.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.ArrowForward,
-                                                        contentDescription = "Install from Play Store",
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
+                                                Column {
+                                                    IconButton(
+                                                        onClick = {
+                                                            pendingWikiEntry = com.example.data.LlmWikiEntry(
+                                                                title = storeApp.name,
+                                                                content = "${storeApp.description}\n\n[Details]\n• Package: ${storeApp.packageName}\n• Category: ${storeApp.category}\n• URL: ${storeApp.playStoreUrl}",
+                                                                category = "Fact",
+                                                                tags = listOf("App", "PlayStore", storeApp.category, "Recommendation", storeApp.name.take(10).replace(" ", ""))
+                                                            )
+                                                        },
+                                                        modifier = Modifier
+                                                            .clip(CircleShape)
+                                                            .background(Color(0x33EF5350))
+                                                            .size(36.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.BookmarkAdd,
+                                                            contentDescription = "Save to Wiki",
+                                                            tint = Color(0xFFEF5350),
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    IconButton(
+                                                        onClick = {
+                                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(storeApp.playStoreUrl)).apply {
+                                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                            }
+                                                            context.startActivity(intent)
+                                                        },
+                                                        modifier = Modifier
+                                                            .clip(CircleShape)
+                                                            .background(Color(0xFFEF5350))
+                                                            .size(36.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.ArrowForward,
+                                                            contentDescription = "Install from Play Store",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -820,23 +857,49 @@ fun AiAssistantScreen(
                                                             )
                                                         }
 
-                                                        // Stars badge
+                                                        // Stars badge and actions
                                                         Row(
                                                             verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                         ) {
-                                                            Icon(
-                                                                imageVector = Icons.Default.Star,
-                                                                contentDescription = "Stars",
-                                                                tint = Color(0xFFFFD54F),
-                                                                modifier = Modifier.size(14.dp)
-                                                            )
-                                                            Text(
-                                                                text = String.format("%,d", repo.stargazersCount),
-                                                                color = Color(0xFFFFD54F),
-                                                                fontSize = 12.sp,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.Star,
+                                                                    contentDescription = "Stars",
+                                                                    tint = Color(0xFFFFD54F),
+                                                                    modifier = Modifier.size(14.dp)
+                                                                )
+                                                                Text(
+                                                                    text = String.format("%,d", repo.stargazersCount),
+                                                                    color = Color(0xFFFFD54F),
+                                                                    fontSize = 12.sp,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
+                                                            }
+                                                            IconButton(
+                                                                onClick = {
+                                                                    pendingWikiEntry = com.example.data.LlmWikiEntry(
+                                                                        title = repo.name,
+                                                                        content = "${repo.description ?: "No description"}\n\n[Details]\n• Stars: ${repo.stargazersCount}\n• URL: ${repo.htmlUrl}",
+                                                                        category = "Fact",
+                                                                        tags = listOf("GitHub", "Code", "Repository", "OpenSource", repo.name.take(10).replace(" ", ""))
+                                                                    )
+                                                                },
+                                                                modifier = Modifier
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(0x3390CAF9))
+                                                                    .size(24.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.BookmarkAdd,
+                                                                    contentDescription = "Save to Wiki",
+                                                                    tint = Color(0xFF90CAF9),
+                                                                    modifier = Modifier.size(14.dp)
+                                                                )
+                                                            }
                                                         }
                                                     }
 
@@ -1048,7 +1111,13 @@ fun AiAssistantScreen(
 
                             // Add Button
                             Button(
-                                onClick = { showAddDialog = true },
+                                onClick = { 
+                                    pendingWikiEntry = com.example.data.LlmWikiEntry(
+                                        title = "",
+                                        content = "",
+                                        tags = listOf("Tag1", "Tag2", "Tag3", "Tag4", "Tag5")
+                                    ) 
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF5350)),
                                 shape = RoundedCornerShape(24.dp),
                                 contentPadding = PaddingValues(horizontal = 14.dp),
@@ -1205,6 +1274,120 @@ fun AiAssistantScreen(
                                                 fontSize = 13.sp,
                                                 lineHeight = 20.sp
                                             )
+                                            
+                                            if (entry.tags.isNotEmpty()) {
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                @OptIn(ExperimentalLayoutApi::class)
+                                                FlowRow(
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    entry.tags.forEach { tag ->
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(12.dp))
+                                                                .background(Color(0x22FFFFFF))
+                                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                        ) {
+                                                            Text(text = "#$tag", color = Color(0xAAFFFFFF), fontSize = 11.sp)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            
+                                            if (entry.relatedLinkIds.isNotEmpty()) {
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    text = if (aiLanguage == "ja") "関連リンク (${entry.relatedLinkIds.size})" else "Related Links (${entry.relatedLinkIds.size})",
+                                                    color = Color(0xFF64B5F6),
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                val relatedEntries = wikiEntries.filter { entry.relatedLinkIds.contains(it.id) }
+                                                Column(modifier = Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                    relatedEntries.forEach { rel ->
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Icon(Icons.Default.Link, contentDescription = null, tint = Color(0xFF64B5F6), modifier = Modifier.size(12.dp))
+                                                            Spacer(modifier = Modifier.width(4.dp))
+                                                            Text(text = rel.title, color = Color(0xCCFFFFFF), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Auto-link memories button
+                                item {
+                                    val isAutoLinking by viewModel.isAutoLinking.collectAsState()
+                                    TextButton(
+                                        onClick = { viewModel.autoLinkWikiEntries() },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF64B5F6)),
+                                        enabled = !isAutoLinking
+                                    ) {
+                                        if (isAutoLinking) {
+                                            androidx.compose.material3.CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                color = Color(0xFF64B5F6),
+                                                strokeWidth = 2.dp
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = if (aiLanguage == "ja") "自動整理中..." else "Auto-linking...",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Default.AutoFixHigh,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = if (aiLanguage == "ja") "AIで関連リンクを自動整理" else "Auto-link Memories with AI",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Bulk-organize memories button
+                                item {
+                                    val isBulkOrganizing by viewModel.isBulkOrganizing.collectAsState()
+                                    TextButton(
+                                        onClick = { viewModel.bulkOrganizeWikiEntries() },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF81C784)),
+                                        enabled = !isBulkOrganizing
+                                    ) {
+                                        if (isBulkOrganizing) {
+                                            androidx.compose.material3.CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                color = Color(0xFF81C784),
+                                                strokeWidth = 2.dp
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = if (aiLanguage == "ja") "一括整理中..." else "Organizing...",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Default.Category,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = if (aiLanguage == "ja") "AIでカテゴリーとタグを一括整理" else "Bulk Organize Tags & Categories",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
                                         }
                                     }
                                 }
@@ -1346,14 +1529,16 @@ fun AiAssistantScreen(
         }
     }
 
-    if (showAddDialog) {
-        var title by remember { mutableStateOf("") }
-        var content by remember { mutableStateOf("") }
-        var category by remember { mutableStateOf("Preference") }
+    if (pendingWikiEntry != null) {
+        var title by remember { mutableStateOf(pendingWikiEntry!!.title) }
+        var content by remember { mutableStateOf(pendingWikiEntry!!.content) }
+        var category by remember { mutableStateOf(pendingWikiEntry!!.category) }
+        var tagsString by remember { mutableStateOf(pendingWikiEntry!!.tags.joinToString(", ")) }
+        val selectedRelatedIds = remember { mutableStateListOf(*pendingWikiEntry!!.relatedLinkIds.toTypedArray()) }
         val categories = listOf("Preference", "Instruction", "Fact", "General")
         
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
+            onDismissRequest = { pendingWikiEntry = null },
             title = { Text(if (aiLanguage == "ja") "記憶を追加" else "Add Memory", color = Color.White) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1363,12 +1548,9 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "タイトル" else "Title") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350),
-                            unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350),
-                            unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
                         )
                     )
                     OutlinedTextField(
@@ -1377,12 +1559,20 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "記憶内容" else "Memory Content") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350),
-                            unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350),
-                            unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                        )
+                    )
+                    OutlinedTextField(
+                        value = tagsString,
+                        onValueChange = { tagsString = it },
+                        label = { Text(if (aiLanguage == "ja") "タグ (カンマ区切り, 最低5つ)" else "Tags (comma separated, min 5)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
                         )
                     )
                     Text(text = if (aiLanguage == "ja") "カテゴリー" else "Category", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -1408,20 +1598,48 @@ fun AiAssistantScreen(
                             }
                         }
                     }
+                    if (wikiEntries.isNotEmpty()) {
+                        Text(text = if (aiLanguage == "ja") "関連リンク" else "Related Links", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        LazyColumn(modifier = Modifier.heightIn(max = 120.dp).fillMaxWidth()) {
+                            items(wikiEntries) { w ->
+                                val isSelected = selectedRelatedIds.contains(w.id)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { 
+                                            if (isSelected) selectedRelatedIds.remove(w.id) else selectedRelatedIds.add(w.id) 
+                                        }
+                                        .padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    androidx.compose.material3.Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { if (it) selectedRelatedIds.add(w.id) else selectedRelatedIds.remove(w.id) }
+                                    )
+                                    Text(text = w.title, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (title.isNotBlank() && content.isNotBlank()) {
+                        val parsedTags = tagsString.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                        if (title.isNotBlank() && content.isNotBlank() && parsedTags.size >= 5) {
                             viewModel.saveWikiEntry(
                                 com.example.data.LlmWikiEntry(
                                     title = title,
                                     content = content,
-                                    category = category
+                                    category = category,
+                                    tags = parsedTags,
+                                    relatedLinkIds = selectedRelatedIds.toList()
                                 )
                             )
-                            showAddDialog = false
+                            pendingWikiEntry = null
+                        } else {
+                            android.widget.Toast.makeText(context, if (aiLanguage == "ja") "タイトル、内容、および5つ以上のタグが必要です" else "Title, content, and at least 5 tags required", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 ) {
@@ -1429,7 +1647,7 @@ fun AiAssistantScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
+                TextButton(onClick = { pendingWikiEntry = null }) {
                     Text(if (aiLanguage == "ja") "キャンセル" else "Cancel", color = Color.White)
                 }
             },
@@ -1442,6 +1660,8 @@ fun AiAssistantScreen(
         var title by remember { mutableStateOf(editingEntry!!.title) }
         var content by remember { mutableStateOf(editingEntry!!.content) }
         var category by remember { mutableStateOf(editingEntry!!.category) }
+        var tagsString by remember { mutableStateOf(editingEntry!!.tags.joinToString(", ")) }
+        val selectedRelatedIds = remember { mutableStateListOf(*editingEntry!!.relatedLinkIds.toTypedArray()) }
         val categories = listOf("Preference", "Instruction", "Fact", "General")
         
         AlertDialog(
@@ -1455,12 +1675,9 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "タイトル" else "Title") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350),
-                            unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350),
-                            unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
                         )
                     )
                     OutlinedTextField(
@@ -1469,12 +1686,20 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "記憶内容" else "Memory Content") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350),
-                            unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350),
-                            unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                        )
+                    )
+                    OutlinedTextField(
+                        value = tagsString,
+                        onValueChange = { tagsString = it },
+                        label = { Text(if (aiLanguage == "ja") "タグ (カンマ区切り, 最低5つ)" else "Tags (comma separated, min 5)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
                         )
                     )
                     Text(text = if (aiLanguage == "ja") "カテゴリー" else "Category", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -1500,21 +1725,50 @@ fun AiAssistantScreen(
                             }
                         }
                     }
+                    val otherWikis = wikiEntries.filter { it.id != editingEntry!!.id }
+                    if (otherWikis.isNotEmpty()) {
+                        Text(text = if (aiLanguage == "ja") "関連リンク" else "Related Links", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        LazyColumn(modifier = Modifier.heightIn(max = 120.dp).fillMaxWidth()) {
+                            items(otherWikis) { w ->
+                                val isSelected = selectedRelatedIds.contains(w.id)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { 
+                                            if (isSelected) selectedRelatedIds.remove(w.id) else selectedRelatedIds.add(w.id) 
+                                        }
+                                        .padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    androidx.compose.material3.Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { if (it) selectedRelatedIds.add(w.id) else selectedRelatedIds.remove(w.id) }
+                                    )
+                                    Text(text = w.title, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (title.isNotBlank() && content.isNotBlank()) {
+                        val parsedTags = tagsString.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                        if (title.isNotBlank() && content.isNotBlank() && parsedTags.size >= 5) {
                             viewModel.saveWikiEntry(
                                 editingEntry!!.copy(
                                     title = title,
                                     content = content,
                                     category = category,
+                                    tags = parsedTags,
+                                    relatedLinkIds = selectedRelatedIds.toList(),
                                     lastUpdated = System.currentTimeMillis()
                                 )
                             )
                             editingEntry = null
+                        } else {
+                            android.widget.Toast.makeText(context, if (aiLanguage == "ja") "タイトル、内容、および5つ以上のタグが必要です" else "Title, content, and at least 5 tags required", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 ) {

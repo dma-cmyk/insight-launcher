@@ -772,7 +772,7 @@ object GeminiClient {
         val wikiContext = if (wikiEntries.isNotEmpty()) {
             val builder = StringBuilder("\n--- LLM WIKI / AI MEMORIES (IMPORTANT FACTS, CONTEXT, AND PREFERENCES TO ALWAYS REMEMBER) ---\n")
             wikiEntries.forEach { entry ->
-                builder.append("Title: ${entry.title}\nCategory: ${entry.category}\nContent: ${entry.content}\n\n")
+                builder.append("Title: ${entry.title}\nCategory: ${entry.category}\nContent: ${entry.content}\nTags: ${entry.tags.joinToString(", ")}\n\n")
             }
             builder.append("------------------------------------------------------------------------------------\n")
             builder.toString()
@@ -800,7 +800,7 @@ object GeminiClient {
             5. Provide 3 "suggestions" (short follow-up queries or questions in $langName, e.g., "ゲームを探して", "SNSアプリはどれ？").
             6. If the user's query asks for or would highly benefit from apps they DO NOT have installed, recommend up to 4 high-quality relevant apps from the Play Store in the "recommendedStoreApps" list. The descriptions of these apps must be written in $langName.
             7. If the user's query indicates they are looking for developer templates, open-source projects, Kotlin codebases, libraries, or GitHub projects, provide a relevant concise search keyword in "githubSearchQuery" so the app can perform a real-time live search against GitHub Search API.
-            8. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, or get the weather for a city, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool.
+            8. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, get the weather for a city, or fetch detailed info/images about a specific GitHub repo or Play Store app, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool. If the tool returns an image URL (e.g., avatar_url or icon_url), output it in the 'headerImageUrl' field.
 
             Format your response STRICTLY as a JSON object adhering to the schema.
         """.trimIndent()
@@ -816,6 +816,11 @@ object GeminiClient {
             "properties" to mapOf(
                 "headline" to mapOf("type" to "STRING", "description" to "A short, engaging title summarizing your response in $langName"),
                 "answer" to mapOf("type" to "STRING", "description" to "Detailed formatted explanation or response in $langName. Support emojis, lists, and bold text."),
+                "headerImageUrl" to mapOf(
+                    "type" to "STRING",
+                    "nullable" to true,
+                    "description" to "URL of an image to display at the top of the response (e.g. GitHub avatar, app icon). Extract this from MCP tool results if available. Set to null if no image is available."
+                ),
                 "relevantPackages" to mapOf(
                     "type" to "ARRAY",
                     "items" to mapOf("type" to "STRING"),
@@ -1026,9 +1031,10 @@ object GeminiClient {
             1. Formulate a short, descriptive title for this memory in $langName (e.g., "ユーザーはRPGゲームが好き" or "AIは要約時に箇条書きを使うこと").
             2. Extract/summarize the core fact, preference, or instruction in $langName. Keep it concise, clear, and actionable.
             3. Choose an appropriate category (e.g., "Preference", "Instruction", "Fact", "General").
+            4. Provide exactly 5 relevant tags (keywords) related to this memory in $langName.
             
             Format your response STRICTLY as a JSON object adhering to the schema.
-            ${if (isGemma) "\nIMPORTANT: Return ONLY a raw JSON string of format {\"title\":\"...\",\"content\":\"...\",\"category\":\"...\"}. Do not include markdown block tags or extra text." else ""}
+            ${if (isGemma) "\nIMPORTANT: Return ONLY a raw JSON string of format {\"title\":\"...\",\"content\":\"...\",\"category\":\"...\", \"tags\":[\"...\", ...], \"relatedLinkIds\":[]}. Do not include markdown block tags or extra text." else ""}
         """.trimIndent()
 
         val schema = mapOf(
@@ -1036,9 +1042,14 @@ object GeminiClient {
             "properties" to mapOf(
                 "title" to mapOf("type" to "STRING", "description" to "Descriptive title of the memory in $langName"),
                 "content" to mapOf("type" to "STRING", "description" to "Concise fact, preference, or instruction in $langName"),
-                "category" to mapOf("type" to "STRING", "description" to "Category of the memory (e.g., Preference, Instruction, Fact)")
+                "category" to mapOf("type" to "STRING", "description" to "Category of the memory (e.g., Preference, Instruction, Fact)"),
+                "tags" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf("type" to "STRING"),
+                    "description" to "List of exactly 5 relevant tags/keywords in $langName"
+                )
             ),
-            "required" to listOf("title", "content", "category")
+            "required" to listOf("title", "content", "category", "tags")
         )
 
         val request = GeminiRequest(
@@ -1058,10 +1069,18 @@ object GeminiClient {
             val cleanedJson = cleanJsonText(jsonText)
             if (cleanedJson != null) {
                 val json = org.json.JSONObject(cleanedJson)
+                val tagsArray = json.optJSONArray("tags")
+                val tagsList = mutableListOf<String>()
+                if (tagsArray != null) {
+                    for (i in 0 until tagsArray.length()) {
+                        tagsList.add(tagsArray.optString(i))
+                    }
+                }
                 LlmWikiEntry(
                     title = json.optString("title", "Saved Memory"),
                     content = json.optString("content", ""),
-                    category = json.optString("category", "General")
+                    category = json.optString("category", "General"),
+                    tags = tagsList
                 )
             } else {
                 null
@@ -1070,6 +1089,238 @@ object GeminiClient {
             Log.e(TAG, "extractWikiEntry failed: ${e.message}", e)
             null
         }
+    }
+
+    suspend fun autoLinkWikis(
+        wikis: List<LlmWikiEntry>,
+        modelName: String,
+        customApiKey: String? = null
+    ): List<LlmWikiEntry> = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY" || wikis.size < 2) return@withContext wikis
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val isGemma = cleanModelName.startsWith("gemma")
+
+        val wikisJson = org.json.JSONArray()
+        wikis.forEach {
+            val obj = org.json.JSONObject()
+            obj.put("id", it.id)
+            obj.put("title", it.title)
+            obj.put("category", it.category)
+            obj.put("tags", org.json.JSONArray(it.tags))
+            wikisJson.put(obj)
+        }
+
+        val prompt = """
+            You are an AI tasked with finding connections between memory cards (Wiki Entries).
+            I will provide a JSON array of entries. Each entry has an 'id', 'title', 'category', and 'tags'.
+            
+            Your task is to link EACH entry to at least 3 other related entries (if there are enough total entries).
+            You should find meaningful connections based on category, tags, or implied topics.
+            
+            Input JSON:
+            ${wikisJson.toString()}
+            
+            Format your response STRICTLY as a JSON object adhering to the schema.
+            The response MUST contain an array named 'linkedEntries'.
+            Each item in 'linkedEntries' MUST have:
+            - "id": the ID of the entry (number)
+            - "relatedLinkIds": an array of related IDs (numbers). Aim for at least 3 related IDs per entry.
+            
+            ${if (isGemma) "\nIMPORTANT: Return ONLY a raw JSON string. Do not include markdown block tags." else ""}
+        """.trimIndent()
+
+        val schema = mapOf(
+            "type" to "OBJECT",
+            "properties" to mapOf(
+                "linkedEntries" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf(
+                        "type" to "OBJECT",
+                        "properties" to mapOf(
+                            "id" to mapOf("type" to "INTEGER"),
+                            "relatedLinkIds" to mapOf(
+                                "type" to "ARRAY",
+                                "items" to mapOf("type" to "INTEGER")
+                            )
+                        ),
+                        "required" to listOf("id", "relatedLinkIds")
+                    )
+                )
+            ),
+            "required" to listOf("linkedEntries")
+        )
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(parts = listOf(GeminiPart(text = prompt)))),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = if (isGemma) null else "application/json",
+                responseSchema = if (isGemma) null else schema,
+                temperature = 0.2
+            )
+        )
+
+        try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            if (jsonText != null) {
+                val cleanedJson = cleanJsonText(jsonText)
+                if (cleanedJson != null) {
+                    val jsonObj = org.json.JSONObject(cleanedJson)
+                    val linkedArray = jsonObj.optJSONArray("linkedEntries")
+                    if (linkedArray != null) {
+                        val linksMap = mutableMapOf<Long, List<Long>>()
+                        for (i in 0 until linkedArray.length()) {
+                            val item = linkedArray.optJSONObject(i)
+                            if (item != null) {
+                                val id = item.optLong("id", -1L)
+                                val relArray = item.optJSONArray("relatedLinkIds")
+                                if (id != -1L && relArray != null) {
+                                    val relList = mutableListOf<Long>()
+                                    for (j in 0 until relArray.length()) {
+                                        relList.add(relArray.optLong(j))
+                                    }
+                                    linksMap[id] = relList.filter { it != id }.distinct()
+                                }
+                            }
+                        }
+                        
+                        return@withContext wikis.map { entry ->
+                            val aiLinks = linksMap[entry.id] ?: emptyList()
+                            // Merge existing and new, keeping unique
+                            val mergedLinks = (entry.relatedLinkIds + aiLinks).distinct().filter { it != entry.id }
+                            entry.copy(relatedLinkIds = mergedLinks, lastUpdated = System.currentTimeMillis())
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "autoLinkWikis failed: ${e.message}", e)
+        }
+        return@withContext wikis
+    }
+
+    suspend fun bulkOrganizeWikis(
+        wikis: List<LlmWikiEntry>,
+        modelName: String,
+        customApiKey: String? = null
+    ): List<LlmWikiEntry> = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY" || wikis.isEmpty()) return@withContext wikis
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val isGemma = cleanModelName.startsWith("gemma")
+
+        val wikisJson = org.json.JSONArray()
+        wikis.forEach {
+            val obj = org.json.JSONObject()
+            obj.put("id", it.id)
+            obj.put("title", it.title)
+            obj.put("category", it.category)
+            obj.put("tags", org.json.JSONArray(it.tags))
+            wikisJson.put(obj)
+        }
+
+        val prompt = """
+            You are an AI tasked with bulk-organizing memory cards (Wiki Entries).
+            I will provide a JSON array of entries. Each entry has an 'id', 'title', 'category', and 'tags'.
+            
+            Your task is to:
+            1. Standardize and consolidate the 'category' names (e.g., merge similar categories like "Development", "Dev", "Coding" into one standardized category).
+            2. Clean up and standardize the 'tags' (remove duplicates, merge synonyms, keeping them concise and relevant).
+            
+            Input JSON:
+            ${wikisJson.toString()}
+            
+            Format your response STRICTLY as a JSON object adhering to the schema.
+            The response MUST contain an array named 'organizedEntries'.
+            Each item in 'organizedEntries' MUST have:
+            - "id": the ID of the entry (number)
+            - "category": the standardized category (string)
+            - "tags": an array of standardized tags (strings)
+            
+            ${if (isGemma) "\nIMPORTANT: Return ONLY a raw JSON string. Do not include markdown block tags." else ""}
+        """.trimIndent()
+
+        val schema = mapOf(
+            "type" to "OBJECT",
+            "properties" to mapOf(
+                "organizedEntries" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf(
+                        "type" to "OBJECT",
+                        "properties" to mapOf(
+                            "id" to mapOf("type" to "INTEGER"),
+                            "category" to mapOf("type" to "STRING"),
+                            "tags" to mapOf(
+                                "type" to "ARRAY",
+                                "items" to mapOf("type" to "STRING")
+                            )
+                        ),
+                        "required" to listOf("id", "category", "tags")
+                    )
+                )
+            ),
+            "required" to listOf("organizedEntries")
+        )
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(parts = listOf(GeminiPart(text = prompt)))),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = if (isGemma) null else "application/json",
+                responseSchema = if (isGemma) null else schema,
+                temperature = 0.2
+            )
+        )
+
+        try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            if (jsonText != null) {
+                val cleanedJson = cleanJsonText(jsonText)
+                if (cleanedJson != null) {
+                    val jsonObj = org.json.JSONObject(cleanedJson)
+                    val organizedArray = jsonObj.optJSONArray("organizedEntries")
+                    if (organizedArray != null) {
+                        val updatesMap = mutableMapOf<Long, Pair<String, List<String>>>()
+                        for (i in 0 until organizedArray.length()) {
+                            val item = organizedArray.optJSONObject(i)
+                            if (item != null) {
+                                val id = item.optLong("id", -1L)
+                                val category = item.optString("category", "General")
+                                val tagsArray = item.optJSONArray("tags")
+                                if (id != -1L) {
+                                    val tagsList = mutableListOf<String>()
+                                    if (tagsArray != null) {
+                                        for (j in 0 until tagsArray.length()) {
+                                            tagsList.add(tagsArray.optString(j))
+                                        }
+                                    }
+                                    updatesMap[id] = Pair(category, tagsList)
+                                }
+                            }
+                        }
+                        
+                        return@withContext wikis.map { entry ->
+                            val update = updatesMap[entry.id]
+                            if (update != null) {
+                                entry.copy(
+                                    category = update.first,
+                                    tags = update.second,
+                                    lastUpdated = System.currentTimeMillis()
+                                )
+                            } else {
+                                entry
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "bulkOrganizeWikis failed: ${e.message}", e)
+        }
+        return@withContext wikis
     }
 
     suspend fun translateGitHubRepos(
@@ -1197,6 +1448,7 @@ data class RecommendedStoreApp(
 data class GeminiAssistantResponse(
     val headline: String,
     val answer: String,
+    val headerImageUrl: String? = null,
     val relevantPackages: List<String>?,
     val suggestions: List<String>?,
     val recommendedStoreApps: List<Any>? = null,

@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 
-@Database(entities = [AppInfo::class, LlmWikiEntry::class, McpServerEntity::class], version = 4, exportSchema = false)
+@Database(entities = [AppInfo::class, LlmWikiEntry::class, McpServerEntity::class], version = 5, exportSchema = false)
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun appDao(): AppDao
 

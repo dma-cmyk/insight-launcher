@@ -11,5 +11,7 @@ data class LlmWikiEntry(
     val title: String,
     val content: String,
     val category: String = "General",
+    val tags: List<String> = emptyList(),
+    val relatedLinkIds: List<Long> = emptyList(),
     val lastUpdated: Long = System.currentTimeMillis()
 )

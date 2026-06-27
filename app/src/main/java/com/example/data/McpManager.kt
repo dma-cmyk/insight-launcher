@@ -140,6 +140,29 @@ class McpManager(
                 ),
                 "required" to listOf("city")
             )
+        ),
+        McpTool(
+            name = "get_github_repo_details",
+            description = "Get detailed information about a specific GitHub repository, including its description, stars, forks, language, and owner avatar image URL.",
+            inputSchema = mapOf(
+                "type" to "OBJECT",
+                "properties" to mapOf(
+                    "owner" to mapOf("type" to "STRING", "description" to "The owner of the repository"),
+                    "repo" to mapOf("type" to "STRING", "description" to "The name of the repository")
+                ),
+                "required" to listOf("owner", "repo")
+            )
+        ),
+        McpTool(
+            name = "get_playstore_app_details",
+            description = "Get basic details about an Android app from the Google Play Store, such as title, description, and icon URL. Useful when the user wants to know about an app.",
+            inputSchema = mapOf(
+                "type" to "OBJECT",
+                "properties" to mapOf(
+                    "packageName" to mapOf("type" to "STRING", "description" to "The Android package name (e.g. com.android.chrome)")
+                ),
+                "required" to listOf("packageName")
+            )
         )
     )
 
@@ -435,6 +458,74 @@ class McpManager(
                             put("condition", if (temp > 22) "Sunny / Fair" else "Cloudy / Cool")
                             put("is_simulated", true)
                         }.toString()
+                    }
+                }
+            }
+            "get_github_repo_details" -> {
+                val owner = args["owner"]?.toString() ?: ""
+                val repo = args["repo"]?.toString() ?: ""
+                val url = "https://api.github.com/repos/$owner/$repo"
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "AI-App-Launcher")
+                    .build()
+                withContext(Dispatchers.IO) {
+                    try {
+                        httpClient.newCall(request).execute().use { response ->
+                            if (response.isSuccessful) {
+                                val body = response.body?.string() ?: ""
+                                val json = JSONObject(body)
+                                val avatarUrl = json.optJSONObject("owner")?.optString("avatar_url")
+                                JSONObject().apply {
+                                    put("name", json.optString("name"))
+                                    put("full_name", json.optString("full_name"))
+                                    put("description", json.optString("description"))
+                                    put("stars", json.optInt("stargazers_count"))
+                                    put("forks", json.optInt("forks_count"))
+                                    put("language", json.optString("language"))
+                                    put("avatar_url", avatarUrl)
+                                    put("html_url", json.optString("html_url"))
+                                }.toString()
+                            } else {
+                                "Error: Failed to fetch GitHub repo. Status ${response.code}"
+                            }
+                        }
+                    } catch (e: Exception) {
+                        "Error: ${e.localizedMessage}"
+                    }
+                }
+            }
+            "get_playstore_app_details" -> {
+                val pkg = args["packageName"]?.toString() ?: ""
+                val url = "https://play.google.com/store/apps/details?id=$pkg"
+                withContext(Dispatchers.IO) {
+                    try {
+                        val request = Request.Builder()
+                            .url(url)
+                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                            .build()
+                        httpClient.newCall(request).execute().use { response ->
+                            if (response.isSuccessful) {
+                                val html = response.body?.string() ?: ""
+                                // Basic regex to extract title and icon
+                                val titleRegex = "<title id=\"main-title\">(.*?)</title>".toRegex()
+                                val iconRegex = "<img[^>]+src=\"(https://play-lh\\.googleusercontent\\.com/[^\"]+)\"[^>]+alt=\"Icon image\"".toRegex()
+                                
+                                val titleMatch = titleRegex.find(html)?.groupValues?.get(1)?.replace(" - Apps on Google Play", "") ?: "Unknown Title"
+                                val iconMatch = iconRegex.find(html)?.groupValues?.get(1)
+                                
+                                JSONObject().apply {
+                                    put("title", titleMatch)
+                                    put("icon_url", iconMatch)
+                                    put("playStoreUrl", url)
+                                    put("packageName", pkg)
+                                }.toString()
+                            } else {
+                                "Error: Play Store page not found or accessible. Status ${response.code}"
+                            }
+                        }
+                    } catch (e: Exception) {
+                        "Error: ${e.localizedMessage}"
                     }
                 }
             }
