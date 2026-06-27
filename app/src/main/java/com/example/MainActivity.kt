@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
                 var currentScreen by remember { mutableStateOf("home") }
                 var bgScrollOffsetX by remember { mutableStateOf(0f) }
                 var bgScrollOffsetY by remember { mutableStateOf(0f) }
+                var bgPageCount by remember { mutableStateOf(5) }
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Responsive space backdrop with dimming overlay layer and high density parallax swiping
@@ -51,7 +52,8 @@ class MainActivity : ComponentActivity() {
                         scrollOffsetX = bgScrollOffsetX,
                         scrollOffsetY = bgScrollOffsetY,
                         bgLuminance = bgLuminance,
-                        autoContrast = autoContrast
+                        autoContrast = autoContrast,
+                        pageCount = bgPageCount
                     )
 
                     // Smooth sliding content transition
@@ -85,9 +87,10 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToAiAssistant = {
                                     currentScreen = "ai_assistant"
                                 },
-                                onScrollOffsetChanged = { x, y ->
+                                onScrollOffsetChanged = { x, y, count ->
                                     bgScrollOffsetX = x
                                     bgScrollOffsetY = y
+                                    bgPageCount = count
                                 }
                             )
                             "settings" -> SettingsScreen(

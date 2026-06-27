@@ -2,7 +2,9 @@ package com.example.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -23,7 +25,8 @@ fun SpaceBackground(
     scrollOffsetX: Float = 0f,
     scrollOffsetY: Float = 0f,
     bgLuminance: Float = 0.05f,
-    autoContrast: Boolean = true
+    autoContrast: Boolean = true,
+    pageCount: Int = 5
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         if (bgUrl == "procedural_nebula") {
@@ -121,28 +124,77 @@ fun SpaceBackground(
             }
         } else {
             // Load selected NASA/Unsplash or Local gallery image using Coil with a dark dimming layer
-            Box(modifier = Modifier.fillMaxSize()) {
-                AsyncImage(
-                    model = bgUrl,
-                    contentDescription = "Cosmic Background",
-                    contentScale = ContentScale.Crop,
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val widthPx = constraints.maxWidth.toFloat()
+                
+                // One full cycle across all pages shifts the image by exactly its full width * 2
+                val shiftAmount = (scrollOffsetX / pageCount.coerceAtLeast(1).toFloat()) * (widthPx * 2f)
+                
+                // Modulo to keep it within [0, widthPx * 2] (since widthPx * 2 is a full rotation cycle with normal+mirrored tile)
+                val modOffset = (shiftAmount % (widthPx * 2)).let { 
+                    if (it < 0) it + (widthPx * 2) else it 
+                }
+
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            // Parallax shifting with subtle zoom scaling to prevent black edge reveals
-                            // The user suggested a full rotation horizontally instead of panning.
-                            // To prevent black edges during rotation, scale up to cover the diagonal.
-                            scaleX = 2.2f
-                            scaleY = 2.2f
+                            translationX = -modOffset
                             
-                            // Rotate horizontally (e.g. 60 degrees per page)
-                            rotationZ = (scrollOffsetX * 45f) % 360f
-                            
-                            // Vertical translation remains subtle
-                            val maxTransY = size.height * 0.2f
+                            val maxTransY = size.height * 0.15f
                             translationY = (-scrollOffsetY * 30f).coerceIn(-maxTransY, maxTransY)
+                            
+                            // Scale slightly to hide vertical edges during overscroll
+                            scaleX = 1.05f
+                            scaleY = 1.05f
                         }
+                ) {
+                    // Panel 0 (Normal)
+                    AsyncImage(
+                        model = bgUrl,
+                        contentDescription = "Cosmic Background",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    // Panel 1 (Mirrored)
+                    AsyncImage(
+                        model = bgUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                translationX = widthPx
+                                scaleX = -1f
+                            }
+                    )
+                    // Panel 2 (Normal) - required to wrap seamlessly when translationX approaches -widthPx*2
+                    AsyncImage(
+                        model = bgUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                translationX = widthPx * 2
+                            }
+                    )
+                }
+
+                // Cylindrical Shading Overlay (Gradient) to enhance the 3D rotating cylinder feel
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                0.0f to Color.Black.copy(alpha = 0.55f),
+                                0.15f to Color.Transparent,
+                                0.85f to Color.Transparent,
+                                1.0f to Color.Black.copy(alpha = 0.55f)
+                            )
+                        )
                 )
+
                 // Add high-contrast background overlay + repeating stardust grid overlay
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     // Dynamic dim alpha based on background image luminance (higher luminance -> heavier dimming)

@@ -109,7 +109,7 @@ fun LauncherHomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToAiAssistant: () -> Unit,
     modifier: Modifier = Modifier,
-    onScrollOffsetChanged: (Float, Float) -> Unit = { _, _ -> }
+    onScrollOffsetChanged: (Float, Float, Int) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -202,7 +202,7 @@ fun LauncherHomeScreen(
             }
             Pair((page + pagerState.currentPageOffsetFraction).toFloat(), yOffset)
         }.collect { (x, y) ->
-            onScrollOffsetChanged(x, y / 1000f)
+            onScrollOffsetChanged(x, y / 1000f, categories.size)
         }
     }
 
