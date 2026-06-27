@@ -254,6 +254,13 @@ object GeminiClient {
             else -> "Japanese"
         }
 
+        val categoryExamples = when (languageCode) {
+            "en" -> "\"Productivity\", \"Social\", \"Utility\", \"Game\", \"Entertainment\""
+            "ko" -> "\"생산성\", \"소셜\", \"유틸리티\", \"게임\", \"엔터테인먼트\""
+            "zh" -> "\"生产力\", \"社交\", \"实用工具\", \"游戏\", \"娱乐\""
+            else -> "\"生産性\", \"ソーシャル\", \"ユーティリティ\", \"ゲーム\", \"エンターテイメント\""
+        }
+
         val cleanModelName = modelName.removePrefix("models/")
         val backupModelNameClean = backupModelName.removePrefix("models/")
         val isGemma = cleanModelName.contains("gemma", ignoreCase = true)
@@ -290,7 +297,7 @@ object GeminiClient {
             
             
             Provide:
-            1. An appropriate standard high-level category in $langName (e.g., "Productivity", "Social", "Utility", "Game", "Entertainment", "Finance", "Education", "System", or equivalent in $langName).
+            1. An appropriate standard high-level category in $langName (MUST BE IN $langName, e.g., $categoryExamples).
             2. A brief, useful summary of this application in $langName (explaining its core purpose). Use the provided User Instructions or Reference Content if available to guide and correct your understanding.
             3. At least 5 relevant tags or keywords in $langName.
             4. At least 3 relevant high-quality related links or external resources in $langName (e.g., official support site, Wikipedia article, Google Play Store search, documentation, or relevant guides).
@@ -429,6 +436,13 @@ object GeminiClient {
             else -> "Japanese"
         }
 
+        val categoryExamples = when (languageCode) {
+            "en" -> "\"Productivity\", \"Social\", \"Utility\", \"Game\", \"Entertainment\""
+            "ko" -> "\"생산성\", \"소셜\", \"유틸리티\", \"게임\", \"엔터테인먼트\""
+            "zh" -> "\"生产力\", \"社交\", \"实用工具\", \"游戏\", \"娱乐\""
+            else -> "\"生産性\", \"ソーシャル\", \"ユーティリティ\", \"ゲーム\", \"エンターテイメント\""
+        }
+
         val cleanModelName = modelName.removePrefix("models/")
         val backupModelNameClean = backupModelName.removePrefix("models/")
         val isGemma = cleanModelName.contains("gemma", ignoreCase = true)
@@ -444,7 +458,7 @@ object GeminiClient {
             
             Provide the following information for EACH of the applications in the list:
             1. The exact same packageName (must match the input exactly).
-            2. An appropriate standard high-level category in $langName (e.g., "Productivity", "Social", "Utility", "Game", "Entertainment", "Finance", "Education", "System", or equivalent in $langName).
+            2. An appropriate standard high-level category in $langName (MUST BE IN $langName, e.g., $categoryExamples).
             3. A brief, useful summary of this application in $langName (explaining its core purpose).
             4. At least 5 relevant tags or keywords in $langName.
             5. At least 3 relevant high-quality related links or external resources in $langName (e.g., official support site, Wikipedia article, Google Play Store search, documentation, or relevant guides).
