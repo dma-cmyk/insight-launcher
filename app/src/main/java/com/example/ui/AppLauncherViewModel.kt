@@ -67,6 +67,11 @@ class AppLauncherViewModel(
     private val _queryEmbedding = MutableStateFlow<List<Float>?>(null)
     val queryEmbedding: StateFlow<List<Float>?> = _queryEmbedding.asStateFlow()
 
+    private val _bgLuminance = MutableStateFlow(0.05f) // Default is dark (procedural nebula)
+    val bgLuminance: StateFlow<Float> = _bgLuminance.asStateFlow()
+
+    val autoContrast: StateFlow<Boolean> = settingsManager.autoContrast
+
     // Expose background image URL reactively
     val currentBgUrl: StateFlow<String> = settingsManager.bgImageUrl
     val viewMode: StateFlow<String> = settingsManager.viewMode
@@ -775,11 +780,6 @@ class AppLauncherViewModel(
         _isAssistantLoading.value = false
         _githubRepos.value = emptyList()
     }
-
-    private val _bgLuminance = MutableStateFlow(0.05f) // Default is dark (procedural nebula)
-    val bgLuminance: StateFlow<Float> = _bgLuminance.asStateFlow()
-
-    val autoContrast: StateFlow<Boolean> = settingsManager.autoContrast
 
     private fun startBgLuminanceAnalysis() {
         viewModelScope.launch(Dispatchers.IO) {
