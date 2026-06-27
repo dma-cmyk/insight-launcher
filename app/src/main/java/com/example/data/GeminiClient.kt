@@ -827,6 +827,7 @@ object GeminiClient {
                 ),
                 "recommendedStoreApps" to mapOf(
                     "type" to "ARRAY",
+                    "nullable" to true,
                     "items" to mapOf(
                         "type" to "OBJECT",
                         "properties" to mapOf(
@@ -842,6 +843,7 @@ object GeminiClient {
                 ),
                 "githubSearchQuery" to mapOf(
                     "type" to "STRING",
+                    "nullable" to true,
                     "description" to "A search query keyword to look up real-time matching GitHub repositories (e.g. 'jetpack compose navigation' or 'android launcher'). Keep it short and precise. Set to null or empty string if GitHub search is not relevant."
                 )
             ),
@@ -1085,6 +1087,6 @@ data class GeminiAssistantResponse(
     val answer: String,
     val relevantPackages: List<String>?,
     val suggestions: List<String>?,
-    val recommendedStoreApps: List<Map<String, Any>>? = null,
+    val recommendedStoreApps: List<RecommendedStoreApp>? = null,
     val githubSearchQuery: String? = null
 )

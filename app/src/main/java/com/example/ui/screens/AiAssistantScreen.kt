@@ -81,8 +81,11 @@ fun AiAssistantScreen(
             if (!results.isNullOrEmpty()) {
                 val spokenText = results[0]
                 textInput = spokenText
-                // Automatically search when voice is completed
-                viewModel.askAiAssistant(spokenText)
+                // Correct voice input using AI before submitting
+                viewModel.processAiAssistantVoiceInput(spokenText) { correctedText ->
+                    textInput = correctedText
+                    viewModel.askAiAssistant(correctedText)
+                }
             }
         }
     }
@@ -562,20 +565,7 @@ fun AiAssistantScreen(
                                 }
 
                                 // 3.1 Recommended Play Store Apps
-                                val recommendedStoreAppsRaw = response.recommendedStoreApps ?: emptyList()
-                                val recommendedStoreApps = recommendedStoreAppsRaw.mapNotNull {
-                                    try {
-                                        RecommendedStoreApp(
-                                            name = it["name"]?.toString() ?: "",
-                                            packageName = it["packageName"]?.toString() ?: "",
-                                            description = it["description"]?.toString() ?: "",
-                                            playStoreUrl = it["playStoreUrl"]?.toString() ?: "",
-                                            category = it["category"]?.toString() ?: "General"
-                                        )
-                                    } catch (e: Exception) {
-                                        null
-                                    }
-                                }
+                                val recommendedStoreApps = response.recommendedStoreApps ?: emptyList()
                                 if (recommendedStoreApps.isNotEmpty()) {
                                     item {
                                         Spacer(modifier = Modifier.height(12.dp))

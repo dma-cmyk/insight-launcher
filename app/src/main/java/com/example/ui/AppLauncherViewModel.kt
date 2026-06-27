@@ -691,6 +691,31 @@ class AppLauncherViewModel(
         }
     }
 
+    fun processAiAssistantVoiceInput(spokenText: String, onCorrected: (String) -> Unit) {
+        viewModelScope.launch {
+            _isAssistantLoading.value = true
+            try {
+                val apiKey = settingsManager.getGeminiApiKey()
+                val modelName = settingsManager.getPrimaryModel()
+                
+                val corrected = com.example.data.GeminiClient.correctVoiceInput(
+                    spokenText = spokenText,
+                    modelName = modelName,
+                    customApiKey = apiKey
+                )
+                
+                val finalQuery = if (!corrected.isNullOrBlank()) corrected else spokenText
+                onCorrected(finalQuery)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing AI assistant voice input", e)
+                onCorrected(spokenText)
+            } finally {
+                // We don't set _isAssistantLoading = false here because askAiAssistant will be called right after
+                // and it will manage the loading state.
+            }
+        }
+    }
+
     fun askAiAssistant(query: String) {
         if (query.isBlank()) return
         viewModelScope.launch {
