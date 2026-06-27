@@ -798,7 +798,7 @@ object GeminiClient {
                If the user asks about facts or instructions you have saved in your LLM WIKI/memories (shown above), use that stored knowledge to answer accurately!
             4. Identify up to 6 "relevantPackages" (exact package names from the list) that are most relevant to the user's query so we can display them as clickable app cards. If the query is a general question (e.g., "tell me a joke"), this can be empty or list 1-2 most frequently used apps as helpful suggestions.
             5. Provide 3 "suggestions" (short follow-up queries or questions in $langName, e.g., "ゲームを探して", "SNSアプリはどれ？").
-            6. If the user's query asks for or would highly benefit from apps they DO NOT have installed, recommend up to 4 high-quality relevant apps from the Play Store in the "recommendedStoreApps" list.
+            6. If the user's query asks for or would highly benefit from apps they DO NOT have installed, recommend up to 4 high-quality relevant apps from the Play Store in the "recommendedStoreApps" list. The descriptions of these apps must be written in $langName.
             7. If the user's query indicates they are looking for developer templates, open-source projects, Kotlin codebases, libraries, or GitHub projects, provide a relevant concise search keyword in "githubSearchQuery" so the app can perform a real-time live search against GitHub Search API.
             8. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, or get the weather for a city, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool.
 
@@ -834,7 +834,7 @@ object GeminiClient {
                         "properties" to mapOf(
                             "name" to mapOf("type" to "STRING", "description" to "Application name"),
                             "packageName" to mapOf("type" to "STRING", "description" to "Android package name (e.g. com.android.chrome)"),
-                            "description" to mapOf("type" to "STRING", "description" to "Brief explanation of why this app is recommended"),
+                            "description" to mapOf("type" to "STRING", "description" to "Brief explanation of why this app is recommended, written in $langName"),
                             "playStoreUrl" to mapOf("type" to "STRING", "description" to "Play store direct URL or search URL"),
                             "category" to mapOf("type" to "STRING", "description" to "Category name (e.g. Utility, Social, Dev, Productivity)")
                         ),
