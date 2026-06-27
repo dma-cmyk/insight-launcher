@@ -77,7 +77,7 @@ class AppLauncherViewModel(
     val customIcons: StateFlow<Map<String, String>> = usageTracker.customIcons
 
     // Unfiltered installed apps stream for stable category calculations during search
-    val allAppsState: StateFlow<List<InstalledApp>> = repository.getInstalledAppsFlow(context).stateIn(
+    val allAppsState: StateFlow<List<InstalledApp>> = repository.getInstalledAppsFlow(context, settingsManager.includeIconlessSystemApps).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
@@ -85,7 +85,7 @@ class AppLauncherViewModel(
 
     // Combine installed apps with search query and vector search settings
     val appListState: StateFlow<List<InstalledApp>> = combine(
-        repository.getInstalledAppsFlow(context),
+        repository.getInstalledAppsFlow(context, settingsManager.includeIconlessSystemApps),
         _searchQuery,
         _isVectorSearchEnabled,
         _queryEmbedding
@@ -168,8 +168,8 @@ class AppLauncherViewModel(
     private fun ensureEmbeddingsForAnalyzedApps() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                repository.syncDatabaseWithInstalledApps(context)
-                val apps = repository.getAllAppInfosDirect(context)
+                repository.syncDatabaseWithInstalledApps(context, settingsManager.getIncludeIconlessSystemApps())
+                val apps = repository.getAllAppInfosDirect(context, settingsManager.getIncludeIconlessSystemApps())
                 val customApiKey = settingsManager.getGeminiApiKey()
                 apps.forEach { appInfo ->
                     if (appInfo.embedding.isNullOrBlank() && appInfo.category.isNotBlank()) {
@@ -667,7 +667,7 @@ class AppLauncherViewModel(
         viewModelScope.launch {
             _isAssistantLoading.value = true
             try {
-                val apps = repository.getAllAppInfosDirect(context)
+                val apps = repository.getAllAppInfosDirect(context, settingsManager.getIncludeIconlessSystemApps())
                 val customApiKey = settingsManager.getGeminiApiKey()
                 val modelName = settingsManager.getPrimaryModel()
                 val lang = settingsManager.getAiLanguage()
@@ -808,7 +808,7 @@ class AppLauncherViewModel(
 
     fun refreshInstalledApps() {
         viewModelScope.launch {
-            repository.syncDatabaseWithInstalledApps(context)
+            repository.syncDatabaseWithInstalledApps(context, settingsManager.getIncludeIconlessSystemApps())
             repository.refreshInstalledApps()
         }
     }

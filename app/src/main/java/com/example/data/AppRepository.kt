@@ -36,10 +36,10 @@ class AppRepository(private val appDao: AppDao) {
         refreshTrigger.value = System.currentTimeMillis()
     }
 
-    suspend fun syncDatabaseWithInstalledApps(context: Context) = withContext(Dispatchers.IO) {
+    suspend fun syncDatabaseWithInstalledApps(context: Context, includeIconlessSystemApps: Boolean) = withContext(Dispatchers.IO) {
         try {
             val pm = context.packageManager
-            val installedPackages = getLaunchableAppsList(pm).map { it.packageName }.toSet()
+            val installedPackages = getLaunchableAppsList(pm, includeIconlessSystemApps).map { it.packageName }.toSet()
             val cachedApps = appDao.getAllAppsDirect()
             
             val appsToDelete = cachedApps.filter { !installedPackages.contains(it.packageName) }
@@ -55,13 +55,15 @@ class AppRepository(private val appDao: AppDao) {
     }
 
     // Get reactive flow combining PM list and Room database list
-    fun getInstalledAppsFlow(context: Context): Flow<List<InstalledApp>> {
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getInstalledAppsFlow(context: Context, includeIconlessSystemAppsFlow: Flow<Boolean>): Flow<List<InstalledApp>> {
         val pm = context.packageManager
         return combine(
             appDao.getAllAppsFlow(),
-            refreshTrigger
-        ) { cachedList, _ ->
-            val pmList = getLaunchableAppsList(pm)
+            refreshTrigger,
+            includeIconlessSystemAppsFlow
+        ) { cachedList, _, includeIconlessSystemApps ->
+            val pmList = getLaunchableAppsList(pm, includeIconlessSystemApps)
             val cachedMap = cachedList.associateBy { it.packageName }
             pmList.map { info ->
                 InstalledApp(
@@ -75,7 +77,7 @@ class AppRepository(private val appDao: AppDao) {
     }
 
     // Get raw launchable apps using Package Manager
-    private fun getLaunchableAppsList(pm: PackageManager): List<PmAppInfo> {
+    private fun getLaunchableAppsList(pm: PackageManager, includeIconlessSystemApps: Boolean): List<PmAppInfo> {
         val apps = try {
             pm.getInstalledApplications(PackageManager.GET_META_DATA)
         } catch (e: Exception) {
@@ -89,6 +91,12 @@ class AppRepository(private val appDao: AppDao) {
                 packageName
             }
             val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+            val hasLaunchIntent = pm.getLaunchIntentForPackage(packageName) != null
+
+            if (isSystemApp && !hasLaunchIntent && !includeIconlessSystemApps) {
+                return@mapNotNull null
+            }
+
             PmAppInfo(packageName, label, isSystemApp)
         }.distinctBy { it.packageName }
     }
@@ -346,9 +354,9 @@ class AppRepository(private val appDao: AppDao) {
         appDao.insertApp(appInfo)
     }
 
-    suspend fun getAllAppInfosDirect(context: Context): List<AppInfo> = withContext(Dispatchers.IO) {
+    suspend fun getAllAppInfosDirect(context: Context, includeIconlessSystemApps: Boolean): List<AppInfo> = withContext(Dispatchers.IO) {
         val pm = context.packageManager
-        val installedPackageNames = getLaunchableAppsList(pm).map { it.packageName }.toSet()
+        val installedPackageNames = getLaunchableAppsList(pm, includeIconlessSystemApps).map { it.packageName }.toSet()
         appDao.getAllAppsDirect().filter { installedPackageNames.contains(it.packageName) }
     }
 

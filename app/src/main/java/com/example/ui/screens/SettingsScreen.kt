@@ -58,6 +58,7 @@ fun SettingsScreen(
     val bgLuminance by viewModel.bgLuminance.collectAsState()
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
+    val includeIconlessSystemApps by viewModel.settingsManager.includeIconlessSystemApps.collectAsState()
 
     var customUrlInput by remember { mutableStateOf("") }
     var showCustomUrlDialog by remember { mutableStateOf(false) }
@@ -686,6 +687,52 @@ fun SettingsScreen(
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color(0xFFFF8A65),
                                     checkedTrackColor = Color(0x66FF8A65),
+                                    uncheckedThumbColor = Color.LightGray,
+                                    uncheckedTrackColor = Color(0x33FFFFFF)
+                                )
+                            )
+                        }
+
+                        // Include Iconless System Apps toggle
+                        HorizontalDivider(color = Color(0x14FFFFFF), modifier = Modifier.padding(vertical = 4.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Default.Apps,
+                                    contentDescription = "Apps",
+                                    tint = Color(0xFF64B5F6),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column {
+                                    Text(
+                                        Localization.get("include_iconless_system_apps_title", aiLanguage),
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        Localization.get("include_iconless_system_apps_desc", aiLanguage),
+                                        color = Color.White.copy(alpha = 0.6f),
+                                        fontSize = 11.sp,
+                                        lineHeight = 14.sp
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = includeIconlessSystemApps,
+                                onCheckedChange = { viewModel.settingsManager.setIncludeIconlessSystemApps(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color(0xFF64B5F6),
+                                    checkedTrackColor = Color(0x6664B5F6),
                                     uncheckedThumbColor = Color.LightGray,
                                     uncheckedTrackColor = Color(0x33FFFFFF)
                                 )

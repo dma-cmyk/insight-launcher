@@ -253,7 +253,7 @@ class McpManager(
             }
             "search_installed_apps" -> {
                 val query = args["query"]?.toString()?.lowercase(Locale.getDefault()) ?: ""
-                val apps = repository.getAllAppInfosDirect(context)
+                val apps = repository.getAllAppInfosDirect(context, settingsManager.getIncludeIconlessSystemApps())
                 val matches = apps.filter { app ->
                     app.label.lowercase(Locale.getDefault()).contains(query) ||
                     app.packageName.lowercase(Locale.getDefault()).contains(query) ||

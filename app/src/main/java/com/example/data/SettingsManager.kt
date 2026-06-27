@@ -18,6 +18,7 @@ class SettingsManager(context: Context) {
         const val KEY_GEMINI_API_KEY = "gemini_api_key"
         const val KEY_ICON_SHAPE = "icon_shape" // "ROUNDED_RECT", "CIRCLE", "SQUARE", "SQUIRCLE"
         const val KEY_AUTO_CONTRAST = "auto_contrast"
+        const val KEY_INCLUDE_ICONLESS_SYSTEM_APPS = "include_iconless_system_apps"
 
         const val DEFAULT_PRIMARY_MODEL = "gemini-flash-lite-latest"
         const val DEFAULT_BACKUP_MODEL = "gemini-flash-latest"
@@ -25,6 +26,7 @@ class SettingsManager(context: Context) {
         const val DEFAULT_BG_IMAGE = "procedural_nebula" // Canvas procedural nebula
         const val DEFAULT_AI_LANGUAGE = "ja"
         const val DEFAULT_ICON_SHAPE = "ROUNDED_RECT"
+        const val DEFAULT_INCLUDE_ICONLESS_SYSTEM_APPS = false
 
         val SPACE_PRESETS = listOf(
             PresetBg("Procedural Nebula (Offline/Battery-Save)", "procedural_nebula"),
@@ -52,12 +54,16 @@ class SettingsManager(context: Context) {
     private val _autoContrast = MutableStateFlow(prefs.getBoolean(KEY_AUTO_CONTRAST, true))
     val autoContrast: StateFlow<Boolean> = _autoContrast
 
+    private val _includeIconlessSystemApps = MutableStateFlow(prefs.getBoolean(KEY_INCLUDE_ICONLESS_SYSTEM_APPS, DEFAULT_INCLUDE_ICONLESS_SYSTEM_APPS))
+    val includeIconlessSystemApps: StateFlow<Boolean> = _includeIconlessSystemApps
+
     fun getPrimaryModel(): String = prefs.getString(KEY_PRIMARY_MODEL, DEFAULT_PRIMARY_MODEL) ?: DEFAULT_PRIMARY_MODEL
     fun getBackupModel(): String = prefs.getString(KEY_BACKUP_MODEL, DEFAULT_BACKUP_MODEL) ?: DEFAULT_BACKUP_MODEL
     fun getEmbeddingModel(): String = prefs.getString(KEY_EMBEDDING_MODEL, DEFAULT_EMBEDDING_MODEL) ?: DEFAULT_EMBEDDING_MODEL
     fun getAiLanguage(): String = prefs.getString(KEY_AI_LANGUAGE, DEFAULT_AI_LANGUAGE) ?: DEFAULT_AI_LANGUAGE
     fun getGeminiApiKey(): String = prefs.getString(KEY_GEMINI_API_KEY, "") ?: ""
     fun getIconShape(): String = prefs.getString(KEY_ICON_SHAPE, DEFAULT_ICON_SHAPE) ?: DEFAULT_ICON_SHAPE
+    fun getIncludeIconlessSystemApps(): Boolean = prefs.getBoolean(KEY_INCLUDE_ICONLESS_SYSTEM_APPS, DEFAULT_INCLUDE_ICONLESS_SYSTEM_APPS)
 
     fun setPrimaryModel(model: String) {
         prefs.edit().putString(KEY_PRIMARY_MODEL, model).apply()
@@ -98,5 +104,10 @@ class SettingsManager(context: Context) {
     fun setAutoContrast(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_CONTRAST, enabled).apply()
         _autoContrast.value = enabled
+    }
+
+    fun setIncludeIconlessSystemApps(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_INCLUDE_ICONLESS_SYSTEM_APPS, enabled).apply()
+        _includeIconlessSystemApps.value = enabled
     }
 }
