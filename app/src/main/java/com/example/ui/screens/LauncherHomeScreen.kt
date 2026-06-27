@@ -857,7 +857,7 @@ fun LauncherHomeScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp)
+                    .padding(bottom = 12.dp)
                     .navigationBarsPadding()
                     .zIndex(45f)
             ) {
