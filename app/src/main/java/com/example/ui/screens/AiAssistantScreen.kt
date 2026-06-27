@@ -587,8 +587,7 @@ fun AiAssistantScreen(
                                                 packageName = item["packageName"]?.toString() ?: "",
                                                 description = item["description"]?.toString() ?: "",
                                                 playStoreUrl = item["playStoreUrl"]?.toString() ?: "",
-                                                category = item["category"]?.toString() ?: "General",
-                                                iconUrl = item["iconUrl"]?.toString()
+                                                category = item["category"]?.toString() ?: "General"
                                             )
                                         } else {
                                             null
@@ -646,21 +645,12 @@ fun AiAssistantScreen(
                                                         .background(Color(0x22FFFFFF)),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    if (!storeApp.iconUrl.isNullOrBlank()) {
-                                                        coil.compose.AsyncImage(
-                                                            model = storeApp.iconUrl,
-                                                            contentDescription = "App Icon",
-                                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                                            modifier = Modifier.fillMaxSize()
-                                                        )
-                                                    } else {
-                                                        Icon(
-                                                            imageVector = Icons.Default.ShoppingCart,
-                                                            contentDescription = null,
-                                                            tint = Color(0xFFEF5350),
-                                                            modifier = Modifier.size(28.dp)
-                                                        )
-                                                    }
+                                                    Icon(
+                                                        imageVector = Icons.Default.ShoppingCart,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFEF5350),
+                                                        modifier = Modifier.size(28.dp)
+                                                    )
                                                 }
 
                                                 Column(modifier = Modifier.weight(1f)) {
@@ -845,29 +835,19 @@ fun AiAssistantScreen(
                                                             modifier = Modifier.weight(1f)
                                                         ) {
                                                             // Owner icon fallback
-                                                            if (!repo.owner.avatarUrl.isNullOrBlank()) {
-                                                                coil.compose.AsyncImage(
-                                                                    model = repo.owner.avatarUrl,
-                                                                    contentDescription = "Owner avatar",
-                                                                    modifier = Modifier
-                                                                        .size(24.dp)
-                                                                        .clip(CircleShape)
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(24.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(0x22FFFFFF)),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = repo.owner.login.take(1).uppercase(),
+                                                                    color = Color(0xFF90CAF9),
+                                                                    fontSize = 10.sp,
+                                                                    fontWeight = FontWeight.Black
                                                                 )
-                                                            } else {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .size(24.dp)
-                                                                        .clip(CircleShape)
-                                                                        .background(Color(0x22FFFFFF)),
-                                                                    contentAlignment = Alignment.Center
-                                                                ) {
-                                                                    Icon(
-                                                                        imageVector = Icons.Default.Code,
-                                                                        contentDescription = null,
-                                                                        tint = Color(0xFF90CAF9),
-                                                                        modifier = Modifier.size(14.dp)
-                                                                    )
-                                                                }
                                                             }
                                                             Text(
                                                                 text = repo.owner.login,

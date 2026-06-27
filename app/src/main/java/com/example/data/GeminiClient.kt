@@ -39,7 +39,8 @@ data class GeminiPart(
 
 @JsonClass(generateAdapter = true)
 data class GeminiTool(
-    val functionDeclarations: List<GeminiFunctionDeclaration>
+    val functionDeclarations: List<GeminiFunctionDeclaration>? = null,
+    val googleSearchRetrieval: Map<String, Any>? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -798,9 +799,10 @@ object GeminiClient {
                If the user asks about facts or instructions you have saved in your LLM WIKI/memories (shown above), use that stored knowledge to answer accurately!
             4. Identify up to 6 "relevantPackages" (exact package names from the list) that are most relevant to the user's query so we can display them as clickable app cards. If the query is a general question (e.g., "tell me a joke"), this can be empty or list 1-2 most frequently used apps as helpful suggestions.
             5. Provide 3 "suggestions" (short follow-up queries or questions in $langName, e.g., "ゲームを探して", "SNSアプリはどれ？").
-            6. If the user's query asks for or would highly benefit from apps they DO NOT have installed, recommend up to 4 high-quality relevant apps from the Play Store in the "recommendedStoreApps" list. The descriptions of these apps must be written in $langName.
+            6. You have Google Search grounding enabled via the `googleSearchRetrieval` tool. When the user asks for app recommendations, searches for apps, or if they would highly benefit from apps they DO NOT have installed, recommend up to 4 high-quality relevant real apps from the Google Play Store in the "recommendedStoreApps" list.
+               Since you have live Google Search grounding, search the Google Play Store using your search tool to find actual app names, correct package names (e.g. com.instagram.android, com.spotify.music), and actual Play Store URLs. Ensure the "description" explaining why you recommend them is written in $langName.
             7. If the user's query indicates they are looking for developer templates, open-source projects, Kotlin codebases, libraries, or GitHub projects, provide a relevant concise search keyword in "githubSearchQuery" so the app can perform a real-time live search against GitHub Search API.
-            8. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, get the weather for a city, or fetch detailed info/images about a specific GitHub repo or Play Store app, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool. If the tool returns an image URL (e.g., avatar_url or icon_url), output it in the 'headerImageUrl' field.
+            8. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, or get the weather for a city, or fetch detailed info/images about a specific GitHub repo, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool. DO NOT use any scraping-based Play Store tools or search Play Store apps via regex; instead, rely fully on your Google Search Grounding to get exact and correct Play Store details! If any tool returns an image URL (e.g., avatar_url), output it in the 'headerImageUrl' field.
 
             Format your response STRICTLY as a JSON object adhering to the schema.
         """.trimIndent()
@@ -841,8 +843,7 @@ object GeminiClient {
                             "packageName" to mapOf("type" to "STRING", "description" to "Android package name (e.g. com.android.chrome)"),
                             "description" to mapOf("type" to "STRING", "description" to "Brief explanation of why this app is recommended, written in $langName"),
                             "playStoreUrl" to mapOf("type" to "STRING", "description" to "Play store direct URL or search URL"),
-                            "category" to mapOf("type" to "STRING", "description" to "Category name (e.g. Utility, Social, Dev, Productivity)"),
-                            "iconUrl" to mapOf("type" to "STRING", "description" to "A high-quality icon URL of the app. It MUST be a valid image URL. If unknown, omit.", "nullable" to true)
+                            "category" to mapOf("type" to "STRING", "description" to "Category name (e.g. Utility, Social, Dev, Productivity)")
                         ),
                         "required" to listOf("name", "packageName", "description", "playStoreUrl")
                     ),
@@ -859,8 +860,9 @@ object GeminiClient {
 
         // Prep tools (disable MCP tools for Gemma as it doesn't support tools/function calling over standard payload)
         val mcpTools = if (isGemma) emptyList() else (mcpManager?.getAvailableTools() ?: emptyList())
-        val geminiTools = if (mcpTools.isNotEmpty()) {
-            listOf(GeminiTool(functionDeclarations = mcpTools.map {
+        val geminiToolsList = mutableListOf<GeminiTool>()
+        if (mcpTools.isNotEmpty()) {
+            geminiToolsList.add(GeminiTool(functionDeclarations = mcpTools.map {
                 val params = it.inputSchema
                 val properties = params["properties"] as? Map<*, *>
                 val cleanedParams = if (properties.isNullOrEmpty()) null else params
@@ -871,7 +873,13 @@ object GeminiClient {
                     parameters = cleanedParams
                 )
             }))
-        } else null
+        }
+        // Always add googleSearchRetrieval tool for grounding on models that support it (not Gemma)
+        if (!isGemma) {
+            geminiToolsList.add(GeminiTool(googleSearchRetrieval = emptyMap()))
+        }
+        val geminiTools = if (geminiToolsList.isNotEmpty()) geminiToolsList else null
+        val hasFunctionDeclarations = geminiTools?.any { it.functionDeclarations != null } == true
 
         val contents = mutableListOf(GeminiContent(
             role = "user",
@@ -888,8 +896,8 @@ object GeminiClient {
                     contents = contents,
                     tools = geminiTools,
                     generationConfig = GeminiGenerationConfig(
-                        responseMimeType = if (geminiTools == null && !isGemma) "application/json" else null,
-                        responseSchema = if (geminiTools == null && !isGemma) schema else null,
+                        responseMimeType = if (!hasFunctionDeclarations && !isGemma) "application/json" else null,
+                        responseSchema = if (!hasFunctionDeclarations && !isGemma) schema else null,
                         temperature = 0.4
                     )
                 )
@@ -1431,8 +1439,7 @@ data class RecommendedStoreApp(
     val packageName: String,
     val description: String,
     val playStoreUrl: String,
-    val category: String = "General",
-    val iconUrl: String? = null
+    val category: String = "General"
 )
 
 @JsonClass(generateAdapter = true)
