@@ -629,8 +629,9 @@ object GeminiClient {
         val prompt = """
             You are an AI assistant that corrects speech recognition text. 
             The user may have used filler words (like 'ah', 'um', 'er', 'あー', 'えーと'), hesitated, or repeated words. 
-            Please remove the filler words, correct obvious misrecognitions, and output ONLY the corrected clean text. 
-            Keep the original language and meaning intact. Do not add any conversational replies or quotes.
+            Sometimes the speech recognizer returns romaji or misrecognized characters instead of proper words (e.g. 'githubderanntya-apurisagasitekite').
+            Please remove the filler words, correct obvious misrecognitions, convert romaji to proper Japanese if applicable, and output ONLY the corrected clean text. 
+            Keep the original language and meaning intact. Do not add any conversational replies, tags, or quotes.
             
             Original text:
             $spokenText
@@ -1087,6 +1088,6 @@ data class GeminiAssistantResponse(
     val answer: String,
     val relevantPackages: List<String>?,
     val suggestions: List<String>?,
-    val recommendedStoreApps: List<RecommendedStoreApp>? = null,
+    val recommendedStoreApps: List<Any>? = null,
     val githubSearchQuery: String? = null
 )

@@ -565,7 +565,24 @@ fun AiAssistantScreen(
                                 }
 
                                 // 3.1 Recommended Play Store Apps
-                                val recommendedStoreApps = response.recommendedStoreApps ?: emptyList()
+                                val recommendedStoreAppsRaw = response.recommendedStoreApps ?: emptyList()
+                                val recommendedStoreApps = recommendedStoreAppsRaw.mapNotNull { item ->
+                                    try {
+                                        if (item is Map<*, *>) {
+                                            com.example.data.RecommendedStoreApp(
+                                                name = item["name"]?.toString() ?: "",
+                                                packageName = item["packageName"]?.toString() ?: "",
+                                                description = item["description"]?.toString() ?: "",
+                                                playStoreUrl = item["playStoreUrl"]?.toString() ?: "",
+                                                category = item["category"]?.toString() ?: "General"
+                                            )
+                                        } else {
+                                            null
+                                        }
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+                                }
                                 if (recommendedStoreApps.isNotEmpty()) {
                                     item {
                                         Spacer(modifier = Modifier.height(12.dp))
