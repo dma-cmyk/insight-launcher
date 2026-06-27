@@ -1071,6 +1071,117 @@ object GeminiClient {
             null
         }
     }
+
+    suspend fun translateGitHubRepos(
+        repos: List<com.example.data.GitHubRepo>,
+        targetLanguageCode: String,
+        modelName: String,
+        customApiKey: String? = null
+    ): List<com.example.data.GitHubRepo> = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY" || repos.isEmpty() || targetLanguageCode == "en") {
+            return@withContext repos
+        }
+        val langName = when (targetLanguageCode) {
+            "ja" -> "Japanese"
+            "es" -> "Spanish"
+            "fr" -> "French"
+            "de" -> "German"
+            "zh" -> "Chinese"
+            "hi" -> "Hindi"
+            else -> "English"
+        }
+        if (langName == "English") return@withContext repos
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val isGemma = cleanModelName.startsWith("gemma")
+        
+        val originalJsonArray = org.json.JSONArray()
+        repos.forEachIndexed { index, repo ->
+            if (!repo.description.isNullOrBlank()) {
+                val obj = org.json.JSONObject()
+                obj.put("index", index)
+                obj.put("text", repo.description)
+                originalJsonArray.put(obj)
+            }
+        }
+        
+        if (originalJsonArray.length() == 0) return@withContext repos
+
+        val prompt = """
+            Translate the following GitHub repository descriptions into $langName.
+            Maintain the exact same 'index' for each item.
+            
+            Original texts:
+            ${originalJsonArray.toString()}
+            
+            Format your response STRICTLY as a JSON object adhering to the schema.
+            ${if (isGemma) "\nIMPORTANT: Return ONLY a raw JSON string. Do not include markdown block tags." else ""}
+        """.trimIndent()
+
+        val schema = mapOf(
+            "type" to "OBJECT",
+            "properties" to mapOf(
+                "translations" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf(
+                        "type" to "OBJECT",
+                        "properties" to mapOf(
+                            "index" to mapOf("type" to "INTEGER"),
+                            "translatedText" to mapOf("type" to "STRING")
+                        ),
+                        "required" to listOf("index", "translatedText")
+                    )
+                )
+            ),
+            "required" to listOf("translations")
+        )
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(GeminiPart(text = prompt))
+            )),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = if (isGemma) null else "application/json",
+                responseSchema = if (isGemma) null else schema,
+                temperature = 0.3
+            )
+        )
+
+        try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            val cleanedJson = cleanJsonText(jsonText)
+            
+            if (cleanedJson != null) {
+                val json = org.json.JSONObject(cleanedJson)
+                val translationsArray = json.optJSONArray("translations")
+                
+                val translationMap = mutableMapOf<Int, String>()
+                if (translationsArray != null) {
+                    for (i in 0 until translationsArray.length()) {
+                        val item = translationsArray.optJSONObject(i)
+                        if (item != null) {
+                            translationMap[item.optInt("index")] = item.optString("translatedText")
+                        }
+                    }
+                }
+                
+                val translatedRepos = repos.mapIndexed { index, repo ->
+                    if (translationMap.containsKey(index)) {
+                        repo.copy(description = translationMap[index])
+                    } else {
+                        repo
+                    }
+                }
+                return@withContext translatedRepos
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "translateGitHubRepos failed: ${e.message}", e)
+        }
+        
+        return@withContext repos
+    }
 }
 
 @JsonClass(generateAdapter = true)

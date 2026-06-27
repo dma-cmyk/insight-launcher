@@ -619,7 +619,15 @@ class AppLauncherViewModel(
             _isGithubLoading.value = true
             try {
                 val searchResult = com.example.data.GitHubClient.service.searchRepositories(query)
-                _githubRepos.value = searchResult.items
+                val targetLang = settingsManager.getAiLanguage()
+                val topRepos = searchResult.items.take(10)
+                val translatedRepos = com.example.data.GeminiClient.translateGitHubRepos(
+                    repos = topRepos,
+                    targetLanguageCode = targetLang,
+                    modelName = settingsManager.getPrimaryModel(),
+                    customApiKey = settingsManager.getGeminiApiKey()
+                )
+                _githubRepos.value = translatedRepos
             } catch (e: Exception) {
                 Log.e(TAG, "GitHub search failed: ${e.message}", e)
                 _githubRepos.value = emptyList()
