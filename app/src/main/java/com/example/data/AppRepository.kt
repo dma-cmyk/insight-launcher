@@ -106,6 +106,11 @@ class AppRepository(private val appDao: AppDao) {
         appDao.clearAllApps()
     }
 
+    suspend fun resetAllAnalysis() = withContext(Dispatchers.IO) {
+        appDao.resetAllAnalysis()
+        refreshTrigger.value = System.currentTimeMillis()
+    }
+
     // Run AI analysis on a single app and save to Room
     suspend fun analyzeAndCacheApp(
         context: Context,
@@ -250,6 +255,7 @@ class AppRepository(private val appDao: AppDao) {
                 backupModelName = backupModel,
                 languageCode = aiLanguage,
                 customApiKey = customApiKey,
+                userContextText = settingsManager.getCustomCategorizationPrompt(),
                 onModelSelected = { model ->
                     activeModel = model
                     onProgress(processedCount, total, String.format(startMsg, processedCount, total, activeModel, names))

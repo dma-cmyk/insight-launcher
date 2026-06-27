@@ -364,7 +364,7 @@ class AppLauncherViewModel(
                     label = app.label,
                     isSystemApp = app.isSystemApp,
                     settingsManager = settingsManager,
-                    userContextText = userContextText,
+                    userContextText = userContextText ?: settingsManager.getCustomCategorizationPrompt(),
                     fileName = fileName,
                     fileMimeType = fileMimeType,
                     fileBytes = fileBytes
@@ -501,6 +501,7 @@ class AppLauncherViewModel(
                         label = app.label,
                         isSystemApp = app.isSystemApp,
                         settingsManager = settingsManager,
+                        userContextText = settingsManager.getCustomCategorizationPrompt(),
                         onStatusUpdate = { subStatus ->
                             _analysisProgress.value = "(${index + 1}/$total) $subStatus"
                         }
@@ -560,6 +561,34 @@ class AppLauncherViewModel(
         val lang = settingsManager.getAiLanguage()
         isAnalysisCancelled = true
         _analysisProgress.value = Localization.get("canceling", lang)
+    }
+
+    // Reset analysis data only
+    fun resetAllAnalysis() {
+        viewModelScope.launch {
+            repository.resetAllAnalysis()
+            val msg = when (settingsManager.getAiLanguage()) {
+                "ja" -> "すべての解析データをリセットしました"
+                "ko" -> "모든 분석 데이터를 초기화했습니다"
+                "zh" -> "已重置所有分析数据"
+                else -> "All analysis data reset"
+            }
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    fun reanalyzeAllBulk() {
+        viewModelScope.launch {
+            repository.resetAllAnalysis()
+            autoAnalyzeAllUnanalyzedBulk()
+        }
+    }
+    
+    fun reanalyzeAllSequential() {
+        viewModelScope.launch {
+            repository.resetAllAnalysis()
+            autoAnalyzeAllUnanalyzedSequential()
+        }
     }
 
     // Reset database cache

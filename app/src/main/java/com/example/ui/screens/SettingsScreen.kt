@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -59,6 +60,7 @@ fun SettingsScreen(
     val aiLanguage by viewModel.settingsManager.aiLanguage.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
     val includeIconlessSystemApps by viewModel.settingsManager.includeIconlessSystemApps.collectAsState()
+    val customCategorizationPrompt by viewModel.settingsManager.customCategorizationPrompt.collectAsState()
 
     var customUrlInput by remember { mutableStateOf("") }
     var showCustomUrlDialog by remember { mutableStateOf(false) }
@@ -754,6 +756,115 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.padding(start = 30.dp)
                             )
+                        }
+                    }
+                }
+            }
+
+            // AI Analysis Instructions & Bulk Re-analyze Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .testTag("ai_instructions_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = "AI Instructions", tint = Color(0xFFFFB74D))
+                        Text(Localization.get("custom_prompt_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Text(
+                        Localization.get("custom_prompt_desc", aiLanguage),
+                        fontSize = 12.sp,
+                        color = Color(0xB2FFFFFF),
+                        lineHeight = 16.sp
+                    )
+
+                    OutlinedTextField(
+                        value = customCategorizationPrompt,
+                        onValueChange = { viewModel.settingsManager.setCustomCategorizationPrompt(it) },
+                        placeholder = { Text(Localization.get("custom_prompt_hint", aiLanguage), color = Color(0x99FFFFFF)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color(0x11FFFFFF),
+                            unfocusedContainerColor = Color(0x11FFFFFF),
+                            focusedBorderColor = Color(0xFF64B5F6),
+                            unfocusedBorderColor = Color(0x33FFFFFF),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    // Examples row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0x22FFFFFF))
+                                .clickable { viewModel.settingsManager.setCustomCategorizationPrompt(Localization.get("custom_prompt_example1", aiLanguage)) }
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(Localization.get("custom_prompt_example1", aiLanguage), color = Color(0xCCFFFFFF), fontSize = 10.sp, textAlign = TextAlign.Center)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0x22FFFFFF))
+                                .clickable { viewModel.settingsManager.setCustomCategorizationPrompt(Localization.get("custom_prompt_example2", aiLanguage)) }
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(Localization.get("custom_prompt_example2", aiLanguage), color = Color(0xCCFFFFFF), fontSize = 10.sp, textAlign = TextAlign.Center)
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0x14FFFFFF), modifier = Modifier.padding(vertical = 4.dp))
+
+                    // Re-analyze all action
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { 
+                                viewModel.reanalyzeAllBulk() 
+                                Toast.makeText(context, Localization.get("analyzing", aiLanguage, "", 1, 1).replace("1/1", ""), Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF64B5F6)),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Re-analyze All Bulk", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(Localization.get("bulk_analyze_option", aiLanguage), fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center)
+                        }
+                        Button(
+                            onClick = { 
+                                viewModel.reanalyzeAllSequential()
+                                Toast.makeText(context, Localization.get("analyzing", aiLanguage, "", 1, 1).replace("1/1", ""), Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Re-analyze All Sequential", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(Localization.get("sequential_analyze_option", aiLanguage), fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center)
                         }
                     }
                 }

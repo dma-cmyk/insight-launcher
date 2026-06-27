@@ -35,6 +35,9 @@ interface AppDao {
     @Query("DELETE FROM app_info_table")
     suspend fun clearAllApps()
 
+    @Query("UPDATE app_info_table SET category = '', summary = '', tags = '', relatedLinks = '', embedding = NULL")
+    suspend fun resetAllAnalysis()
+
     // LLM Wiki (AI Memory) operations
     @Query("SELECT * FROM llm_wiki_table ORDER BY lastUpdated DESC")
     fun getAllWikiEntriesFlow(): Flow<List<LlmWikiEntry>>

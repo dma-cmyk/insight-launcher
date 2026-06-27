@@ -420,6 +420,7 @@ object GeminiClient {
         backupModelName: String,
         languageCode: String = "ja",
         customApiKey: String? = null,
+        userContextText: String? = null,
         onModelSelected: ((String) -> Unit)? = null
     ): List<GeminiBulkAppAnalysisItem>? {
         val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
@@ -454,11 +455,15 @@ object GeminiClient {
             promptBuilder.append("${index + 1}. App Name: ${app.label}, Package Name: ${app.packageName}\n")
         }
 
+        if (!userContextText.isNullOrBlank()) {
+            promptBuilder.append("\n- User Instructions/Corrections for Categorization & Analysis:\n$userContextText\n")
+        }
+
         promptBuilder.append("""
             
             Provide the following information for EACH of the applications in the list:
             1. The exact same packageName (must match the input exactly).
-            2. An appropriate standard high-level category in $langName (MUST BE IN $langName, e.g., $categoryExamples).
+            2. An appropriate standard high-level category in $langName (MUST BE IN $langName, e.g., $categoryExamples). If user instructions are provided, use them to guide your categorization.
             3. A brief, useful summary of this application in $langName (explaining its core purpose).
             4. At least 5 relevant tags or keywords in $langName.
             5. At least 3 relevant high-quality related links or external resources in $langName (e.g., official support site, Wikipedia article, Google Play Store search, documentation, or relevant guides).
