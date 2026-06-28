@@ -119,38 +119,40 @@ fun CompactDraggableFavoritesDashboardGrid(
                             val app = rowApps[colIndex]
                             val isCurrentDragging = draggingIndex == itemIndex
 
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .onGloballyPositioned { coords ->
-                                        if (!isCurrentDragging) {
-                                            itemPositions[itemIndex] = coords.boundsInWindow()
+                            key(app.packageName) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .onGloballyPositioned { coords ->
+                                            if (!isCurrentDragging) {
+                                                itemPositions[itemIndex] = coords.boundsInWindow()
+                                            }
                                         }
-                                    }
-                                    .zIndex(if (isCurrentDragging) 10f else 1f)
-                                    .offset {
-                                        if (isCurrentDragging) {
-                                            IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
-                                        } else {
-                                            IntOffset.Zero
+                                        .zIndex(if (isCurrentDragging) 10f else 1f)
+                                        .offset {
+                                            if (isCurrentDragging) {
+                                                IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
+                                            } else {
+                                                IntOffset.Zero
+                                            }
                                         }
-                                    }
-                                    .graphicsLayer {
-                                        if (isCurrentDragging) {
-                                            scaleX = 1.05f
-                                            scaleY = 1.05f
-                                            alpha = 0.9f
+                                        .graphicsLayer {
+                                            if (isCurrentDragging) {
+                                                scaleX = 1.05f
+                                                scaleY = 1.05f
+                                                alpha = 0.9f
+                                            }
                                         }
-                                    }
-                            ) {
-                                CompactAppItemWithSummary(
-                                    app = app,
-                                    onClick = { viewModel.selectApp(app) },
-                                    onLongClick = null,
-                                    isFavorite = true,
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                ) {
+                                    CompactAppItemWithSummary(
+                                        app = app,
+                                        onClick = { viewModel.selectApp(app) },
+                                        onLongClick = null,
+                                        isFavorite = true,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
                             }
                         } else {
                             Spacer(modifier = Modifier.weight(1f))
