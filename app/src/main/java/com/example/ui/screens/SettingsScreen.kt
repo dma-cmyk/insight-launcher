@@ -70,6 +70,7 @@ fun SettingsScreen(
     val borderColor = if (isLight) Color(0x2E000000) else Color(0x24FFFFFF)
     val dividerColor = if (isLight) Color(0x1B000000) else Color(0x20FFFFFF)
     val topBarBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0x900B0B1A)
+    val panelBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0xCD0A0A12)
 
     var customUrlInput by remember { mutableStateOf("") }
     var showCustomUrlDialog by remember { mutableStateOf(false) }
@@ -162,10 +163,6 @@ fun SettingsScreen(
 
                     HorizontalDivider(color = dividerColor)
 
-                    // Subtitle: Dark Themes
-                    val darkThemesTitle = if (aiLanguage == "ja") "ダークテーマ系" else "Dark Themes"
-                    Text(darkThemesTitle, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isLight) MaterialTheme.colorScheme.primary else Color(0xFF81C784))
-
                     val darkThemes = listOf(
                         "dark_charcoal" to (if (aiLanguage == "ja") "コズミック・チャコール (標準)" else "Cosmic Charcoal (Default)"),
                         "dark_indigo" to (if (aiLanguage == "ja") "ミッドナイト・インディゴ" else "Midnight Indigo"),
@@ -212,73 +209,6 @@ fun SettingsScreen(
                                                     "dark_emerald" -> Color(0xFF34D399)
                                                     "dark_obsidian" -> Color(0xFFF59E0B)
                                                     else -> Color.White
-                                                }
-                                            )
-                                    )
-                                    Text(
-                                        text = themeName,
-                                        color = if (isSelected) textColor else subTextColor,
-                                        fontSize = 12.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    HorizontalDivider(color = dividerColor.copy(alpha = 0.5f))
-
-                    // Subtitle: Light Themes
-                    val lightThemesTitle = if (aiLanguage == "ja") "ライトテーマ系" else "Light Themes"
-                    Text(lightThemesTitle, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isLight) MaterialTheme.colorScheme.primary else Color(0xFF81C784))
-
-                    val lightThemes = listOf(
-                        "light_lavender" to (if (aiLanguage == "ja") "スノーウィ・ラベンダー" else "Snowy Lavender"),
-                        "light_mint" to (if (aiLanguage == "ja") "ミント・クリーム" else "Mint Cream"),
-                        "light_peach" to (if (aiLanguage == "ja") "ピーチ・ブロッサム" else "Peach Blossom"),
-                        "light_ocean" to (if (aiLanguage == "ja") "オーシャン・ブリーズ" else "Ocean Breeze")
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        lightThemes.forEach { (themeKey, themeName) ->
-                            val isSelected = colorTheme == themeKey
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        if (isSelected) (if (isLight) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFF81C784).copy(alpha = 0.25f))
-                                        else if (isLight) Color(0x0A000000) else cardBgColor
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isSelected) (if (isLight) MaterialTheme.colorScheme.primary else Color(0xFF81C784)) else borderColor,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable { viewModel.setColorTheme(themeKey) }
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    // Theme color mini indicator dot
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                when (themeKey) {
-                                                    "light_lavender" -> Color(0xFF7C3AED)
-                                                    "light_mint" -> Color(0xFF0D9488)
-                                                    "light_peach" -> Color(0xFFE11D48)
-                                                    "light_ocean" -> Color(0xFF0284C7)
-                                                    else -> Color.Gray
                                                 }
                                             )
                                     )
@@ -1345,15 +1275,18 @@ fun SettingsScreen(
     if (showCustomUrlDialog) {
         AlertDialog(
             onDismissRequest = { showCustomUrlDialog = false },
-            title = { Text(Localization.get("dialog_custom_bg_title", aiLanguage)) },
+            containerColor = panelBgColor,
+            tonalElevation = 0.dp,
+            title = { Text(Localization.get("dialog_custom_bg_title", aiLanguage), color = textColor) },
             text = {
                 Column {
-                    Text(Localization.get("dialog_custom_bg_desc", aiLanguage))
+                    Text(Localization.get("dialog_custom_bg_desc", aiLanguage), color = subTextColor)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = customUrlInput,
                         onValueChange = { customUrlInput = it },
                         placeholder = { Text("https://example.com/nebula.jpg") },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = textColor),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1367,12 +1300,12 @@ fun SettingsScreen(
                         showCustomUrlDialog = false
                     }
                 ) {
-                    Text(Localization.get("set", aiLanguage))
+                    Text(Localization.get("set", aiLanguage), color = textColor)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCustomUrlDialog = false }) {
-                    Text(Localization.get("cancel", aiLanguage))
+                    Text(Localization.get("cancel", aiLanguage), color = subTextColor)
                 }
             }
         )
@@ -1385,28 +1318,33 @@ fun SettingsScreen(
 
         AlertDialog(
             onDismissRequest = { showAddMcpServerDialog = false },
+            containerColor = panelBgColor,
+            tonalElevation = 0.dp,
             title = { Text(Localization.get("mcp_add_dialog_title", aiLanguage), color = textColor) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = serverNameInput,
                         onValueChange = { serverNameInput = it },
-                        label = { Text(Localization.get("mcp_server_name_label", aiLanguage)) },
+                        label = { Text(Localization.get("mcp_server_name_label", aiLanguage), color = subTextColor) },
                         placeholder = { Text("My Remote MCP Server") },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = textColor),
                         modifier = Modifier.fillMaxWidth().testTag("mcp_input_name")
                     )
                     OutlinedTextField(
                         value = serverDescInput,
                         onValueChange = { serverDescInput = it },
-                        label = { Text(Localization.get("mcp_server_desc_label", aiLanguage)) },
+                        label = { Text(Localization.get("mcp_server_desc_label", aiLanguage), color = subTextColor) },
                         placeholder = { Text("Handles system files/scripts") },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = textColor),
                         modifier = Modifier.fillMaxWidth().testTag("mcp_input_desc")
                     )
                     OutlinedTextField(
                         value = serverUrlInput,
                         onValueChange = { serverUrlInput = it },
-                        label = { Text(Localization.get("mcp_server_url_label", aiLanguage)) },
+                        label = { Text(Localization.get("mcp_server_url_label", aiLanguage), color = subTextColor) },
                         placeholder = { Text("http://192.168.1.5:5000/api") },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = textColor),
                         modifier = Modifier.fillMaxWidth().testTag("mcp_input_url")
                     )
                 }
@@ -1421,12 +1359,12 @@ fun SettingsScreen(
                     },
                     enabled = serverNameInput.isNotBlank() && serverUrlInput.isNotBlank()
                 ) {
-                    Text(Localization.get("set", aiLanguage))
+                    Text(Localization.get("set", aiLanguage), color = if (serverNameInput.isNotBlank() && serverUrlInput.isNotBlank()) textColor else subTextColor.copy(alpha = 0.5f))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAddMcpServerDialog = false }) {
-                    Text(Localization.get("cancel", aiLanguage))
+                    Text(Localization.get("cancel", aiLanguage), color = subTextColor)
                 }
             }
         )

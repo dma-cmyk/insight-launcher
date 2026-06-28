@@ -80,7 +80,11 @@ class SettingsManager(context: Context) {
     private val _customCategorizationPrompt = MutableStateFlow(prefs.getString(KEY_CUSTOM_CATEGORIZATION_PROMPT, DEFAULT_CUSTOM_CATEGORIZATION_PROMPT) ?: DEFAULT_CUSTOM_CATEGORIZATION_PROMPT)
     val customCategorizationPrompt: StateFlow<String> = _customCategorizationPrompt
 
-    private val _colorTheme = MutableStateFlow(prefs.getString(KEY_COLOR_THEME, DEFAULT_COLOR_THEME) ?: DEFAULT_COLOR_THEME)
+    private val _colorTheme = MutableStateFlow(
+        prefs.getString(KEY_COLOR_THEME, DEFAULT_COLOR_THEME)?.let {
+            if (it.startsWith("light_")) DEFAULT_COLOR_THEME else it
+        } ?: DEFAULT_COLOR_THEME
+    )
     val colorTheme: StateFlow<String> = _colorTheme
 
     fun getPrimaryModel(): String = prefs.getString(KEY_PRIMARY_MODEL, DEFAULT_PRIMARY_MODEL) ?: DEFAULT_PRIMARY_MODEL
@@ -89,7 +93,10 @@ class SettingsManager(context: Context) {
     fun getAiLanguage(): String = prefs.getString(KEY_AI_LANGUAGE, null) ?: getInitialAiLanguage()
     fun getGeminiApiKey(): String = prefs.getString(KEY_GEMINI_API_KEY, "") ?: ""
     fun getIconShape(): String = prefs.getString(KEY_ICON_SHAPE, DEFAULT_ICON_SHAPE) ?: DEFAULT_ICON_SHAPE
-    fun getColorThemeValue(): String = prefs.getString(KEY_COLOR_THEME, DEFAULT_COLOR_THEME) ?: DEFAULT_COLOR_THEME
+    fun getColorThemeValue(): String {
+        val raw = prefs.getString(KEY_COLOR_THEME, DEFAULT_COLOR_THEME) ?: DEFAULT_COLOR_THEME
+        return if (raw.startsWith("light_")) DEFAULT_COLOR_THEME else raw
+    }
     fun getIncludeIconlessSystemApps(): Boolean = prefs.getBoolean(KEY_INCLUDE_ICONLESS_SYSTEM_APPS, DEFAULT_INCLUDE_ICONLESS_SYSTEM_APPS)
     fun getCustomCategorizationPrompt(): String = prefs.getString(KEY_CUSTOM_CATEGORIZATION_PROMPT, DEFAULT_CUSTOM_CATEGORIZATION_PROMPT) ?: DEFAULT_CUSTOM_CATEGORIZATION_PROMPT
 

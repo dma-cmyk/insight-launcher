@@ -1269,7 +1269,7 @@ fun CompactDashboard(
                 )
             }
             item {
-                CompactDraggableFavoritesRow(
+                CompactDraggableFavoritesDashboardGrid(
                     favoriteApps = favoriteApps,
                     viewModel = viewModel
                 )

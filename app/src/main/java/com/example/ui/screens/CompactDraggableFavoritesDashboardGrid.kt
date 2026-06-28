@@ -1,9 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -20,7 +18,7 @@ import com.example.ui.AppLauncherViewModel
 import kotlin.math.roundToInt
 
 @Composable
-fun CompactDraggableFavoritesRow(
+fun CompactDraggableFavoritesDashboardGrid(
     favoriteApps: List<InstalledApp>,
     viewModel: AppLauncherViewModel
 ) {
@@ -36,7 +34,6 @@ fun CompactDraggableFavoritesRow(
 
     val itemPositions = remember { mutableStateMapOf<Int, Rect>() }
     var containerCoords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
-    val scrollState = rememberScrollState()
 
     Box(
         modifier = Modifier
@@ -97,45 +94,60 @@ fun CompactDraggableFavoritesRow(
                 )
             }
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(bottom = 8.dp)
         ) {
-            dragList.forEachIndexed { itemIndex, app ->
-                val isCurrentDragging = draggingIndex == itemIndex
-                key(app.packageName) {
-                    Box(
-                        modifier = Modifier
-                            .width(160.dp)
-                            .onGloballyPositioned { coords ->
-                                itemPositions[itemIndex] = coords.boundsInWindow()
+            val rows = dragList.chunked(2)
+            rows.forEachIndexed { rowIndex, rowApps ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    for (colIndex in 0 until 2) {
+                        if (colIndex < rowApps.size) {
+                            val itemIndex = rowIndex * 2 + colIndex
+                            val app = rowApps[colIndex]
+                            val isCurrentDragging = draggingIndex == itemIndex
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .onGloballyPositioned { coords ->
+                                        itemPositions[itemIndex] = coords.boundsInWindow()
+                                    }
+                                    .zIndex(if (isCurrentDragging) 10f else 1f)
+                                    .offset {
+                                        if (isCurrentDragging) {
+                                            IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
+                                        } else {
+                                            IntOffset.Zero
+                                        }
+                                    }
+                                    .graphicsLayer {
+                                        if (isCurrentDragging) {
+                                            scaleX = 1.05f
+                                            scaleY = 1.05f
+                                            alpha = 0.9f
+                                        }
+                                    }
+                            ) {
+                                CompactAppItemWithSummary(
+                                    app = app,
+                                    onClick = { viewModel.selectApp(app) },
+                                    onLongClick = { },
+                                    isFavorite = true,
+                                    modifier = Modifier.fillMaxSize()
+                                )
                             }
-                            .zIndex(if (isCurrentDragging) 10f else 1f)
-                            .offset {
-                                if (isCurrentDragging) {
-                                    IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt())
-                                } else {
-                                    IntOffset.Zero
-                                }
-                            }
-                            .graphicsLayer {
-                                if (isCurrentDragging) {
-                                    scaleX = 1.05f
-                                    scaleY = 1.05f
-                                    alpha = 0.9f
-                                }
-                            }
-                    ) {
-                        CompactAppItemWithSummary(
-                            app = app,
-                            onClick = { viewModel.selectApp(app) },
-                            onLongClick = { }, // Empty lambda since long click is now used for dragging
-                            isFavorite = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
