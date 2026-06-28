@@ -43,7 +43,10 @@
 
 ## 👑 アップデート情報
 
-* **🌌 Gemini 3系列思考モデル用 `thoughtSignature` 保存・送信対応 (v1.7.3) [NEW]**
+* **🌌 Open-Meteo Geocoding API 連携による全世界都市の天気検索対応 (v1.7.4) [NEW]**
+  - **動的座標取得の追加**: 天気予報ツール（`get_weather_info`）において、従来は東京や大阪などの主要都市しか座標が固定されておらず、その他の都市はハッシュ計算による不正確な座標で取得されていました。今回のアップデートで無料の Geocoding API を統合し、ユーザーが指定した任意の都市名（例：「沖縄」「横浜」「ロサンゼルス」等）の正確な緯度経度をリアルタイムで取得した上で Open-Meteo から正確な気象情報を取得できるようになりました。
+
+* **🌌 Gemini 3系列思考モデル用 `thoughtSignature` 保存・送信対応 (v1.7.3)**
   - **思考モデルでの400エラー解消**: Gemini 3 / 3.5 などの最新思考モデルでツール（関数呼び出し）を使用する際、モデルの推論コンテキスト状態を保持するトークン `thoughtSignature` がレスポンスに付与されるようになりました。このトークンを保存して次のAPIリクエスト（Function Response）でそのままGoogleに送り返すように `GeminiPart` データクラスとやり取りの履歴保存処理を拡張。これにより、時間取得や天気取得時の `400 Bad Request (INVALID_ARGUMENT)`（Function call is missing a thought_signature in functionCall parts）エラーを完全に解消しました。
 
 * **🌌 フォールバック時デバッグ情報の画面表示対応 (v1.7.2)**

@@ -377,30 +377,70 @@ class McpManager(
             }
             "get_weather_info" -> {
                 val city = args["city"]?.toString() ?: "Tokyo"
-                // Map major cities to coordinates for Open-Meteo
-                val coords = when (city.lowercase(Locale.getDefault()).trim()) {
-                    "tokyo", "東京" -> Pair(35.6895, 139.6917)
-                    "osaka", "大阪" -> Pair(34.6937, 135.5023)
-                    "kyoto", "京都" -> Pair(35.0116, 135.7681)
-                    "sapporo", "札幌" -> Pair(43.0621, 141.3544)
-                    "fukuoka", "福岡" -> Pair(33.5902, 130.4017)
-                    "seoul", "ソウル", "서울" -> Pair(37.5665, 126.9780)
-                    "busan", "釜山", "부산" -> Pair(35.1796, 129.0756)
-                    "beijing", "北京" -> Pair(39.9042, 116.4074)
-                    "shanghai", "上海" -> Pair(31.2304, 121.4737)
-                    "new york", "ニューヨーク" -> Pair(40.7128, -74.0060)
-                    "london", "ロンドン" -> Pair(51.5074, -0.1278)
-                    "paris", "パリ" -> Pair(48.8566, 2.3522)
-                    "berlin", "ベルリン" -> Pair(52.5200, 13.4050)
-                    "sydney", "シドニー" -> Pair(-33.8688, 151.2093)
-                    "singapore", "シンガポール" -> Pair(1.3521, 103.8252)
-                    "toronto", "トロント" -> Pair(43.6532, -79.3832)
-                    else -> {
-                        // Deterministic hashing fallback for any other city
-                        val hash = city.hashCode()
-                        val lat = (hash % 60).toDouble()
-                        val lon = ((hash / 10) % 150).toDouble()
-                        Pair(lat, lon)
+                var coords = Pair(35.6895, 139.6917) // Default to Tokyo
+                var resolvedCity = city
+                
+                // Fetch coordinates using Open-Meteo Geocoding API (completely free, no API key required)
+                try {
+                    val geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=${java.net.URLEncoder.encode(city, "UTF-8")}&count=1"
+                    val geoRequest = Request.Builder().url(geocodeUrl).build()
+                    val geoResponseStr = withContext(Dispatchers.IO) {
+                        httpClient.newCall(geoRequest).execute().use { response ->
+                            if (response.isSuccessful) response.body?.string() else null
+                        }
+                    }
+                    if (geoResponseStr != null) {
+                        val geoJson = JSONObject(geoResponseStr)
+                        val results = geoJson.optJSONArray("results")
+                        if (results != null && results.length() > 0) {
+                            val firstResult = results.getJSONObject(0)
+                            val lat = firstResult.optDouble("latitude", 35.6895)
+                            val lon = firstResult.optDouble("longitude", 139.6917)
+                            resolvedCity = firstResult.optString("name", city)
+                            coords = Pair(lat, lon)
+                        } else {
+                            // Fallback to local hardcoded map if no results found
+                            coords = when (city.lowercase(Locale.getDefault()).trim()) {
+                                "tokyo", "東京" -> Pair(35.6895, 139.6917)
+                                "osaka", "大阪" -> Pair(34.6937, 135.5023)
+                                "kyoto", "京都" -> Pair(35.0116, 135.7681)
+                                "sapporo", "札幌" -> Pair(43.0621, 141.3544)
+                                "fukuoka", "福岡" -> Pair(33.5902, 130.4017)
+                                "seoul", "ソウル", "서울" -> Pair(37.5665, 126.9780)
+                                "busan", "釜山", "부산" -> Pair(35.1796, 129.0756)
+                                "beijing", "北京" -> Pair(39.9042, 116.4074)
+                                "shanghai", "上海" -> Pair(31.2304, 121.4737)
+                                "new york", "ニューヨーク" -> Pair(40.7128, -74.0060)
+                                "london", "ロンドン" -> Pair(51.5074, -0.1278)
+                                "paris", "パリ" -> Pair(48.8566, 2.3522)
+                                "berlin", "ベルリン" -> Pair(52.5200, 13.4050)
+                                "sydney", "シドニー" -> Pair(-33.8688, 151.2093)
+                                "singapore", "シンガポール" -> Pair(1.3521, 103.8252)
+                                "toronto", "トロント" -> Pair(43.6532, -79.3832)
+                                else -> Pair(35.6895, 139.6917)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("McpManager", "Geocoding failed for $city, falling back to local map", e)
+                    coords = when (city.lowercase(Locale.getDefault()).trim()) {
+                        "tokyo", "東京" -> Pair(35.6895, 139.6917)
+                        "osaka", "大阪" -> Pair(34.6937, 135.5023)
+                        "kyoto", "京都" -> Pair(35.0116, 135.7681)
+                        "sapporo", "札幌" -> Pair(43.0621, 141.3544)
+                        "fukuoka", "福岡" -> Pair(33.5902, 130.4017)
+                        "seoul", "ソウル", "서울" -> Pair(37.5665, 126.9780)
+                        "busan", "釜山", "부산" -> Pair(35.1796, 129.0756)
+                        "beijing", "北京" -> Pair(39.9042, 116.4074)
+                        "shanghai", "上海" -> Pair(31.2304, 121.4737)
+                        "new york", "ニューヨーク" -> Pair(40.7128, -74.0060)
+                        "london", "ロンドン" -> Pair(51.5074, -0.1278)
+                        "paris", "パリ" -> Pair(48.8566, 2.3522)
+                        "berlin", "ベルリン" -> Pair(52.5200, 13.4050)
+                        "sydney", "シドニー" -> Pair(-33.8688, 151.2093)
+                        "singapore", "シンガポール" -> Pair(1.3521, 103.8252)
+                        "toronto", "トロント" -> Pair(43.6532, -79.3832)
+                        else -> Pair(35.6895, 139.6917)
                     }
                 }
                 
