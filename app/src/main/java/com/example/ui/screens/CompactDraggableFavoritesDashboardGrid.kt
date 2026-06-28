@@ -63,9 +63,8 @@ fun CompactDraggableFavoritesDashboardGrid(
                                 }?.key
                                 if (targetIndex != null && targetIndex < dragList.size) {
                                     val mutable = dragList.toMutableList()
-                                    val temp = mutable[draggingIndex!!]
-                                    mutable[draggingIndex!!] = mutable[targetIndex]
-                                    mutable[targetIndex] = temp
+                                    val temp = mutable.removeAt(draggingIndex!!)
+                                    mutable.add(targetIndex, temp)
                                     dragList = mutable
 
                                     val targetBounds = itemPositions[targetIndex]

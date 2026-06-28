@@ -77,8 +77,11 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInParent
@@ -1169,8 +1172,8 @@ fun LauncherHomeScreen(
             apps = apps,
             onSelectApp = { viewModel.selectApp(it) },
             lang = aiLanguage,
-            isFavorite = favorites.contains(app.packageName),
-            onToggleFavorite = { viewModel.toggleFavorite(app.packageName) }
+            favorites = favorites,
+            onToggleFavorite = { pkg -> viewModel.toggleFavorite(pkg) }
         )
     }
 }
@@ -1964,9 +1967,8 @@ fun FavoriteReorderableContent(
                                 }?.key
                                 if (targetIndex != null && targetIndex < dragList.size) {
                                     val mutable = dragList.toMutableList()
-                                    val temp = mutable[draggingIndex!!]
-                                    mutable[draggingIndex!!] = mutable[targetIndex]
-                                    mutable[targetIndex] = temp
+                                    val temp = mutable.removeAt(draggingIndex!!)
+                                    mutable.add(targetIndex, temp)
                                     dragList = mutable
 
                                     val targetBounds = itemPositions[targetIndex]
@@ -2115,13 +2117,36 @@ fun AppDetailsDialog(
     apps: List<InstalledApp>,
     onSelectApp: (InstalledApp) -> Unit,
     lang: String,
-    isFavorite: Boolean = false,
-    onToggleFavorite: () -> Unit = {}
+    favorites: List<String>,
+    onToggleFavorite: (String) -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val offsetX = remember { androidx.compose.animation.core.Animatable(0f) }
-    val swipeThreshold = 180f
+
+    val initialIndex = remember(app.packageName, apps) {
+        apps.indexOfFirst { it.packageName == app.packageName }.coerceAtLeast(0)
+    }
+
+    val pagerState = rememberPagerState(
+        initialPage = initialIndex,
+        pageCount = { apps.size.coerceAtLeast(1) }
+    )
+
+    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress && apps.isNotEmpty() && pagerState.currentPage in apps.indices) {
+            val targetApp = apps[pagerState.currentPage]
+            if (targetApp.packageName != app.packageName) {
+                onSelectApp(targetApp)
+            }
+        }
+    }
+
+    LaunchedEffect(app.packageName) {
+        val targetIndex = apps.indexOfFirst { it.packageName == app.packageName }
+        if (targetIndex != -1 && targetIndex != pagerState.currentPage) {
+            pagerState.scrollToPage(targetIndex)
+        }
+    }
 
     val isDark = MaterialTheme.colorScheme.background.let { it.red + it.green + it.blue < 1.5f }
     val dialogBgColor = if (isDark) Color(0xF0080812) else Color(0xFAFCFBFF)
@@ -2130,150 +2155,97 @@ fun AppDetailsDialog(
     val iconBgColor = if (isDark) Color(0x0AFFFFFF) else Color(0x08000000)
     val iconBorderColor = if (isDark) Color(0x15FFFFFF) else Color(0x12000000)
 
-    var customContextText by remember { mutableStateOf("") }
-    var selectedFileName by remember { mutableStateOf<String?>(null) }
-    var selectedFileMimeType by remember { mutableStateOf<String?>(null) }
-    var selectedFileBytes by remember { mutableStateOf<ByteArray?>(null) }
-
-    val fileLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            val contentResolver = context.contentResolver
-            val mimeType = contentResolver.getType(uri)
-            var fileName = "selected_file"
-            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameIndex != -1 && cursor.moveToFirst()) {
-                    fileName = cursor.getString(nameIndex)
-                }
-            }
-            try {
-                val bytes = contentResolver.openInputStream(uri)?.use { inputStream ->
-                    inputStream.readBytes()
-                }
-                if (bytes != null) {
-                    selectedFileName = fileName
-                    selectedFileMimeType = mimeType
-                    selectedFileBytes = bytes
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Error reading file: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    val customIconLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            try {
-                val contentResolver = context.contentResolver
-                val inputStream = contentResolver.openInputStream(uri)
-                if (inputStream != null) {
-                    val iconDir = File(context.filesDir, "custom_icons")
-                    if (!iconDir.exists()) {
-                        iconDir.mkdirs()
-                    }
-                    val destFile = File(iconDir, "${app.packageName}.png")
-                    destFile.outputStream().use { output ->
-                        inputStream.copyTo(output)
-                    }
-                    val usageTracker = UsageTracker(context.applicationContext)
-                    usageTracker.setCustomIcon(app.packageName, "image:${destFile.absolutePath}")
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Error setting image icon: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    // Look up related suggestions in the same category
-    val relatedApps = remember(apps, app) {
-        val cat = app.cachedInfo?.category ?: ""
-        if (cat.isBlank()) emptyList()
-        else {
-            apps.filter {
-                it.packageName != app.packageName &&
-                (it.cachedInfo?.category ?: "") == cat
-            }.take(3)
-        }
-    }
-
-    LaunchedEffect(app.packageName) {
-        customContextText = ""
-        selectedFileName = null
-        selectedFileMimeType = null
-        selectedFileBytes = null
-        offsetX.snapTo(0f)
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .graphicsLayer {
-                    translationX = offsetX.value
-                    alpha = (1f - (kotlin.math.abs(offsetX.value) / 600f)).coerceIn(0.6f, 1f)
-                }
-                .clip(RoundedCornerShape(28.dp))
-                .background(dialogBgColor)
-                .border(1.dp, dialogBorderColor, RoundedCornerShape(28.dp))
-                .pointerInput(app.packageName) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = {
-                            coroutineScope.launch {
-                                val currentOffset = offsetX.value
-                                if (currentOffset > swipeThreshold) {
-                                    val currentIndex = apps.indexOfFirst { it.packageName == app.packageName }
-                                    val prevApp = if (currentIndex > 0) {
-                                        apps[currentIndex - 1]
-                                    } else if (apps.isNotEmpty()) {
-                                        apps.last()
-                                    } else null
-                                    
-                                    if (prevApp != null) {
-                                        offsetX.animateTo(500f)
-                                        onSelectApp(prevApp)
-                                    } else {
-                                        offsetX.animateTo(0f)
-                                    }
-                                } else if (currentOffset < -swipeThreshold) {
-                                    val currentIndex = apps.indexOfFirst { it.packageName == app.packageName }
-                                    val nextApp = if (currentIndex != -1 && currentIndex < apps.size - 1) {
-                                        apps[currentIndex + 1]
-                                    } else if (apps.isNotEmpty()) {
-                                        apps.first()
-                                    } else null
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth(0.92f)
+        ) { page ->
+            val currentApp = if (apps.isNotEmpty() && page in apps.indices) apps[page] else app
+            val app = currentApp
+            val isFavorite = favorites.contains(app.packageName)
+            val onToggleFavorite: () -> Unit = { onToggleFavorite(app.packageName) }
 
-                                    if (nextApp != null) {
-                                        offsetX.animateTo(-500f)
-                                        onSelectApp(nextApp)
-                                    } else {
-                                        offsetX.animateTo(0f)
-                                    }
-                                } else {
-                                    offsetX.animateTo(0f)
-                                }
-                            }
-                        },
-                        onDragCancel = {
-                            coroutineScope.launch {
-                                offsetX.animateTo(0f)
-                            }
-                        },
-                        onHorizontalDrag = { _, dragAmount ->
-                            coroutineScope.launch {
-                                offsetX.snapTo(offsetX.value + dragAmount)
+            key(app.packageName) {
+                var customContextText by remember { mutableStateOf("") }
+                var selectedFileName by remember { mutableStateOf<String?>(null) }
+                var selectedFileMimeType by remember { mutableStateOf<String?>(null) }
+                var selectedFileBytes by remember { mutableStateOf<ByteArray?>(null) }
+
+                val fileLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri: Uri? ->
+                    uri?.let {
+                        val contentResolver = context.contentResolver
+                        val mimeType = contentResolver.getType(uri)
+                        var fileName = "selected_file"
+                        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (nameIndex != -1 && cursor.moveToFirst()) {
+                                fileName = cursor.getString(nameIndex)
                             }
                         }
-                    )
+                        try {
+                            val bytes = contentResolver.openInputStream(uri)?.use { inputStream ->
+                                inputStream.readBytes()
+                            }
+                            if (bytes != null) {
+                                selectedFileName = fileName
+                                selectedFileMimeType = mimeType
+                                selectedFileBytes = bytes
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Error reading file: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
-                .padding(22.dp)
-        ) {
+
+                val customIconLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.GetContent()
+                ) { uri: Uri? ->
+                    if (uri != null) {
+                        try {
+                            val contentResolver = context.contentResolver
+                            val inputStream = contentResolver.openInputStream(uri)
+                            if (inputStream != null) {
+                                val iconDir = File(context.filesDir, "custom_icons")
+                                if (!iconDir.exists()) {
+                                    iconDir.mkdirs()
+                                }
+                                val destFile = File(iconDir, "${app.packageName}.png")
+                                destFile.outputStream().use { output ->
+                                    inputStream.copyTo(output)
+                                }
+                                val usageTracker = UsageTracker(context.applicationContext)
+                                usageTracker.setCustomIcon(app.packageName, "image:${destFile.absolutePath}")
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Error setting image icon: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+
+                val relatedApps = remember(apps, app) {
+                    val cat = app.cachedInfo?.category ?: ""
+                    if (cat.isBlank()) emptyList()
+                    else {
+                        apps.filter {
+                            it.packageName != app.packageName &&
+                            (it.cachedInfo?.category ?: "") == cat
+                        }.take(3)
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(dialogBgColor)
+                        .border(1.dp, dialogBorderColor, RoundedCornerShape(28.dp))
+                        .padding(22.dp)
+                ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier
@@ -3007,6 +2979,8 @@ fun AppDetailsDialog(
             }
         }
     }
+}
+}
 }
 
 @Composable
