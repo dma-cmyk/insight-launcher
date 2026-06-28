@@ -144,16 +144,16 @@ fun LauncherHomeScreen(
     val colorTheme by viewModel.colorTheme.collectAsState()
     val isLight = colorTheme.startsWith("light_")
 
-    val textColor = if (isLight) Color(0xFF1E1E2F) else Color.White
-    val subTextColor = if (isLight) Color(0xFF5A5A75) else Color(0xB2FFFFFF)
-    val cardBgColor = if (isLight) Color(0x0C000000) else Color(0x3CFFFFFF)
-    val cardBorderColor = if (isLight) Color(0x1F000000) else Color(0x24FFFFFF)
-    val panelBgColor = if (isLight) Color(0xF0FAF9FD) else Color(0xF0080812)
-    val panelBorderColor = if (isLight) Color(0x1A000000) else Color(0x20FFFFFF)
-    val dividerColor = if (isLight) Color(0x10000000) else Color(0x14FFFFFF)
-    val searchBarBg = if (isLight) Color(0x0A000000) else Color(0x15FFFFFF)
-    val searchBarBorder = if (isLight) Color(0x1A000000) else Color(0x20FFFFFF)
-    val textShadow = if (isLight) Color(0x20000000) else Color.Black
+    val textColor = if (isLight) Color(0xFF11111F) else Color.White
+    val subTextColor = if (isLight) Color(0xFF454558) else Color(0xB2FFFFFF)
+    val cardBgColor = if (isLight) Color(0x14000000) else Color(0x3CFFFFFF)
+    val cardBorderColor = if (isLight) Color(0x2E000000) else Color(0x24FFFFFF)
+    val panelBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0xF0080812)
+    val panelBorderColor = if (isLight) Color(0x2A000000) else Color(0x20FFFFFF)
+    val dividerColor = if (isLight) Color(0x1B000000) else Color(0x14FFFFFF)
+    val searchBarBg = if (isLight) Color(0x10000000) else Color(0x15FFFFFF)
+    val searchBarBorder = if (isLight) Color(0x33000000) else Color(0x20FFFFFF)
+    val textShadow = if (isLight) Color(0x15000000) else Color.Black
 
     val isVectorSearchEnabled by viewModel.isVectorSearchEnabled.collectAsState()
     val isVectorSearching by viewModel.isVectorSearching.collectAsState()

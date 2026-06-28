@@ -64,12 +64,12 @@ fun SettingsScreen(
     val colorTheme by viewModel.colorTheme.collectAsState()
 
     val isLight = colorTheme.startsWith("light_")
-    val textColor = if (isLight) Color(0xFF1E1E2F) else Color.White
-    val subTextColor = if (isLight) Color(0xFF5A5A75) else Color(0xB2FFFFFF)
-    val cardBgColor = if (isLight) Color(0x0C000000) else Color(0x3CFFFFFF)
-    val borderColor = if (isLight) Color(0x1F000000) else Color(0x24FFFFFF)
-    val dividerColor = if (isLight) Color(0x10000000) else Color(0x20FFFFFF)
-    val topBarBgColor = if (isLight) Color(0xF2F6F3FB) else Color(0x900B0B1A)
+    val textColor = if (isLight) Color(0xFF11111F) else Color.White
+    val subTextColor = if (isLight) Color(0xFF454558) else Color(0xB2FFFFFF)
+    val cardBgColor = if (isLight) Color(0x14000000) else Color(0x3CFFFFFF)
+    val borderColor = if (isLight) Color(0x2E000000) else Color(0x24FFFFFF)
+    val dividerColor = if (isLight) Color(0x1B000000) else Color(0x20FFFFFF)
+    val topBarBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0x900B0B1A)
 
     var customUrlInput by remember { mutableStateOf("") }
     var showCustomUrlDialog by remember { mutableStateOf(false) }

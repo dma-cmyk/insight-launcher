@@ -73,12 +73,17 @@ fun AiAssistantScreen(
     val detailError by viewModel.detailError.collectAsState()
 
     val colorTheme by viewModel.colorTheme.collectAsState()
-    val isLight = false
+    val isLight = colorTheme.startsWith("light_")
 
-    val textColor = Color.White
-    val subTextColor = Color(0xB2FFFFFF)
-    val topBarBg = Color(0x2B000000)
-    val starTint = Color(0xFF90CAF9)
+    val textColor = if (isLight) Color(0xFF1E1E2F) else Color.White
+    val subTextColor = if (isLight) Color(0xFF5A5A75) else Color(0xB2FFFFFF)
+    val topBarBg = if (isLight) Color(0xF2F6F3FB) else Color(0x2B000000)
+    val starTint = if (isLight) Color(0xFF1976D2) else Color(0xFF90CAF9)
+    val wikiGreen = if (isLight) Color(0xFF2E7D32) else Color(0xFF81C784)
+    val cardBgColor = if (isLight) Color(0x0C000000) else Color(0x12FFFFFF)
+    val cardBorderColor = if (isLight) Color(0x1A000000) else Color(0x1BFFFFFF)
+    val panelBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0xCD0A0A12)
+    val panelBorderColor = if (isLight) Color(0x1A000000) else Color(0x20FFFFFF)
     
     var textInput by remember { mutableStateOf("") }
     var activeTab by remember { mutableStateOf(0) } // 0 = Chat, 1 = LLM Wiki
@@ -314,7 +319,7 @@ fun AiAssistantScreen(
                                     )
                                     Text(
                                         text = if (aiLanguage == "ja") "詳細情報を取得して解析中..." else "Fetching and analyzing details...",
-                                        color = Color.White,
+                                        color = textColor,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -377,7 +382,7 @@ fun AiAssistantScreen(
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = repo.name,
-                                                    color = Color.White,
+                                                    color = textColor,
                                                     fontSize = 20.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     maxLines = 1,
@@ -385,7 +390,7 @@ fun AiAssistantScreen(
                                                 )
                                                 Text(
                                                     text = "by ${repo.ownerLogin}",
-                                                    color = Color(0x99FFFFFF),
+                                                    color = subTextColor,
                                                     fontSize = 13.sp
                                                 )
                                                 Spacer(modifier = Modifier.height(6.dp))
@@ -405,7 +410,7 @@ fun AiAssistantScreen(
                                                         )
                                                         Text(
                                                             text = "${repo.stargazersCount} stars",
-                                                            color = Color(0xCCFFFFFF),
+                                                            color = subTextColor,
                                                             fontSize = 12.sp,
                                                             fontWeight = FontWeight.Bold
                                                         )
@@ -418,7 +423,7 @@ fun AiAssistantScreen(
                                                     ) {
                                                         Text(
                                                             text = "GitHub FOSS",
-                                                            color = Color(0xFF90CAF9),
+                                                            color = starTint,
                                                             fontSize = 10.sp,
                                                             fontWeight = FontWeight.SemiBold
                                                         )
@@ -431,23 +436,23 @@ fun AiAssistantScreen(
 
                                 item {
                                     Card(
-                                        colors = CardDefaults.cardColors(containerColor = Color(0x12FFFFFF)),
+                                        colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                         shape = RoundedCornerShape(20.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(20.dp))
+                                            .border(1.dp, cardBorderColor, RoundedCornerShape(20.dp))
                                     ) {
                                         Column(modifier = Modifier.padding(16.dp)) {
                                             Text(
                                                 text = if (aiLanguage == "ja") "🤖 AI詳細解説" else "🤖 AI Explanation",
-                                                color = Color(0xFF90CAF9),
+                                                color = starTint,
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 modifier = Modifier.padding(bottom = 8.dp)
                                             )
                                             Text(
                                                 text = repo.summaryExplanation,
-                                                color = Color(0xEEFFFFFF),
+                                                color = textColor,
                                                 fontSize = 15.sp,
                                                 lineHeight = 24.sp
                                             )
@@ -508,7 +513,7 @@ fun AiAssistantScreen(
                                             Icon(
                                                 imageVector = Icons.Default.OpenInNew,
                                                 contentDescription = null,
-                                                tint = Color(0xFF90CAF9),
+                                                tint = starTint,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -536,12 +541,12 @@ fun AiAssistantScreen(
                                                 imageVector = Icons.Default.ArrowBack,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(18.dp),
-                                                tint = Color(0xFF81C784)
+                                                tint = wikiGreen
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
                                                 text = if (aiLanguage == "ja") "検索結果に戻る" else "Back to Search Results",
-                                                color = Color(0xFF81C784),
+                                                color = wikiGreen,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp
                                             )
@@ -576,7 +581,7 @@ fun AiAssistantScreen(
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = app.name,
-                                                    color = Color.White,
+                                                    color = textColor,
                                                     fontSize = 20.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     maxLines = 1,
@@ -584,7 +589,7 @@ fun AiAssistantScreen(
                                                 )
                                                 Text(
                                                     text = app.packageName,
-                                                    color = Color(0x99FFFFFF),
+                                                    color = subTextColor,
                                                     fontSize = 13.sp,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
@@ -602,7 +607,7 @@ fun AiAssistantScreen(
                                                     ) {
                                                         Text(
                                                             text = app.license,
-                                                            color = Color(0xFF81C784),
+                                                            color = wikiGreen,
                                                             fontSize = 10.sp,
                                                             fontWeight = FontWeight.SemiBold
                                                         )
@@ -615,7 +620,7 @@ fun AiAssistantScreen(
                                                     ) {
                                                         Text(
                                                             text = "F-Droid FOSS",
-                                                            color = Color(0xFF81C784),
+                                                            color = wikiGreen,
                                                             fontSize = 10.sp,
                                                             fontWeight = FontWeight.SemiBold
                                                         )
@@ -628,23 +633,23 @@ fun AiAssistantScreen(
 
                                 item {
                                     Card(
-                                        colors = CardDefaults.cardColors(containerColor = Color(0x12FFFFFF)),
+                                        colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                         shape = RoundedCornerShape(20.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(20.dp))
+                                            .border(1.dp, cardBorderColor, RoundedCornerShape(20.dp))
                                     ) {
                                         Column(modifier = Modifier.padding(16.dp)) {
                                             Text(
                                                 text = if (aiLanguage == "ja") "🤖 AI詳細解説" else "🤖 AI Explanation",
-                                                color = Color(0xFF81C784),
+                                                color = wikiGreen,
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 modifier = Modifier.padding(bottom = 8.dp)
                                             )
                                             Text(
                                                 text = app.summaryExplanation,
-                                                color = Color(0xEEFFFFFF),
+                                                color = textColor,
                                                 fontSize = 15.sp,
                                                 lineHeight = 24.sp
                                             )
@@ -655,7 +660,7 @@ fun AiAssistantScreen(
                                 if (app.apkDownloadLinks.isNotEmpty()) {
                                     item {
                                         Card(
-                                            colors = CardDefaults.cardColors(containerColor = Color(0x0CFFFFFF)),
+                                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                             shape = RoundedCornerShape(20.dp),
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -664,14 +669,14 @@ fun AiAssistantScreen(
                                             Column(modifier = Modifier.padding(16.dp)) {
                                                 Text(
                                                     text = if (aiLanguage == "ja") "📥 APK 直接ダウンロードリンク" else "📥 Direct APK Downloads",
-                                                    color = Color(0xFF81C784),
+                                                    color = wikiGreen,
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     modifier = Modifier.padding(bottom = 12.dp)
                                                 )
                                                 app.apkDownloadLinks.forEachIndexed { idx, url ->
                                                     Card(
-                                                        colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
+                                                        colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                                         shape = RoundedCornerShape(12.dp),
                                                         modifier = Modifier
                                                             .fillMaxWidth()
@@ -699,13 +704,13 @@ fun AiAssistantScreen(
                                                             Icon(
                                                                 imageVector = Icons.Default.Download,
                                                                 contentDescription = null,
-                                                                tint = Color(0xFF81C784),
+                                                                tint = wikiGreen,
                                                                 modifier = Modifier.size(20.dp)
                                                             )
                                                             Column(modifier = Modifier.weight(1f)) {
                                                                 Text(
                                                                     text = url.substringAfterLast("/").ifEmpty { "Download APK #${idx + 1}" },
-                                                                    color = Color.White,
+                                                                    color = textColor,
                                                                     fontSize = 13.sp,
                                                                     fontWeight = FontWeight.Bold,
                                                                     maxLines = 1,
@@ -782,7 +787,7 @@ fun AiAssistantScreen(
                                             Icon(
                                                 imageVector = Icons.Default.OpenInNew,
                                                 contentDescription = null,
-                                                tint = Color(0xFF81C784),
+                                                tint = wikiGreen,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -826,14 +831,14 @@ fun AiAssistantScreen(
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = null,
-                                    tint = Color(0xFF90CAF9),
+                                    tint = starTint,
                                     modifier = Modifier.size(56.dp)
                                 )
                             }
 
                             Text(
                                 text = if (aiLanguage == "ja") "何をお手伝いしましょうか？" else "How can I help you?",
-                                color = Color.White,
+                                color = textColor,
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 textAlign = TextAlign.Center
@@ -843,7 +848,7 @@ fun AiAssistantScreen(
                                 text = if (aiLanguage == "ja") 
                                     "インストール済みのアプリから、指示に合うものをAIがインテリジェントに検索・提案します。" 
                                     else "The AI will intelligently search and recommend apps from your device based on your request.",
-                                color = Color(0xB3FFFFFF),
+                                color = subTextColor,
                                 fontSize = 14.sp,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(horizontal = 24.dp)
@@ -854,7 +859,7 @@ fun AiAssistantScreen(
                             // Suggestions Title
                             Text(
                                 text = if (aiLanguage == "ja") "クイックアクション" else "Quick Actions",
-                                color = Color(0xFF90CAF9),
+                                color = starTint,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.sp
@@ -872,11 +877,11 @@ fun AiAssistantScreen(
                                     ) {
                                         rowStarters.forEach { (prompt, label) ->
                                             Card(
-                                                colors = CardDefaults.cardColors(containerColor = Color(0x1CFFFFFF)),
+                                                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                                 shape = RoundedCornerShape(16.dp),
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(16.dp))
+                                                    .border(1.dp, cardBorderColor, RoundedCornerShape(16.dp))
                                                     .clickable {
                                                         textInput = prompt
                                                         viewModel.askAiAssistant(prompt)
@@ -890,7 +895,7 @@ fun AiAssistantScreen(
                                                 ) {
                                                     Text(
                                                         text = label,
-                                                        color = Color.White,
+                                                        color = textColor,
                                                         fontWeight = FontWeight.Bold,
                                                         fontSize = 14.sp
                                                     )
@@ -928,14 +933,14 @@ fun AiAssistantScreen(
                                         ) {
                                             Text(
                                                 text = if (aiLanguage == "ja") "AIの回答" else "AI SUGGESTION",
-                                                color = Color(0xFF90CAF9),
+                                                color = starTint,
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Black,
                                                 letterSpacing = 1.sp
                                             )
                                             Text(
                                                 text = response.headline,
-                                                color = Color.White,
+                                                color = textColor,
                                                 fontSize = 26.sp, // DEKADEKA size
                                                 fontWeight = FontWeight.ExtraBold,
                                                 lineHeight = 34.sp
@@ -947,11 +952,11 @@ fun AiAssistantScreen(
                                 // 2. Detailed Explanation
                                 item {
                                     Card(
-                                        colors = CardDefaults.cardColors(containerColor = Color(0x12FFFFFF)),
+                                        colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                         shape = RoundedCornerShape(20.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(20.dp))
+                                            .border(1.dp, cardBorderColor, RoundedCornerShape(20.dp))
                                     ) {
                                         Column {
                                             if (!response.headerImageUrl.isNullOrBlank()) {
@@ -967,7 +972,7 @@ fun AiAssistantScreen(
                                             }
                                             Text(
                                                 text = response.answer,
-                                                color = Color(0xEEFFFFFF),
+                                                color = textColor,
                                                 fontSize = 16.sp,
                                                 lineHeight = 26.sp,
                                                 modifier = Modifier.padding(20.dp)
@@ -1005,7 +1010,7 @@ fun AiAssistantScreen(
                                                 )
                                                 Text(
                                                     text = if (aiLanguage == "ja") "会話から記憶を整理中..." else "Consolidating conversation memories...",
-                                                    color = Color.White,
+                                                    color = textColor,
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -1019,13 +1024,13 @@ fun AiAssistantScreen(
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
                                                         text = if (aiLanguage == "ja") "💡 会話からWikiエントリーを生成" else "💡 Extract & Save Wiki Entry",
-                                                        color = Color.White,
+                                                        color = textColor,
                                                         fontSize = 14.sp,
                                                         fontWeight = FontWeight.Bold
                                                     )
                                                     Text(
                                                         text = if (aiLanguage == "ja") "会話内容をAIの記憶に登録し、次回以降の対話に反映します" else "Saves this detail to AI Memory so it won't forget",
-                                                        color = Color(0x80FFFFFF),
+                                                        color = subTextColor.copy(alpha = 0.5f),
                                                         fontSize = 11.sp,
                                                         lineHeight = 15.sp
                                                     )
@@ -1050,7 +1055,7 @@ fun AiAssistantScreen(
                                     item {
                                         Text(
                                             text = (if (aiLanguage == "ja") "🔍 AIが発見したアプリ" else "🔍 Apps Found").uppercase(),
-                                            color = Color(0xFF90CAF9),
+                                            color = starTint,
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Black,
                                             letterSpacing = 1.sp,
@@ -1060,7 +1065,7 @@ fun AiAssistantScreen(
 
                                     items(matchedApps) { app ->
                                         Card(
-                                            colors = CardDefaults.cardColors(containerColor = Color(0x21FFFFFF)),
+                                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                             shape = RoundedCornerShape(16.dp),
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -1079,7 +1084,7 @@ fun AiAssistantScreen(
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
                                                         text = app.label,
-                                                        color = Color.White,
+                                                        color = textColor,
                                                         fontWeight = FontWeight.Bold,
                                                         fontSize = 16.sp,
                                                         maxLines = 1,
@@ -1087,7 +1092,7 @@ fun AiAssistantScreen(
                                                     )
                                                     Text(
                                                         text = app.cachedInfo?.category ?: (if (aiLanguage == "ja") "未解析" else "Unanalyzed"),
-                                                        color = Color(0x99FFFFFF),
+                                                        color = subTextColor,
                                                         fontSize = 12.sp,
                                                         fontWeight = FontWeight.Medium
                                                     )
@@ -1113,7 +1118,7 @@ fun AiAssistantScreen(
                                                     Icon(
                                                         imageVector = Icons.Default.PlayArrow,
                                                         contentDescription = "Launch",
-                                                        tint = Color.White,
+                                                        tint = textColor,
                                                         modifier = Modifier.size(20.dp)
                                                     )
                                                 }
@@ -1205,7 +1210,7 @@ fun AiAssistantScreen(
                                                     ) {
                                                         Text(
                                                             text = storeApp.name,
-                                                            color = Color.White,
+                                                            color = textColor,
                                                             fontWeight = FontWeight.Bold,
                                                             fontSize = 16.sp,
                                                             maxLines = 1,
@@ -1228,7 +1233,7 @@ fun AiAssistantScreen(
                                                     }
                                                     Text(
                                                         text = storeApp.packageName,
-                                                        color = Color(0x99FFFFFF),
+                                                        color = subTextColor,
                                                         fontSize = 11.sp,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
@@ -1296,7 +1301,7 @@ fun AiAssistantScreen(
                                         Spacer(modifier = Modifier.height(12.dp))
                                         Text(
                                             text = (if (aiLanguage == "ja") "🐙 GitHub リアルタイム検索" else "🐙 GitHub Real-time Search").uppercase(),
-                                            color = Color(0xFF90CAF9),
+                                            color = starTint,
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Black,
                                             letterSpacing = 1.sp,
@@ -1319,13 +1324,13 @@ fun AiAssistantScreen(
                                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                                 ) {
                                                     CircularProgressIndicator(
-                                                        color = Color(0xFF90CAF9),
+                                                        color = starTint,
                                                         modifier = Modifier.size(24.dp),
                                                         strokeWidth = 2.5.dp
                                                     )
                                                     Text(
                                                         text = if (aiLanguage == "ja") "GitHubから最新のリポジトリを検索中..." else "Searching GitHub for live repositories...",
-                                                        color = Color(0xCCFFFFFF),
+                                                        color = subTextColor,
                                                         fontSize = 13.sp,
                                                         fontWeight = FontWeight.Medium
                                                     )
@@ -1335,15 +1340,15 @@ fun AiAssistantScreen(
                                     } else if (githubRepos.isEmpty()) {
                                         item {
                                             Card(
-                                                colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
+                                                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                                 shape = RoundedCornerShape(16.dp),
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(16.dp))
+                                                    .border(1.dp, cardBorderColor, RoundedCornerShape(16.dp))
                                             ) {
                                                 Text(
                                                     text = if (aiLanguage == "ja") "「$ghQuery」に一致するリポジトリが見つかりませんでした。" else "No repositories found for '$ghQuery'.",
-                                                    color = Color(0x80FFFFFF),
+                                                    color = subTextColor.copy(alpha = 0.5f),
                                                     fontSize = 12.sp,
                                                     modifier = Modifier.padding(16.dp)
                                                 )
@@ -1389,14 +1394,14 @@ fun AiAssistantScreen(
                                                             ) {
                                                                 Text(
                                                                     text = repo.owner.login.take(1).uppercase(),
-                                                                    color = Color(0xFF90CAF9),
+                                                                    color = starTint,
                                                                     fontSize = 10.sp,
                                                                     fontWeight = FontWeight.Black
                                                                 )
                                                             }
                                                             Text(
                                                                 text = repo.owner.login,
-                                                                color = Color(0x99FFFFFF),
+                                                                color = subTextColor,
                                                                 fontSize = 12.sp,
                                                                 fontWeight = FontWeight.Medium,
                                                                 maxLines = 1,
@@ -1443,7 +1448,7 @@ fun AiAssistantScreen(
                                                                 Icon(
                                                                     imageVector = Icons.Default.BookmarkAdd,
                                                                     contentDescription = "Save to Wiki",
-                                                                    tint = Color(0xFF90CAF9),
+                                                                    tint = starTint,
                                                                     modifier = Modifier.size(14.dp)
                                                                 )
                                                             }
@@ -1459,7 +1464,7 @@ fun AiAssistantScreen(
                                                                 Icon(
                                                                     imageVector = Icons.Default.Search,
                                                                     contentDescription = "Search details",
-                                                                    tint = Color(0xFF90CAF9),
+                                                                    tint = starTint,
                                                                     modifier = Modifier.size(14.dp)
                                                                 )
                                                             }
@@ -1470,7 +1475,7 @@ fun AiAssistantScreen(
 
                                                     Text(
                                                         text = repo.name,
-                                                        color = Color.White,
+                                                        color = textColor,
                                                         fontSize = 15.sp,
                                                         fontWeight = FontWeight.Bold,
                                                         maxLines = 1,
@@ -1481,7 +1486,7 @@ fun AiAssistantScreen(
                                                         Spacer(modifier = Modifier.height(4.dp))
                                                         Text(
                                                             text = repo.description,
-                                                            color = Color(0xCCFFFFFF),
+                                                            color = subTextColor,
                                                             fontSize = 13.sp,
                                                             lineHeight = 18.sp,
                                                             maxLines = 3,
@@ -1501,7 +1506,7 @@ fun AiAssistantScreen(
                                         Spacer(modifier = Modifier.height(12.dp))
                                         Text(
                                             text = (if (aiLanguage == "ja") "🤖 F-Droid リアルタイム検索" else "🤖 F-Droid Real-time Search").uppercase(),
-                                            color = Color(0xFF81C784),
+                                            color = wikiGreen,
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Black,
                                             letterSpacing = 1.sp,
@@ -1524,13 +1529,13 @@ fun AiAssistantScreen(
                                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                                 ) {
                                                     CircularProgressIndicator(
-                                                        color = Color(0xFF81C784),
+                                                        color = wikiGreen,
                                                         modifier = Modifier.size(24.dp),
                                                         strokeWidth = 2.5.dp
                                                     )
                                                     Text(
                                                         text = if (aiLanguage == "ja") "F-Droidから最新のアプリを検索中..." else "Searching F-Droid for live apps...",
-                                                        color = Color(0xCCFFFFFF),
+                                                        color = subTextColor,
                                                         fontSize = 13.sp,
                                                         fontWeight = FontWeight.Medium
                                                     )
@@ -1540,15 +1545,15 @@ fun AiAssistantScreen(
                                     } else if (fdroidRepos.isEmpty()) {
                                         item {
                                             Card(
-                                                colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
+                                                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                                 shape = RoundedCornerShape(16.dp),
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(16.dp))
+                                                    .border(1.dp, cardBorderColor, RoundedCornerShape(16.dp))
                                             ) {
                                                 Text(
                                                     text = if (aiLanguage == "ja") "「$fdQuery」に一致するアプリが見つかりませんでした。" else "No apps found for '$fdQuery'.",
-                                                    color = Color(0x80FFFFFF),
+                                                    color = subTextColor.copy(alpha = 0.5f),
                                                     fontSize = 12.sp,
                                                     modifier = Modifier.padding(16.dp)
                                                 )
@@ -1596,14 +1601,14 @@ fun AiAssistantScreen(
                                                             ) {
                                                                 Text(
                                                                     text = "FD",
-                                                                    color = Color(0xFF81C784),
+                                                                    color = wikiGreen,
                                                                     fontSize = 10.sp,
                                                                     fontWeight = FontWeight.Black
                                                                 )
                                                             }
                                                             Text(
                                                                 text = "F-Droid FOSS",
-                                                                color = Color(0x99FFFFFF),
+                                                                color = subTextColor,
                                                                 fontSize = 12.sp,
                                                                 fontWeight = FontWeight.Medium,
                                                                 maxLines = 1,
@@ -1632,7 +1637,7 @@ fun AiAssistantScreen(
                                                                 Icon(
                                                                     imageVector = Icons.Default.BookmarkAdd,
                                                                     contentDescription = "Save to Wiki",
-                                                                    tint = Color(0xFF81C784),
+                                                                    tint = wikiGreen,
                                                                     modifier = Modifier.size(14.dp)
                                                                 )
                                                             }
@@ -1648,7 +1653,7 @@ fun AiAssistantScreen(
                                                                 Icon(
                                                                     imageVector = Icons.Default.Search,
                                                                     contentDescription = "Search details",
-                                                                    tint = Color(0xFF81C784),
+                                                                    tint = wikiGreen,
                                                                     modifier = Modifier.size(14.dp)
                                                                 )
                                                             }
@@ -1676,7 +1681,7 @@ fun AiAssistantScreen(
                                                             ) {
                                                                 Text(
                                                                     text = pkg.name,
-                                                                    color = Color.White,
+                                                                    color = textColor,
                                                                     fontSize = 15.sp,
                                                                     fontWeight = FontWeight.Bold,
                                                                     maxLines = 1,
@@ -1692,7 +1697,7 @@ fun AiAssistantScreen(
                                                             Spacer(modifier = Modifier.height(4.dp))
                                                             Text(
                                                                 text = pkg.summary,
-                                                                color = Color(0xCCFFFFFF),
+                                                                color = subTextColor,
                                                                 fontSize = 13.sp,
                                                                 lineHeight = 18.sp
                                                             )
@@ -1709,14 +1714,14 @@ fun AiAssistantScreen(
                                                                 ) {
                                                                     Text(
                                                                         text = pkg.license,
-                                                                        color = Color(0xFF81C784),
+                                                                        color = wikiGreen,
                                                                         fontSize = 10.sp,
                                                                         fontWeight = FontWeight.SemiBold
                                                                     )
                                                                 }
                                                                 Text(
                                                                     text = pkg.packageName,
-                                                                    color = Color(0x80FFFFFF),
+                                                                    color = subTextColor.copy(alpha = 0.5f),
                                                                     fontSize = 10.sp
                                                                 )
                                                             }
@@ -1729,7 +1734,7 @@ fun AiAssistantScreen(
                                         item {
                                             Text(
                                                 text = if (aiLanguage == "ja") "F-Droidでさらに検索する" else "Search more on F-Droid",
-                                                color = Color(0xFF81C784),
+                                                color = wikiGreen,
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Medium,
                                                 modifier = Modifier
@@ -1758,7 +1763,7 @@ fun AiAssistantScreen(
                                     item {
                                         Text(
                                             text = if (aiLanguage == "ja") "次の質問候補" else "Suggested follow-ups",
-                                            color = Color(0xFF90CAF9),
+                                            color = starTint,
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.padding(start = 4.dp, top = 8.dp)
@@ -1772,7 +1777,7 @@ fun AiAssistantScreen(
                                         ) {
                                             items(suggestions) { suggestionText ->
                                                 Card(
-                                                    colors = CardDefaults.cardColors(containerColor = Color(0x1BFFFFFF)),
+                                                    colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                                     shape = RoundedCornerShape(50),
                                                     modifier = Modifier
                                                         .border(1.dp, Color(0x21FFFFFF), RoundedCornerShape(50))
@@ -1783,7 +1788,7 @@ fun AiAssistantScreen(
                                                 ) {
                                                     Text(
                                                         text = suggestionText,
-                                                        color = Color.White,
+                                                        color = textColor,
                                                         fontSize = 13.sp,
                                                         fontWeight = FontWeight.Medium,
                                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -1802,7 +1807,7 @@ fun AiAssistantScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color(0xCD0A0A12)),
+                                .background(panelBgColor),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
@@ -1827,13 +1832,13 @@ fun AiAssistantScreen(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .scale(1.2f),
-                                        color = Color(0xFF90CAF9),
+                                        color = starTint,
                                         strokeWidth = 3.dp
                                     )
                                     Icon(
                                         imageVector = Icons.Default.AutoAwesome,
                                         contentDescription = null,
-                                        tint = Color(0xFF90CAF9),
+                                        tint = starTint,
                                         modifier = Modifier
                                             .size(36.dp)
                                             .scale(1f)
@@ -1842,14 +1847,14 @@ fun AiAssistantScreen(
 
                                 Text(
                                     text = if (aiLanguage == "ja") "AIが探索・分析中..." else "AI is searching & analyzing...",
-                                    color = Color.White,
+                                    color = textColor,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold
                                 )
 
                                 Text(
                                     text = if (aiLanguage == "ja") "インストールされたアプリから最適なものを検索しています" else "Scanning your installed apps list for matches",
-                                    color = Color(0x80FFFFFF),
+                                    color = subTextColor.copy(alpha = 0.5f),
                                     fontSize = 13.sp,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.padding(horizontal = 32.dp)
@@ -1876,7 +1881,7 @@ fun AiAssistantScreen(
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
                                     text = if (aiLanguage == "ja") "🧠 AIの長期記憶 (LLM Wiki)" else "🧠 AI Long-term Memory (LLM Wiki)",
-                                    color = Color(0xFF90CAF9),
+                                    color = starTint,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1885,7 +1890,7 @@ fun AiAssistantScreen(
                                     text = if (aiLanguage == "ja") 
                                         "ここに保存された事実や設定・指示は、AIアシスタントが会話をする際に常に前提知識として参照されます。" 
                                         else "Facts, preferences, and instructions saved here are automatically fed to the AI as context, so it never forgets them.",
-                                    color = Color(0xB3FFFFFF),
+                                    color = subTextColor,
                                     fontSize = 12.sp,
                                     lineHeight = 18.sp
                                 )
@@ -1925,8 +1930,8 @@ fun AiAssistantScreen(
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Color(0xFFEF5350),
                                     unfocusedBorderColor = Color(0x22FFFFFF),
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White
+                                    focusedTextColor = textColor,
+                                    unfocusedTextColor = textColor
                                 )
                             )
 
@@ -1943,7 +1948,7 @@ fun AiAssistantScreen(
                                 Icon(
                                     imageVector = Icons.Default.Download,
                                     contentDescription = "Download Memories",
-                                    tint = Color.White,
+                                    tint = textColor,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1961,7 +1966,7 @@ fun AiAssistantScreen(
                                 Icon(
                                     imageVector = Icons.Default.Upload,
                                     contentDescription = "Upload Memories",
-                                    tint = Color.White,
+                                    tint = textColor,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -2022,11 +2027,11 @@ fun AiAssistantScreen(
                             ) {
                                 items(filteredWikis, key = { it.id }) { entry ->
                                     Card(
-                                        colors = CardDefaults.cardColors(containerColor = Color(0x12FFFFFF)),
+                                        colors = CardDefaults.cardColors(containerColor = cardBgColor),
                                         shape = RoundedCornerShape(16.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(16.dp))
+                                            .border(1.dp, cardBorderColor, RoundedCornerShape(16.dp))
                                     ) {
                                         Column(modifier = Modifier.padding(14.dp)) {
                                             Row(
@@ -2089,7 +2094,7 @@ fun AiAssistantScreen(
 
                                             Text(
                                                 text = entry.title,
-                                                color = Color.White,
+                                                color = textColor,
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -2098,7 +2103,7 @@ fun AiAssistantScreen(
 
                                             Text(
                                                 text = entry.content,
-                                                color = Color(0xCCFFFFFF),
+                                                color = subTextColor,
                                                 fontSize = 13.sp,
                                                 lineHeight = 20.sp
                                             )
@@ -2137,7 +2142,7 @@ fun AiAssistantScreen(
                                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                                             Icon(Icons.Default.Link, contentDescription = null, tint = Color(0xFF64B5F6), modifier = Modifier.size(12.dp))
                                                             Spacer(modifier = Modifier.width(4.dp))
-                                                            Text(text = rel.title, color = Color(0xCCFFFFFF), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                            Text(text = rel.title, color = subTextColor, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                         }
                                                     }
                                                 }
@@ -2195,7 +2200,7 @@ fun AiAssistantScreen(
                                         if (isBulkOrganizing) {
                                             androidx.compose.material3.CircularProgressIndicator(
                                                 modifier = Modifier.size(16.dp),
-                                                color = Color(0xFF81C784),
+                                                color = wikiGreen,
                                                 strokeWidth = 2.dp
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
@@ -2277,12 +2282,12 @@ fun AiAssistantScreen(
                             .minimumInteractiveComponentSize()
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color(0x1BFFFFFF))
+                            .background(cardBorderColor)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Mic,
                             contentDescription = "Voice Input",
-                            tint = Color.White,
+                            tint = textColor,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -2291,7 +2296,7 @@ fun AiAssistantScreen(
                     BasicTextField(
                         value = textInput,
                         onValueChange = { textInput = it },
-                        textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
+                        textStyle = LocalTextStyle.current.copy(color = textColor, fontSize = 15.sp),
                         cursorBrush = SolidColor(Color.White),
                         modifier = Modifier
                             .weight(1f)
@@ -2301,7 +2306,7 @@ fun AiAssistantScreen(
                                 if (textInput.isEmpty()) {
                                     Text(
                                         text = if (aiLanguage == "ja") "AIへの指示・アプリ検索..." else "Ask AI or search apps...",
-                                        color = Color(0x80FFFFFF),
+                                        color = subTextColor.copy(alpha = 0.5f),
                                         fontSize = 15.sp
                                     )
                                 }
@@ -2321,7 +2326,7 @@ fun AiAssistantScreen(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear",
-                                tint = Color.White,
+                                tint = textColor,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -2365,9 +2370,9 @@ fun AiAssistantScreen(
         val selectedRelatedIds = remember { mutableStateListOf(*pendingWikiEntry!!.relatedLinkIds.toTypedArray()) }
         val categories = listOf("Preference", "Instruction", "Fact", "General")
         
-        AlertDialog(
+        AlertDialog(containerColor = panelBgColor, 
             onDismissRequest = { pendingWikiEntry = null },
-            title = { Text(if (aiLanguage == "ja") "記憶を追加" else "Add Memory", color = Color.White) },
+            title = { Text(if (aiLanguage == "ja") "記憶を追加" else "Add Memory", color = textColor) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
@@ -2376,9 +2381,9 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "タイトル" else "Title") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = if (isLight) Color(0x20000000) else Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = if (isLight) Color(0x80000000) else Color(0x80FFFFFF),
+                            focusedTextColor = textColor, unfocusedTextColor = textColor
                         )
                     )
                     OutlinedTextField(
@@ -2387,9 +2392,9 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "記憶内容" else "Memory Content") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = if (isLight) Color(0x20000000) else Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = if (isLight) Color(0x80000000) else Color(0x80FFFFFF),
+                            focusedTextColor = textColor, unfocusedTextColor = textColor
                         )
                     )
                     OutlinedTextField(
@@ -2398,12 +2403,12 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "タグ (カンマ区切り, 最低5つ)" else "Tags (comma separated, min 5)") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = if (isLight) Color(0x20000000) else Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = if (isLight) Color(0x80000000) else Color(0x80FFFFFF),
+                            focusedTextColor = textColor, unfocusedTextColor = textColor
                         )
                     )
-                    Text(text = if (aiLanguage == "ja") "カテゴリー" else "Category", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = if (aiLanguage == "ja") "カテゴリー" else "Category", color = subTextColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -2413,7 +2418,7 @@ fun AiAssistantScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) Color(0xFFEF5350) else Color(0x1BFFFFFF))
+                                    .background(if (isSelected) Color(0xFFEF5350) else cardBorderColor)
                                     .clickable { category = cat }
                                     .padding(horizontal = 8.dp, vertical = 6.dp)
                             ) {
@@ -2427,7 +2432,7 @@ fun AiAssistantScreen(
                         }
                     }
                     if (wikiEntries.isNotEmpty()) {
-                        Text(text = if (aiLanguage == "ja") "関連リンク" else "Related Links", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(text = if (aiLanguage == "ja") "関連リンク" else "Related Links", color = subTextColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         LazyColumn(modifier = Modifier.heightIn(max = 120.dp).fillMaxWidth()) {
                             items(wikiEntries) { w ->
                                 val isSelected = selectedRelatedIds.contains(w.id)
@@ -2444,7 +2449,7 @@ fun AiAssistantScreen(
                                         checked = isSelected,
                                         onCheckedChange = { if (it) selectedRelatedIds.add(w.id) else selectedRelatedIds.remove(w.id) }
                                     )
-                                    Text(text = w.title, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(text = w.title, color = textColor, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
@@ -2476,10 +2481,10 @@ fun AiAssistantScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingWikiEntry = null }) {
-                    Text(if (aiLanguage == "ja") "キャンセル" else "Cancel", color = Color.White)
+                    Text(if (aiLanguage == "ja") "キャンセル" else "Cancel", color = textColor)
                 }
             },
-            containerColor = Color(0xFF212121),
+            
             shape = RoundedCornerShape(20.dp)
         )
     }
@@ -2492,9 +2497,9 @@ fun AiAssistantScreen(
         val selectedRelatedIds = remember { mutableStateListOf(*editingEntry!!.relatedLinkIds.toTypedArray()) }
         val categories = listOf("Preference", "Instruction", "Fact", "General")
         
-        AlertDialog(
+        AlertDialog(containerColor = panelBgColor, 
             onDismissRequest = { editingEntry = null },
-            title = { Text(if (aiLanguage == "ja") "記憶を編集" else "Edit Memory", color = Color.White) },
+            title = { Text(if (aiLanguage == "ja") "記憶を編集" else "Edit Memory", color = textColor) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
@@ -2503,9 +2508,9 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "タイトル" else "Title") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = if (isLight) Color(0x20000000) else Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = if (isLight) Color(0x80000000) else Color(0x80FFFFFF),
+                            focusedTextColor = textColor, unfocusedTextColor = textColor
                         )
                     )
                     OutlinedTextField(
@@ -2514,9 +2519,9 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "記憶内容" else "Memory Content") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = if (isLight) Color(0x20000000) else Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = if (isLight) Color(0x80000000) else Color(0x80FFFFFF),
+                            focusedTextColor = textColor, unfocusedTextColor = textColor
                         )
                     )
                     OutlinedTextField(
@@ -2525,12 +2530,12 @@ fun AiAssistantScreen(
                         label = { Text(if (aiLanguage == "ja") "タグ (カンマ区切り, 最低5つ)" else "Tags (comma separated, min 5)") },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = Color(0x40FFFFFF),
-                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = Color(0x80FFFFFF),
-                            focusedTextColor = Color.White, unfocusedTextColor = Color.White
+                            focusedBorderColor = Color(0xFFEF5350), unfocusedBorderColor = if (isLight) Color(0x20000000) else Color(0x40FFFFFF),
+                            focusedLabelColor = Color(0xFFEF5350), unfocusedLabelColor = if (isLight) Color(0x80000000) else Color(0x80FFFFFF),
+                            focusedTextColor = textColor, unfocusedTextColor = textColor
                         )
                     )
-                    Text(text = if (aiLanguage == "ja") "カテゴリー" else "Category", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = if (aiLanguage == "ja") "カテゴリー" else "Category", color = subTextColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -2540,7 +2545,7 @@ fun AiAssistantScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) Color(0xFFEF5350) else Color(0x1BFFFFFF))
+                                    .background(if (isSelected) Color(0xFFEF5350) else cardBorderColor)
                                     .clickable { category = cat }
                                     .padding(horizontal = 8.dp, vertical = 6.dp)
                             ) {
@@ -2555,7 +2560,7 @@ fun AiAssistantScreen(
                     }
                     val otherWikis = wikiEntries.filter { it.id != editingEntry!!.id }
                     if (otherWikis.isNotEmpty()) {
-                        Text(text = if (aiLanguage == "ja") "関連リンク" else "Related Links", color = Color(0xCCFFFFFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(text = if (aiLanguage == "ja") "関連リンク" else "Related Links", color = subTextColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         LazyColumn(modifier = Modifier.heightIn(max = 120.dp).fillMaxWidth()) {
                             items(otherWikis) { w ->
                                 val isSelected = selectedRelatedIds.contains(w.id)
@@ -2572,7 +2577,7 @@ fun AiAssistantScreen(
                                         checked = isSelected,
                                         onCheckedChange = { if (it) selectedRelatedIds.add(w.id) else selectedRelatedIds.remove(w.id) }
                                     )
-                                    Text(text = w.title, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(text = w.title, color = textColor, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
@@ -2605,25 +2610,25 @@ fun AiAssistantScreen(
             },
             dismissButton = {
                 TextButton(onClick = { editingEntry = null }) {
-                    Text(if (aiLanguage == "ja") "キャンセル" else "Cancel", color = Color.White)
+                    Text(if (aiLanguage == "ja") "キャンセル" else "Cancel", color = textColor)
                 }
             },
-            containerColor = Color(0xFF212121),
+            
             shape = RoundedCornerShape(20.dp)
         )
     }
 
     if (detailError != null) {
-        AlertDialog(
+        AlertDialog(containerColor = panelBgColor, 
             onDismissRequest = { viewModel.clearDetailState() },
-            title = { Text(if (aiLanguage == "ja") "エラーが発生しました" else "Error Occurred", color = Color.White) },
-            text = { Text(detailError ?: "", color = Color(0xCCFFFFFF)) },
+            title = { Text(if (aiLanguage == "ja") "エラーが発生しました" else "Error Occurred", color = textColor) },
+            text = { Text(detailError ?: "", color = subTextColor) },
             confirmButton = {
                 TextButton(onClick = { viewModel.clearDetailState() }) {
                     Text(if (aiLanguage == "ja") "閉じる" else "Close", color = Color(0xFFEF5350))
                 }
             },
-            containerColor = Color(0xFF212121),
+            
             shape = RoundedCornerShape(20.dp)
         )
     }
@@ -2631,7 +2636,7 @@ fun AiAssistantScreen(
     if (isImportingWiki) {
         Dialog(onDismissRequest = {}) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                colors = CardDefaults.cardColors(containerColor = panelBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.padding(16.dp)
             ) {
@@ -2643,7 +2648,7 @@ fun AiAssistantScreen(
                     CircularProgressIndicator(color = Color(0xFFEF5350))
                     Text(
                         text = if (aiLanguage == "ja") "AIがWikiを構築・再編中..." else "AI is constructing & structuring Wiki...",
-                        color = Color.White,
+                        color = textColor,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
