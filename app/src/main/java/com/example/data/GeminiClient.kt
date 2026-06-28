@@ -951,7 +951,7 @@ object GeminiClient {
 
                     // Add function response turn
                     contents.add(GeminiContent(
-                        role = "function",
+                        role = "user",
                         parts = listOf(GeminiPart(
                             functionResponse = GeminiFunctionResponse(
                                 name = functionCall.name,
