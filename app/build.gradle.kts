@@ -17,8 +17,8 @@ android {
     applicationId = "com.aistudio.aiapplauncher.hvxqwl"
     minSdk = 24
     targetSdk = 36
-    versionCode = 49
-    versionName = "1.7.2"
+    versionCode = 50
+    versionName = "1.7.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

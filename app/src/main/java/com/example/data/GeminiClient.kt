@@ -1,6 +1,7 @@
 package com.example.data
 
 import com.squareup.moshi.JsonClass
+import com.squareup.moshi.Json
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
@@ -35,7 +36,8 @@ data class GeminiPart(
     val text: String? = null,
     val inlineData: GeminiBlob? = null,
     val functionCall: GeminiFunctionCall? = null,
-    val functionResponse: GeminiFunctionResponse? = null
+    val functionResponse: GeminiFunctionResponse? = null,
+    @Json(name = "thoughtSignature") val thoughtSignature: String? = null
 )
 
 @JsonClass(generateAdapter = true)
