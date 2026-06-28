@@ -883,14 +883,10 @@ object GeminiClient {
         val geminiToolsList = mutableListOf<GeminiTool>()
         if (mcpTools.isNotEmpty()) {
             geminiToolsList.add(GeminiTool(functionDeclarations = mcpTools.map {
-                val params = it.inputSchema
-                val properties = params["properties"] as? Map<*, *>
-                val cleanedParams = if (properties.isNullOrEmpty()) null else params
-                
                 GeminiFunctionDeclaration(
                     name = it.name,
                     description = it.description,
-                    parameters = cleanedParams
+                    parameters = it.inputSchema
                 )
             }))
         }
