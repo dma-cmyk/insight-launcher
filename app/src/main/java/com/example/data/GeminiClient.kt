@@ -904,12 +904,12 @@ object GeminiClient {
             val maxLoops = 6
 
             while (loopCount < maxLoops) {
+                // While in the function-calling loop, we must NOT set responseMimeType/responseSchema
+                // because the Gemini API rejects requests that have both tools AND structured output at the same time.
                 val request = GeminiRequest(
                     contents = contents,
                     tools = geminiTools,
                     generationConfig = GeminiGenerationConfig(
-                        responseMimeType = if (!hasFunctionDeclarations && !isGemma) "application/json" else null,
-                        responseSchema = if (!hasFunctionDeclarations && !isGemma) schema else null,
                         temperature = 0.4
                     )
                 )
@@ -945,9 +945,9 @@ object GeminiClient {
 
                     val resultMap = mapOf("result" to toolResult)
 
-                    // Add function response turn
+                    // Add function response turn — role MUST be "function" for v1beta REST API
                     contents.add(GeminiContent(
-                        role = "user",
+                        role = "function",
                         parts = listOf(GeminiPart(
                             functionResponse = GeminiFunctionResponse(
                                 name = functionCall.name,
@@ -961,6 +961,56 @@ object GeminiClient {
                     responseText = part.text
                     break
                 }
+            }
+
+            // If we got a response from a tool-calling flow, it won't be structured JSON.
+            // Make one more request WITHOUT tools but WITH structured output to get proper JSON.
+            if (responseText != null && loopCount > 0 && !isGemma) {
+                val structuredRequest = GeminiRequest(
+                    contents = listOf(GeminiContent(
+                        role = "user",
+                        parts = listOf(GeminiPart(text = "Based on your previous analysis, format your complete response strictly as the required JSON schema. Do not call any tools."))
+                    )),
+                    tools = null,
+                    generationConfig = GeminiGenerationConfig(
+                        responseMimeType = "application/json",
+                        responseSchema = schema,
+                        temperature = 0.4
+                    )
+                )
+                // Build a new contents list with full history + instruction
+                val structuredContents = contents.toMutableList()
+                // Add the model's last text response to history
+                structuredContents.add(GeminiContent(
+                    role = "model",
+                    parts = listOf(GeminiPart(text = responseText))
+                ))
+                structuredContents.add(GeminiContent(
+                    role = "user",
+                    parts = listOf(GeminiPart(text = "Now format your complete response strictly as the required JSON schema."))
+                ))
+                val finalRequest = GeminiRequest(
+                    contents = structuredContents,
+                    tools = null,
+                    generationConfig = GeminiGenerationConfig(
+                        responseMimeType = "application/json",
+                        responseSchema = schema,
+                        temperature = 0.4
+                    )
+                )
+                try {
+                    val finalResponse = apiService.generateContent(cleanModelName, apiKey, finalRequest)
+                    val finalText = finalResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    if (finalText != null) {
+                        responseText = finalText
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Structured follow-up failed, using raw text: ${e.message}")
+                    // Fall through with the original responseText
+                }
+            } else if (responseText == null && loopCount == 0 && !isGemma) {
+                // No function calls were made — this shouldn't happen since we always have tools,
+                // but handle it gracefully with the original non-tool flow
             }
 
             if (responseText != null) {
