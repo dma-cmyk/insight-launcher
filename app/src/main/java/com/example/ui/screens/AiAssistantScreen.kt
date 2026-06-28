@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.data.RecommendedStoreApp
 import com.example.ui.AppLauncherViewModel
 import com.example.ui.Localization
@@ -64,6 +65,12 @@ fun AiAssistantScreen(
     val wikiEntries by viewModel.wikiEntries.collectAsState()
     val githubRepos by viewModel.githubRepos.collectAsState()
     val isGithubLoading by viewModel.isGithubLoading.collectAsState()
+    val fdroidRepos by viewModel.fdroidRepos.collectAsState()
+    val isFDroidLoading by viewModel.isFDroidLoading.collectAsState()
+    val githubRepoDetail by viewModel.githubRepoDetail.collectAsState()
+    val fdroidAppDetail by viewModel.fdroidAppDetail.collectAsState()
+    val isDetailLoading by viewModel.isDetailLoading.collectAsState()
+    val detailError by viewModel.detailError.collectAsState()
     
     var textInput by remember { mutableStateOf("") }
     var activeTab by remember { mutableStateOf(0) } // 0 = Chat, 1 = LLM Wiki
@@ -244,7 +251,499 @@ fun AiAssistantScreen(
                     contentAlignment = Alignment.TopCenter
                 ) {
                     if (activeTab == 0) {
-                        if (assistantResponse == null && !isAssistantLoading) {
+                        if (isDetailLoading) {
+                            // --- DETAIL LOADING VIEW ---
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = Color(0xFFEF5350),
+                                        strokeWidth = 3.dp,
+                                        modifier = Modifier.size(44.dp)
+                                    )
+                                    Text(
+                                        text = if (aiLanguage == "ja") "詳細情報を取得して解析中..." else "Fetching and analyzing details...",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        } else if (githubRepoDetail != null) {
+                            // --- GITHUB REPO DETAIL VIEW ---
+                            val repo = githubRepoDetail!!
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                item {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TextButton(
+                                            onClick = { viewModel.clearDetailState() },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF90CAF9))
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ArrowBack,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = if (aiLanguage == "ja") "検索結果に戻る" else "Back to Search Results",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color(0x1F90CAF9)),
+                                        shape = RoundedCornerShape(20.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, Color(0x3390CAF9), RoundedCornerShape(20.dp))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            coil.compose.AsyncImage(
+                                                model = repo.ownerAvatarUrl,
+                                                contentDescription = "Avatar",
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .clip(CircleShape)
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = repo.name,
+                                                    color = Color.White,
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = "by ${repo.ownerLogin}",
+                                                    color = Color(0x99FFFFFF),
+                                                    fontSize = 13.sp
+                                                )
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Star,
+                                                            contentDescription = "Stars",
+                                                            tint = Color(0xFFFFB300),
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                        Text(
+                                                            text = "${repo.stargazersCount} stars",
+                                                            color = Color(0xCCFFFFFF),
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(Color(0x2290CAF9))
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "GitHub FOSS",
+                                                            color = Color(0xFF90CAF9),
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color(0x12FFFFFF)),
+                                        shape = RoundedCornerShape(20.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(20.dp))
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            Text(
+                                                text = if (aiLanguage == "ja") "🤖 AI詳細解説" else "🤖 AI Explanation",
+                                                color = Color(0xFF90CAF9),
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(bottom = 8.dp)
+                                            )
+                                            Text(
+                                                text = repo.summaryExplanation,
+                                                color = Color(0xEEFFFFFF),
+                                                fontSize = 15.sp,
+                                                lineHeight = 24.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                pendingWikiEntry = com.example.data.LlmWikiEntry(
+                                                    title = repo.name,
+                                                    content = "${repo.summaryExplanation}\n\n[Details]\n• Owner: ${repo.ownerLogin}\n• Stars: ${repo.stargazersCount}\n• URL: ${repo.htmlUrl}",
+                                                    category = "Fact",
+                                                    tags = listOf("GitHub", "Repo", "FOSS", repo.ownerLogin, repo.name.take(10).replace(" ", ""))
+                                                )
+                                                viewModel.clearDetailState()
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.weight(1f).height(48.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.BookmarkAdd,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = if (aiLanguage == "ja") "LLM Wikiに追加" else "Add to LLM Wiki",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                try {
+                                                    val intent = android.content.Intent(
+                                                        android.content.Intent.ACTION_VIEW,
+                                                        android.net.Uri.parse(repo.htmlUrl)
+                                                    ).apply {
+                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    android.widget.Toast.makeText(context, "Cannot open URL", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0x2B90CAF9)),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.height(48.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.OpenInNew,
+                                                contentDescription = null,
+                                                tint = Color(0xFF90CAF9),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (fdroidAppDetail != null) {
+                            // --- F-DROID APP DETAIL VIEW ---
+                            val app = fdroidAppDetail!!
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                item {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TextButton(
+                                            onClick = { viewModel.clearDetailState() },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF81C784))
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ArrowBack,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                                tint = Color(0xFF81C784)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = if (aiLanguage == "ja") "検索結果に戻る" else "Back to Search Results",
+                                                color = Color(0xFF81C784),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color(0x1F81C784)),
+                                        shape = RoundedCornerShape(20.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, Color(0x3381C784), RoundedCornerShape(20.dp))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            coil.compose.AsyncImage(
+                                                model = app.iconUrl,
+                                                contentDescription = "Icon",
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Color.White)
+                                                    .padding(2.dp)
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = app.name,
+                                                    color = Color.White,
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = app.packageName,
+                                                    color = Color(0x99FFFFFF),
+                                                    fontSize = 13.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(Color(0x2281C784))
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = app.license,
+                                                            color = Color(0xFF81C784),
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(Color(0x2281C784))
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "F-Droid FOSS",
+                                                            color = Color(0xFF81C784),
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    Card(
+                                        colors = CardDefaults.cardColors(containerColor = Color(0x12FFFFFF)),
+                                        shape = RoundedCornerShape(20.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(20.dp))
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            Text(
+                                                text = if (aiLanguage == "ja") "🤖 AI詳細解説" else "🤖 AI Explanation",
+                                                color = Color(0xFF81C784),
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(bottom = 8.dp)
+                                            )
+                                            Text(
+                                                text = app.summaryExplanation,
+                                                color = Color(0xEEFFFFFF),
+                                                fontSize = 15.sp,
+                                                lineHeight = 24.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (app.apkDownloadLinks.isNotEmpty()) {
+                                    item {
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = Color(0x0CFFFFFF)),
+                                            shape = RoundedCornerShape(20.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .border(1.dp, Color(0x16FFFFFF), RoundedCornerShape(20.dp))
+                                        ) {
+                                            Column(modifier = Modifier.padding(16.dp)) {
+                                                Text(
+                                                    text = if (aiLanguage == "ja") "📥 APK 直接ダウンロードリンク" else "📥 Direct APK Downloads",
+                                                    color = Color(0xFF81C784),
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.padding(bottom = 12.dp)
+                                                )
+                                                app.apkDownloadLinks.forEachIndexed { idx, url ->
+                                                    Card(
+                                                        colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clickable {
+                                                                try {
+                                                                    val intent = android.content.Intent(
+                                                                        android.content.Intent.ACTION_VIEW,
+                                                                        android.net.Uri.parse(url)
+                                                                    ).apply {
+                                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                                    }
+                                                                    context.startActivity(intent)
+                                                                } catch (e: Exception) {
+                                                                    android.widget.Toast.makeText(context, "Cannot open link", android.widget.Toast.LENGTH_SHORT).show()
+                                                                }
+                                                            }
+                                                            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(12.dp))
+                                                            .padding(12.dp)
+                                                    ) {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Download,
+                                                                contentDescription = null,
+                                                                tint = Color(0xFF81C784),
+                                                                modifier = Modifier.size(20.dp)
+                                                            )
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(
+                                                                    text = url.substringAfterLast("/").ifEmpty { "Download APK #${idx + 1}" },
+                                                                    color = Color.White,
+                                                                    fontSize = 13.sp,
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Ellipsis
+                                                                )
+                                                            }
+                                                            Icon(
+                                                                imageVector = Icons.Default.ArrowForward,
+                                                                contentDescription = null,
+                                                                tint = Color(0x4DFFFFFF),
+                                                                modifier = Modifier.size(14.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                    if (idx < app.apkDownloadLinks.lastIndex) {
+                                                        Spacer(modifier = Modifier.height(8.dp))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                pendingWikiEntry = com.example.data.LlmWikiEntry(
+                                                    title = app.name,
+                                                    content = "${app.summaryExplanation}\n\n[Details]\n• Package: ${app.packageName}\n• License: ${app.license}\n• URL: https://f-droid.org/packages/${app.packageName}/\n• APK Links: ${app.apkDownloadLinks.joinToString(", ")}",
+                                                    category = "Fact",
+                                                    tags = listOf("FDroid", "App", "FOSS", app.packageName.split(".").lastOrNull() ?: "FOSS", app.name.take(10).replace(" ", ""))
+                                                )
+                                                viewModel.clearDetailState()
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.weight(1f).height(48.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.BookmarkAdd,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = if (aiLanguage == "ja") "LLM Wikiに追加" else "Add to LLM Wiki",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                try {
+                                                    val intent = android.content.Intent(
+                                                        android.content.Intent.ACTION_VIEW,
+                                                        android.net.Uri.parse("https://f-droid.org/packages/${app.packageName}/")
+                                                    ).apply {
+                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    android.widget.Toast.makeText(context, "Cannot open URL", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0x2B81C784)),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.height(48.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.OpenInNew,
+                                                contentDescription = null,
+                                                tint = Color(0xFF81C784),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (assistantResponse == null && !isAssistantLoading) {
                         // --- GREETING AND STARTERS VIEW ---
                         Column(
                             modifier = Modifier
@@ -904,8 +1403,7 @@ fun AiAssistantScreen(
                                                             }
                                                             IconButton(
                                                                 onClick = {
-                                                                    val query = if (aiLanguage == "ja") "GitHubリポジトリ「${repo.fullName}」の詳細を教えてください" else "Tell me more about GitHub repository '${repo.fullName}'"
-                                                                    viewModel.askAiAssistant(query)
+                                                                    viewModel.loadGitHubRepoDetails(repo)
                                                                 },
                                                                 modifier = Modifier
                                                                     .clip(CircleShape)
@@ -946,6 +1444,264 @@ fun AiAssistantScreen(
                                                     }
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+
+                                 // 3.3 F-Droid Search Results
+                                val fdQuery = response.fdroidSearchQuery
+                                if (!fdQuery.isNullOrBlank() || isFDroidLoading || fdroidRepos.isNotEmpty()) {
+                                    item {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text(
+                                            text = (if (aiLanguage == "ja") "🤖 F-Droid リアルタイム検索" else "🤖 F-Droid Real-time Search").uppercase(),
+                                            color = Color(0xFF81C784),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 1.sp,
+                                            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                                        )
+                                    }
+
+                                    if (isFDroidLoading) {
+                                        item {
+                                            Card(
+                                                colors = CardDefaults.cardColors(containerColor = Color(0x1181C784)),
+                                                shape = RoundedCornerShape(16.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .border(1.dp, Color(0x2281C784), RoundedCornerShape(16.dp))
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(16.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                                ) {
+                                                    CircularProgressIndicator(
+                                                        color = Color(0xFF81C784),
+                                                        modifier = Modifier.size(24.dp),
+                                                        strokeWidth = 2.5.dp
+                                                    )
+                                                    Text(
+                                                        text = if (aiLanguage == "ja") "F-Droidから最新のアプリを検索中..." else "Searching F-Droid for live apps...",
+                                                        color = Color(0xCCFFFFFF),
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else if (fdroidRepos.isEmpty()) {
+                                        item {
+                                            Card(
+                                                colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
+                                                shape = RoundedCornerShape(16.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .border(1.dp, Color(0x1BFFFFFF), RoundedCornerShape(16.dp))
+                                            ) {
+                                                Text(
+                                                    text = if (aiLanguage == "ja") "「$fdQuery」に一致するアプリが見つかりませんでした。" else "No apps found for '$fdQuery'.",
+                                                    color = Color(0x80FFFFFF),
+                                                    fontSize = 12.sp,
+                                                    modifier = Modifier.padding(16.dp)
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        items(fdroidRepos) { pkg ->
+                                            Card(
+                                                colors = CardDefaults.cardColors(containerColor = Color(0x1181C784)),
+                                                shape = RoundedCornerShape(16.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .border(1.dp, Color(0x2281C784), RoundedCornerShape(16.dp))
+                                                    .clickable {
+                                                        try {
+                                                            val intent = android.content.Intent(
+                                                                android.content.Intent.ACTION_VIEW,
+                                                                android.net.Uri.parse("https://f-droid.org/packages/${pkg.packageName}/")
+                                                            ).apply {
+                                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                            }
+                                                            context.startActivity(intent)
+                                                        } catch (e: Exception) {
+                                                            android.widget.Toast.makeText(context, "Cannot open URL", android.widget.Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }
+                                            ) {
+                                                Column(modifier = Modifier.padding(14.dp)) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                            modifier = Modifier.weight(1f)
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(24.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(0x22FFFFFF)),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = "FD",
+                                                                    color = Color(0xFF81C784),
+                                                                    fontSize = 10.sp,
+                                                                    fontWeight = FontWeight.Black
+                                                                )
+                                                            }
+                                                            Text(
+                                                                text = "F-Droid FOSS",
+                                                                color = Color(0x99FFFFFF),
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Medium,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                        }
+
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                        ) {
+                                                            IconButton(
+                                                                onClick = {
+                                                                    pendingWikiEntry = com.example.data.LlmWikiEntry(
+                                                                        title = pkg.name,
+                                                                        content = "${pkg.summary}\n\n[Details]\n• License: ${pkg.license}\n• Package: ${pkg.packageName}\n• URL: https://f-droid.org/packages/${pkg.packageName}/",
+                                                                        category = "Fact",
+                                                                        tags = listOf("FDroid", "App", "FOSS", pkg.name.take(10).replace(" ", ""))
+                                                                    )
+                                                                },
+                                                                modifier = Modifier
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(0x3381C784))
+                                                                    .size(24.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.BookmarkAdd,
+                                                                    contentDescription = "Save to Wiki",
+                                                                    tint = Color(0xFF81C784),
+                                                                    modifier = Modifier.size(14.dp)
+                                                                )
+                                                            }
+                                                            IconButton(
+                                                                onClick = {
+                                                                    viewModel.loadFDroidAppDetails(pkg)
+                                                                },
+                                                                modifier = Modifier
+                                                                    .clip(CircleShape)
+                                                                    .background(Color(0x3381C784))
+                                                                    .size(24.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.Search,
+                                                                    contentDescription = "Search details",
+                                                                    tint = Color(0xFF81C784),
+                                                                    modifier = Modifier.size(14.dp)
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                                    Row(
+                                                        verticalAlignment = Alignment.Top,
+                                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                                    ) {
+                                                        coil.compose.AsyncImage(
+                                                            model = pkg.iconUrl,
+                                                            contentDescription = "Icon",
+                                                            modifier = Modifier
+                                                                .size(48.dp)
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(Color.White)
+                                                        )
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = pkg.name,
+                                                                    color = Color.White,
+                                                                    fontSize = 15.sp,
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Ellipsis
+                                                                )
+                                                                Icon(
+                                                                    imageVector = Icons.Default.OpenInNew,
+                                                                    contentDescription = "Open",
+                                                                    tint = Color(0x80FFFFFF),
+                                                                    modifier = Modifier.size(12.dp)
+                                                                )
+                                                            }
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Text(
+                                                                text = pkg.summary,
+                                                                color = Color(0xCCFFFFFF),
+                                                                fontSize = 13.sp,
+                                                                lineHeight = 18.sp
+                                                            )
+                                                            Spacer(modifier = Modifier.height(8.dp))
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                            ) {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .clip(RoundedCornerShape(4.dp))
+                                                                        .background(Color(0x2281C784))
+                                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                ) {
+                                                                    Text(
+                                                                        text = pkg.license,
+                                                                        color = Color(0xFF81C784),
+                                                                        fontSize = 10.sp,
+                                                                        fontWeight = FontWeight.SemiBold
+                                                                    )
+                                                                }
+                                                                Text(
+                                                                    text = pkg.packageName,
+                                                                    color = Color(0x80FFFFFF),
+                                                                    fontSize = 10.sp
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                        item {
+                                            Text(
+                                                text = if (aiLanguage == "ja") "F-Droidでさらに検索する" else "Search more on F-Droid",
+                                                color = Color(0xFF81C784),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                modifier = Modifier
+                                                    .padding(top = 4.dp, bottom = 8.dp)
+                                                    .clickable {
+                                                        try {
+                                                            val intent = android.content.Intent(
+                                                                android.content.Intent.ACTION_VIEW,
+                                                                android.net.Uri.parse("https://search.f-droid.org/?q=${android.net.Uri.encode(fdQuery)}")
+                                                            ).apply {
+                                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                            }
+                                                            context.startActivity(intent)
+                                                        } catch (e: Exception) {
+                                                            // ignore
+                                                        }
+                                                    }
+                                            )
                                         }
                                     }
                                 }
@@ -1803,5 +2559,21 @@ fun AiAssistantScreen(
             shape = RoundedCornerShape(20.dp)
         )
     }
+
+    if (detailError != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearDetailState() },
+            title = { Text(if (aiLanguage == "ja") "エラーが発生しました" else "Error Occurred", color = Color.White) },
+            text = { Text(detailError ?: "", color = Color(0xCCFFFFFF)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearDetailState() }) {
+                    Text(if (aiLanguage == "ja") "閉じる" else "Close", color = Color(0xFFEF5350))
+                }
+            },
+            containerColor = Color(0xFF212121),
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
 }
 }
+

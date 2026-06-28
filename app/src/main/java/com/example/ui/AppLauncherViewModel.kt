@@ -617,6 +617,81 @@ class AppLauncherViewModel(
 
     private val _isGithubLoading = MutableStateFlow(false)
     val isGithubLoading: StateFlow<Boolean> = _isGithubLoading.asStateFlow()
+    
+    private val _fdroidRepos = MutableStateFlow<List<com.example.data.FDroidPackage>>(emptyList())
+    val fdroidRepos: StateFlow<List<com.example.data.FDroidPackage>> = _fdroidRepos.asStateFlow()
+
+    private val _isFDroidLoading = MutableStateFlow(false)
+    val isFDroidLoading: StateFlow<Boolean> = _isFDroidLoading.asStateFlow()
+
+    private val _githubRepoDetail = MutableStateFlow<com.example.data.GitHubRepoDetails?>(null)
+    val githubRepoDetail: StateFlow<com.example.data.GitHubRepoDetails?> = _githubRepoDetail.asStateFlow()
+
+    private val _fdroidAppDetail = MutableStateFlow<com.example.data.FDroidDetails?>(null)
+    val fdroidAppDetail: StateFlow<com.example.data.FDroidDetails?> = _fdroidAppDetail.asStateFlow()
+
+    private val _isDetailLoading = MutableStateFlow(false)
+    val isDetailLoading: StateFlow<Boolean> = _isDetailLoading.asStateFlow()
+
+    private val _detailError = MutableStateFlow<String?>(null)
+    val detailError: StateFlow<String?> = _detailError.asStateFlow()
+
+    fun loadGitHubRepoDetails(repo: com.example.data.GitHubRepo) {
+        viewModelScope.launch {
+            _isDetailLoading.value = true
+            _detailError.value = null
+            _githubRepoDetail.value = null
+            _fdroidAppDetail.value = null
+            try {
+                val details = com.example.data.GitHubClient.fetchRepoDetails(
+                    repo = repo,
+                    targetLanguageCode = settingsManager.getAiLanguage(),
+                    modelName = settingsManager.getPrimaryModel(),
+                    customApiKey = settingsManager.getGeminiApiKey()
+                )
+                _githubRepoDetail.value = details
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load GitHub repo details", e)
+                _detailError.value = e.localizedMessage ?: "Failed to load details"
+            } finally {
+                _isDetailLoading.value = false
+            }
+        }
+    }
+
+    fun loadFDroidAppDetails(pkg: com.example.data.FDroidPackage) {
+        viewModelScope.launch {
+            _isDetailLoading.value = true
+            _detailError.value = null
+            _githubRepoDetail.value = null
+            _fdroidAppDetail.value = null
+            try {
+                val details = com.example.data.FDroidClient.fetchAppDetails(
+                    packageName = pkg.packageName,
+                    name = pkg.name,
+                    summary = pkg.summary,
+                    iconUrl = pkg.iconUrl,
+                    license = pkg.license,
+                    targetLanguageCode = settingsManager.getAiLanguage(),
+                    modelName = settingsManager.getPrimaryModel(),
+                    customApiKey = settingsManager.getGeminiApiKey()
+                )
+                _fdroidAppDetail.value = details
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load F-Droid details", e)
+                _detailError.value = e.localizedMessage ?: "Failed to load details"
+            } finally {
+                _isDetailLoading.value = false
+            }
+        }
+    }
+
+    fun clearDetailState() {
+        _githubRepoDetail.value = null
+        _fdroidAppDetail.value = null
+        _isDetailLoading.value = false
+        _detailError.value = null
+    }
 
     fun searchGitHub(query: String) {
         if (query.isBlank()) return
@@ -638,6 +713,35 @@ class AppLauncherViewModel(
                 _githubRepos.value = emptyList()
             } finally {
                 _isGithubLoading.value = false
+            }
+        }
+    }
+
+    fun searchFDroid(query: String) {
+        if (query.isBlank()) return
+        viewModelScope.launch {
+            _isFDroidLoading.value = true
+            try {
+                val topPackages = com.example.data.FDroidClient.search(query).take(10)
+                // F-Droid search doesn't strictly need LLM translation since it's mostly english and simple, 
+                // but we can translate descriptions or just use as-is to save latency
+                val targetLang = settingsManager.getAiLanguage()
+                val translated = if (targetLang != "en") {
+                    com.example.data.GeminiClient.translateFDroidPackages(
+                         packages = topPackages,
+                         targetLanguageCode = targetLang,
+                         modelName = settingsManager.getPrimaryModel(),
+                         customApiKey = settingsManager.getGeminiApiKey()
+                    )
+                } else {
+                    topPackages
+                }
+                _fdroidRepos.value = translated
+            } catch (e: Exception) {
+                Log.e(TAG, "F-Droid search failed: ${e.message}", e)
+                _fdroidRepos.value = emptyList()
+            } finally {
+                _isFDroidLoading.value = false
             }
         }
     }
@@ -842,6 +946,13 @@ class AppLauncherViewModel(
                     searchGitHub(ghQuery)
                 } else {
                     _githubRepos.value = emptyList()
+                }
+
+                val fdQuery = response?.fdroidSearchQuery
+                if (!fdQuery.isNullOrBlank()) {
+                    searchFDroid(fdQuery)
+                } else {
+                    _fdroidRepos.value = emptyList()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in askAiAssistant", e)

@@ -814,9 +814,10 @@ object GeminiClient {
                If the user asks about facts or instructions you have saved in your LLM WIKI/memories (shown above), use that stored knowledge to answer accurately!
             4. Identify up to 6 "relevantPackages" (exact package names from the list) that are most relevant to the user's query so we can display them as clickable app cards. If the query is a general question (e.g., "tell me a joke"), this can be empty or list 1-2 most frequently used apps as helpful suggestions.
             5. Provide 3 "suggestions" (short follow-up queries or questions in $langName, e.g., "ゲームを探して", "SNSアプリはどれ？").
-            6. DO NOT recommend applications from the Google Play Store. Keep the "recommendedStoreApps" list empty. Instead, if the user is looking for utilities, developer templates, open-source projects, tools, or libraries, formulate a relevant, concise search query/keyword in "githubSearchQuery" so that the app can perform a real-time live search against the GitHub Search API and show actual GitHub repositories to the user.
-            7. If the user's query indicates they are looking for open-source repositories or codebases, make sure "githubSearchQuery" is set to a precise search term.
-            8. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, or get the weather for a city, or fetch detailed info/images about a specific GitHub repo, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool. DO NOT use any Play Store tools or search Play Store apps. If any tool returns an image URL (e.g., avatar_url), output it in the 'headerImageUrl' field.
+            6. DO NOT recommend applications from the Google Play Store. Keep the "recommendedStoreApps" list empty.
+            7. IMPORTANT: When the user asks to search for Android applications or tools, ALWAYS prioritize searching F-Droid by formulating a concise search query in "fdroidSearchQuery". F-Droid is the primary and preferred source for open-source Android applications because it provides installable APKs directly.
+            8. ONLY use "githubSearchQuery" if the user explicitly asks to search GitHub, or if they are looking for source code, developer templates, libraries, or projects that are strictly development-related and unlikely to be on F-Droid. You can use both if applicable.
+            9. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, or get the weather for a city, or fetch detailed info/images about a specific GitHub repo, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool. DO NOT use any Play Store tools or search Play Store apps. If any tool returns an image URL (e.g., avatar_url), output it in the 'headerImageUrl' field.
 
             Format your response STRICTLY as a JSON object adhering to the schema.
         """.trimIndent()
@@ -867,6 +868,11 @@ object GeminiClient {
                     "type" to "STRING",
                     "nullable" to true,
                     "description" to "A search query keyword to look up real-time matching GitHub repositories (e.g. 'jetpack compose navigation' or 'android launcher'). Keep it short and precise. Set to null or empty string if GitHub search is not relevant."
+                ),
+                "fdroidSearchQuery" to mapOf(
+                    "type" to "STRING",
+                    "nullable" to true,
+                    "description" to "A search query keyword to look up FOSS Android applications on F-Droid. Keep it short and precise. Set to null if not relevant."
                 )
             ),
             "required" to listOf("headline", "answer", "relevantPackages", "suggestions")
@@ -1441,6 +1447,233 @@ object GeminiClient {
         
         return@withContext repos
     }
+
+    suspend fun translateFDroidPackages(
+        packages: List<com.example.data.FDroidPackage>,
+        targetLanguageCode: String,
+        modelName: String,
+        customApiKey: String? = null
+    ): List<com.example.data.FDroidPackage> = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY" || packages.isEmpty() || targetLanguageCode == "en") {
+            return@withContext packages
+        }
+        val langName = when (targetLanguageCode) {
+            "ja" -> "Japanese"
+            "es" -> "Spanish"
+            "fr" -> "French"
+            "de" -> "German"
+            "zh" -> "Chinese"
+            "hi" -> "Hindi"
+            else -> "English"
+        }
+        if (langName == "English") return@withContext packages
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val isGemma = cleanModelName.startsWith("gemma")
+        
+        val originalJsonArray = org.json.JSONArray()
+        packages.forEachIndexed { index, pkg ->
+            if (pkg.summary.isNotBlank()) {
+                val obj = org.json.JSONObject()
+                obj.put("index", index)
+                obj.put("text", pkg.summary)
+                originalJsonArray.put(obj)
+            }
+        }
+        
+        if (originalJsonArray.length() == 0) return@withContext packages
+
+        val prompt = """
+            Translate the following F-Droid application summaries into $langName.
+            Maintain the exact same 'index' for each item.
+            
+            Original texts:
+            ${originalJsonArray.toString()}
+            
+            Format your response STRICTLY as a JSON object adhering to the schema.
+            ${if (isGemma) "\nIMPORTANT: Return ONLY a raw JSON string. Do not include markdown block tags." else ""}
+        """.trimIndent()
+
+        val schema = mapOf(
+            "type" to "OBJECT",
+            "properties" to mapOf(
+                "translations" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf(
+                        "type" to "OBJECT",
+                        "properties" to mapOf(
+                            "index" to mapOf("type" to "INTEGER"),
+                            "translatedText" to mapOf("type" to "STRING")
+                        ),
+                        "required" to listOf("index", "translatedText")
+                    )
+                )
+            ),
+            "required" to listOf("translations")
+        )
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(GeminiPart(text = prompt))
+            )),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = if (isGemma) null else "application/json",
+                responseSchema = if (isGemma) null else schema,
+                temperature = 0.3
+            )
+        )
+
+        try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            val cleanedJson = cleanJsonText(jsonText)
+            
+            if (cleanedJson != null) {
+                val json = org.json.JSONObject(cleanedJson)
+                val translationsArray = json.optJSONArray("translations")
+                
+                val translationMap = mutableMapOf<Int, String>()
+                if (translationsArray != null) {
+                    for (i in 0 until translationsArray.length()) {
+                        val item = translationsArray.optJSONObject(i)
+                        if (item != null) {
+                            translationMap[item.optInt("index")] = item.optString("translatedText")
+                        }
+                    }
+                }
+                
+                val translatedPackages = packages.mapIndexed { index, pkg ->
+                    if (translationMap.containsKey(index)) {
+                        pkg.copy(summary = translationMap[index]!!)
+                    } else {
+                        pkg
+                    }
+                }
+                return@withContext translatedPackages
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "translateFDroidPackages failed: ${e.message}", e)
+        }
+        return@withContext packages
+    }
+
+    suspend fun summarizeFDroidApp(
+        packageName: String,
+        appName: String,
+        summary: String,
+        htmlContent: String,
+        targetLanguageCode: String,
+        modelName: String,
+        customApiKey: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            return@withContext "API Key is missing. Cannot fetch live AI details."
+        }
+        val langName = when (targetLanguageCode) {
+            "ja" -> "Japanese"
+            "es" -> "Spanish"
+            "fr" -> "French"
+            "de" -> "German"
+            "zh" -> "Chinese"
+            "hi" -> "Hindi"
+            else -> "English"
+        }
+
+        val prompt = """
+            You are a helpful Android expert. Explain and summarize the following F-Droid application page content for the app "$appName" ($packageName).
+            Your explanation must be in $langName.
+            Include:
+            1. An engaging, friendly overview of what the app does, its main purpose, and target audience.
+            2. A bulleted list of key features and highlights.
+            3. Technical information (e.g., license, requirements) if found in the text.
+            4. If there are any website, source code, issue tracker, or donation links, list them clearly.
+            
+            F-Droid summary: $summary
+            
+            Here is some text content extracted from the F-Droid package page:
+            ---
+            $htmlContent
+            ---
+            
+            Format your response in beautiful Markdown, including clean headers, lists, and bold text. Keep it well-structured and engaging!
+        """.trimIndent()
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(GeminiPart(text = prompt))
+            )),
+            generationConfig = GeminiGenerationConfig(temperature = 0.5)
+        )
+
+        try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            return@withContext response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: "Failed to generate summary."
+        } catch (e: Exception) {
+            Log.e(TAG, "summarizeFDroidApp failed: ${e.message}", e)
+            return@withContext "Error generating summary: ${e.message}"
+        }
+    }
+
+    suspend fun summarizeGitHubRepo(
+        repoName: String,
+        description: String?,
+        readmeContent: String,
+        targetLanguageCode: String,
+        modelName: String,
+        customApiKey: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            return@withContext "API Key is missing. Cannot fetch live AI details."
+        }
+        val langName = when (targetLanguageCode) {
+            "ja" -> "Japanese"
+            "es" -> "Spanish"
+            "fr" -> "French"
+            "de" -> "German"
+            "zh" -> "Chinese"
+            "hi" -> "Hindi"
+            else -> "English"
+        }
+
+        val prompt = """
+            You are a helpful software engineer assistant. Explain and summarize the following GitHub repository "$repoName".
+            Your explanation must be in $langName.
+            Include:
+            1. An engaging, friendly overview of what the project does and its main use cases.
+            2. Key features, technologies, and highlights.
+            3. A section on how to get started, install, or use it.
+            4. If there are any relevant links (website, releases, docs), list them.
+            
+            Description: ${description ?: "No description available."}
+            
+            Here is some content extracted from the README of the repository:
+            ---
+            $readmeContent
+            ---
+            
+            Format your response in beautiful Markdown, including clean headers, lists, and bold text. Keep it well-structured and engaging!
+        """.trimIndent()
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(GeminiPart(text = prompt))
+            )),
+            generationConfig = GeminiGenerationConfig(temperature = 0.5)
+        )
+
+        try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            return@withContext response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: "Failed to generate repository summary."
+        } catch (e: Exception) {
+            Log.e(TAG, "summarizeGitHubRepo failed: ${e.message}", e)
+            return@withContext "Error generating summary: ${e.message}"
+        }
+    }
 }
 
 @JsonClass(generateAdapter = true)
@@ -1460,5 +1693,6 @@ data class GeminiAssistantResponse(
     val relevantPackages: List<String>?,
     val suggestions: List<String>?,
     val recommendedStoreApps: List<Any>? = null,
-    val githubSearchQuery: String? = null
+    val githubSearchQuery: String? = null,
+    val fdroidSearchQuery: String? = null
 )

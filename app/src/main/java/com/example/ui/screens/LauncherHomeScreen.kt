@@ -662,29 +662,38 @@ fun LauncherHomeScreen(
                     }
                 } else {
                     if (viewMode == "COMPACT") {
-                        if (selectedCategoryFilter == "すべて") {
-                            CompactDashboard(
-                                apps = apps,
-                                allApps = allApps,
-                                favorites = favorites,
-                                lastLaunchTimes = lastLaunchTimes,
-                                launchCounts = launchCounts,
-                                categories = categories,
-                                aiLanguage = aiLanguage,
-                                viewModel = viewModel,
-                                modifier = Modifier.weight(1f)
-                            )
-                        } else {
-                            CompactCategoryGrid(
-                                categoryName = selectedCategoryFilter,
-                                apps = apps,
-                                favorites = favorites,
-                                lastLaunchTimes = lastLaunchTimes,
-                                launchCounts = launchCounts,
-                                aiLanguage = aiLanguage,
-                                viewModel = viewModel,
-                                modifier = Modifier.weight(1f)
-                            )
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        ) { absPage ->
+                            val page = if (categories.isNotEmpty()) absPage % categories.size else 0
+                            val currentCategory = categories[page]
+                            if (currentCategory == "すべて") {
+                                CompactDashboard(
+                                    apps = apps,
+                                    allApps = allApps,
+                                    favorites = favorites,
+                                    lastLaunchTimes = lastLaunchTimes,
+                                    launchCounts = launchCounts,
+                                    categories = categories,
+                                    aiLanguage = aiLanguage,
+                                    viewModel = viewModel,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                CompactCategoryGrid(
+                                    categoryName = currentCategory,
+                                    apps = apps,
+                                    favorites = favorites,
+                                    lastLaunchTimes = lastLaunchTimes,
+                                    launchCounts = launchCounts,
+                                    aiLanguage = aiLanguage,
+                                    viewModel = viewModel,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
                     } else {
                         HorizontalPager(
@@ -1252,19 +1261,20 @@ fun CompactDashboard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(IntrinsicSize.Min)
                             .padding(horizontal = 16.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         for (i in 0 until 2) {
                             if (i < rowApps.size) {
                                 val app = rowApps[i]
-                                Box(modifier = Modifier.weight(1f)) {
+                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                                     CompactAppItemWithSummary(
                                         app = app,
                                         onClick = { viewModel.selectApp(app) },
                                         onLongClick = { viewModel.launchApp(app.packageName) },
                                         isFavorite = favorites.contains(app.packageName),
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxSize()
                                     )
                                 }
                             } else {
@@ -1353,19 +1363,20 @@ fun CompactCategoryGrid(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     for (i in 0 until 2) {
                         if (i < rowApps.size) {
                             val app = rowApps[i]
-                            Box(modifier = Modifier.weight(1f)) {
+                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                                 CompactAppItemWithSummary(
                                     app = app,
                                     onClick = { viewModel.selectApp(app) },
                                     onLongClick = { viewModel.launchApp(app.packageName) },
                                     isFavorite = favorites.contains(app.packageName),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
                         } else {
@@ -1490,7 +1501,7 @@ fun CompactAppItemWithSummary(
 ) {
     val summary = app.cachedInfo?.summary ?: "未解析"
     Row(
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(Color(0x0CFFFFFF))
@@ -1498,11 +1509,13 @@ fun CompactAppItemWithSummary(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
             .testTag("compact_app_summary_item_${app.packageName}")
     ) {
         Box(
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier
+                .size(28.dp)
+                .padding(top = 2.dp),
             contentAlignment = Alignment.Center
         ) {
             AppIconImage(packageName = app.packageName, size = 24.dp)
@@ -1530,14 +1543,13 @@ fun CompactAppItemWithSummary(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = summary,
                 color = Color(0xB3FFFFFF),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 11.sp
+                lineHeight = 12.sp
             )
         }
     }

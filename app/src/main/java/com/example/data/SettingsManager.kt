@@ -25,7 +25,7 @@ class SettingsManager(context: Context) {
         const val DEFAULT_BACKUP_MODEL = "gemini-flash-latest"
         const val DEFAULT_EMBEDDING_MODEL = "gemini-embedding-001"
         const val DEFAULT_BG_IMAGE = "procedural_nebula" // Canvas procedural nebula
-        const val DEFAULT_AI_LANGUAGE = "ja"
+        const val DEFAULT_AI_LANGUAGE = "en"
         const val DEFAULT_ICON_SHAPE = "ROUNDED_RECT"
         const val DEFAULT_INCLUDE_ICONLESS_SYSTEM_APPS = false
         const val DEFAULT_CUSTOM_CATEGORIZATION_PROMPT = ""
@@ -47,7 +47,23 @@ class SettingsManager(context: Context) {
     private val _bgImageUrl = MutableStateFlow(prefs.getString(KEY_BG_IMAGE_URL, DEFAULT_BG_IMAGE) ?: DEFAULT_BG_IMAGE)
     val bgImageUrl: StateFlow<String> = _bgImageUrl
 
-    private val _aiLanguage = MutableStateFlow(prefs.getString(KEY_AI_LANGUAGE, DEFAULT_AI_LANGUAGE) ?: DEFAULT_AI_LANGUAGE)
+    private fun getInitialAiLanguage(): String {
+        val existing = prefs.getString(KEY_AI_LANGUAGE, null)
+        if (existing != null) return existing
+
+        val sysLang = java.util.Locale.getDefault().language
+        val detected = when {
+            sysLang.startsWith("ja") -> "ja"
+            sysLang.startsWith("ko") -> "ko"
+            sysLang.startsWith("zh") -> "zh"
+            sysLang.startsWith("en") -> "en"
+            else -> DEFAULT_AI_LANGUAGE
+        }
+        prefs.edit().putString(KEY_AI_LANGUAGE, detected).apply()
+        return detected
+    }
+
+    private val _aiLanguage = MutableStateFlow(getInitialAiLanguage())
     val aiLanguage: StateFlow<String> = _aiLanguage
 
     private val _iconShape = MutableStateFlow(prefs.getString(KEY_ICON_SHAPE, DEFAULT_ICON_SHAPE) ?: DEFAULT_ICON_SHAPE)
@@ -65,7 +81,7 @@ class SettingsManager(context: Context) {
     fun getPrimaryModel(): String = prefs.getString(KEY_PRIMARY_MODEL, DEFAULT_PRIMARY_MODEL) ?: DEFAULT_PRIMARY_MODEL
     fun getBackupModel(): String = prefs.getString(KEY_BACKUP_MODEL, DEFAULT_BACKUP_MODEL) ?: DEFAULT_BACKUP_MODEL
     fun getEmbeddingModel(): String = prefs.getString(KEY_EMBEDDING_MODEL, DEFAULT_EMBEDDING_MODEL) ?: DEFAULT_EMBEDDING_MODEL
-    fun getAiLanguage(): String = prefs.getString(KEY_AI_LANGUAGE, DEFAULT_AI_LANGUAGE) ?: DEFAULT_AI_LANGUAGE
+    fun getAiLanguage(): String = prefs.getString(KEY_AI_LANGUAGE, null) ?: getInitialAiLanguage()
     fun getGeminiApiKey(): String = prefs.getString(KEY_GEMINI_API_KEY, "") ?: ""
     fun getIconShape(): String = prefs.getString(KEY_ICON_SHAPE, DEFAULT_ICON_SHAPE) ?: DEFAULT_ICON_SHAPE
     fun getIncludeIconlessSystemApps(): Boolean = prefs.getBoolean(KEY_INCLUDE_ICONLESS_SYSTEM_APPS, DEFAULT_INCLUDE_ICONLESS_SYSTEM_APPS)
