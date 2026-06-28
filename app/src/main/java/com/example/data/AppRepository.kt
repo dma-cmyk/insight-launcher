@@ -431,6 +431,10 @@ class AppRepository(private val appDao: AppDao) {
         appDao.insertWikiEntry(entry)
     }
 
+    suspend fun updateWikiEntry(entry: LlmWikiEntry) = withContext(Dispatchers.IO) {
+        appDao.updateWikiEntry(entry)
+    }
+
     suspend fun deleteWikiEntryById(id: Long) = withContext(Dispatchers.IO) {
         appDao.deleteWikiEntryById(id)
     }

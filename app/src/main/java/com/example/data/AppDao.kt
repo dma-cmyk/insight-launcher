@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -47,6 +48,9 @@ interface AppDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWikiEntry(entry: LlmWikiEntry)
+
+    @Update
+    suspend fun updateWikiEntry(entry: LlmWikiEntry)
 
     @Query("DELETE FROM llm_wiki_table WHERE id = :id")
     suspend fun deleteWikiEntryById(id: Long)

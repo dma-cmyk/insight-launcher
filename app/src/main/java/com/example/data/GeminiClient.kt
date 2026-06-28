@@ -1015,6 +1015,267 @@ object GeminiClient {
         }
     }
 
+    suspend fun importMediaAndStructureWikis(
+        base64Data: String,
+        mimeType: String,
+        modelName: String,
+        customApiKey: String? = null,
+        languageCode: String = "ja",
+        existingWikis: List<LlmWikiEntry> = emptyList()
+    ): List<LlmWikiEntry> = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") return@withContext emptyList()
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val isGemma = cleanModelName.contains("gemma", ignoreCase = true)
+        val langName = when (languageCode) {
+            "en" -> "English"
+            "ko" -> "Korean"
+            "zh" -> "Chinese"
+            else -> "Japanese"
+        }
+
+        val existingWikiContext = if (existingWikis.isNotEmpty()) {
+            "Existing Wiki Entries to consider for merging/updating:\n" + existingWikis.take(50).joinToString("\n") { 
+                "ID: ${it.id} | Title: ${it.title} | Content: ${it.content}"
+            }
+        } else {
+            "No existing wiki entries."
+        }
+
+        val prompt = """
+            You are an expert AI parser. Analyze the attached media file (image, audio, video, or document), which contains information, speech, visuals, or facts that could be relevant as user preferences, notes, system settings, knowledge, or custom instructions.
+            Your task is to watch, listen, read, or analyze this media and extract any key facts, instructions, or preferences, then split them into a clean list of individual memory/wiki entries.
+            Split the content into multiple entries if it covers multiple distinct topics.
+            
+            $existingWikiContext
+            
+            Tasks:
+            1. Extract distinct topics, facts, or instructions from the media content.
+            2. Check if the extracted information overlaps with or updates an existing wiki entry provided above.
+            3. For each entry, create:
+               - "id": If updating an existing entry, provide its ID here. If it's a completely new entry, set this to 0.
+               - "title": A short, descriptive title in ${langName} (e.g. "画像メモ：オフィス設定" or "音声：会話の好み").
+               - "content": Clear, detailed contents/facts in ${langName}. If updating an existing entry, merge the old content with the new information smoothly.
+               - "category": An appropriate category name (e.g. "Preference", "Instruction", "Fact", or "General").
+               - "tags": A list of exactly 3 to 5 relevant keyword tags in ${langName}.
+            4. Ensure the text content is neatly polished and readable.
+            
+            Format your response STRICTLY as a JSON object with a single "entries" array containing the items.
+            ${if (isGemma) "\nIMPORTANT: Return ONLY raw JSON without markdown code blocks." else ""}
+        """.trimIndent()
+
+        val schema = mapOf(
+            "type" to "OBJECT",
+            "properties" to mapOf(
+                "entries" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf(
+                        "type" to "OBJECT",
+                        "properties" to mapOf(
+                            "id" to mapOf("type" to "INTEGER", "description" to "ID of existing entry to update, or 0 if new"),
+                            "title" to mapOf("type" to "STRING", "description" to "Descriptive title of the memory in ${langName}"),
+                            "content" to mapOf("type" to "STRING", "description" to "Polished content or facts of the memory in ${langName}"),
+                            "category" to mapOf("type" to "STRING", "description" to "Category of the memory (e.g., Preference, Instruction, Fact, General)"),
+                            "tags" to mapOf(
+                                "type" to "ARRAY",
+                                "items" to mapOf("type" to "STRING"),
+                                "description" to "List of 3 to 5 tags in ${langName}"
+                            )
+                        ),
+                        "required" to listOf("id", "title", "content", "category", "tags")
+                    )
+                )
+            ),
+            "required" to listOf("entries")
+        )
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(
+                    GeminiPart(text = prompt),
+                    GeminiPart(inlineData = GeminiBlob(mimeType = mimeType, data = base64Data))
+                )
+            )),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = if (isGemma) null else "application/json",
+                responseSchema = if (isGemma) null else schema,
+                temperature = 0.3
+            )
+        )
+
+        try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            val cleanedJson = cleanJsonText(jsonText)
+            if (cleanedJson != null) {
+                val json = org.json.JSONObject(cleanedJson)
+                val entriesArray = json.optJSONArray("entries")
+                val results = mutableListOf<LlmWikiEntry>()
+                if (entriesArray != null) {
+                    for (i in 0 until entriesArray.length()) {
+                        val item = entriesArray.optJSONObject(i)
+                        if (item != null) {
+                            val tagsArray = item.optJSONArray("tags")
+                            val tagsList = mutableListOf<String>()
+                            if (tagsArray != null) {
+                                for (j in 0 until tagsArray.length()) {
+                                    tagsList.add(tagsArray.optString(j))
+                                }
+                            }
+                            results.add(
+                                LlmWikiEntry(
+                                    id = item.optLong("id", 0L),
+                                    title = item.optString("title", "Imported Media Entry"),
+                                    content = item.optString("content", ""),
+                                    category = item.optString("category", "General"),
+                                    tags = tagsList
+                                )
+                            )
+                        }
+                    }
+                }
+                results
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("GeminiClient", "importMediaAndStructureWikis failed: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun importAndStructureWikis(
+        rawText: String,
+        modelName: String,
+        customApiKey: String? = null,
+        languageCode: String = "ja",
+        existingWikis: List<LlmWikiEntry> = emptyList()
+    ): List<LlmWikiEntry> = withContext(Dispatchers.IO) {
+        val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY" || rawText.isBlank()) return@withContext emptyList()
+
+        val cleanModelName = modelName.removePrefix("models/")
+        val isGemma = cleanModelName.contains("gemma", ignoreCase = true)
+        val langName = when (languageCode) {
+            "en" -> "English"
+            "ko" -> "Korean"
+            "zh" -> "Chinese"
+            else -> "Japanese"
+        }
+
+        val existingWikiContext = if (existingWikis.isNotEmpty()) {
+            "Existing Wiki Entries to consider for merging/updating:\n" + existingWikis.take(50).joinToString("\n") { 
+                "ID: ${it.id} | Title: ${it.title} | Content: ${it.content}"
+            }
+        } else {
+            "No existing wiki entries."
+        }
+
+        val prompt = """
+            You are an expert AI parser. Analyze the following raw text or markdown file, which contains facts, notes, or structured information about user preferences, system settings, knowledge, or instructions.
+            Your goal is to parse and split this content into a clean list of individual memory/wiki entries.
+            Split the content into multiple entries if it covers multiple distinct topics.
+            
+            $existingWikiContext
+            
+            Raw Text to parse:
+            ---
+            ${rawText}
+            ---
+            
+            Tasks:
+            1. Identify distinct topics, facts, or instructions. If the text has multiple headings or logical sections, create a separate entry for each section.
+            2. Check if the extracted information overlaps with or updates an existing wiki entry provided above.
+            3. For each entry, create:
+               - "id": If updating an existing entry, provide its ID here. If it's a completely new entry, set this to 0.
+               - "title": A short, descriptive title in ${langName} (e.g. "RPGゲームの好み" or "AI返答形式").
+               - "content": Clear, detailed contents/facts in ${langName}. If updating an existing entry, merge the old content with the new information smoothly.
+               - "category": An appropriate category name (e.g. "Preference", "Instruction", "Fact", or "General").
+               - "tags": A list of exactly 3 to 5 relevant keyword tags in ${langName}.
+            4. Ensure the text content is neatly polished and readable.
+            
+            Format your response STRICTLY as a JSON object with a single "entries" array containing the items.
+            ${if (isGemma) "\nIMPORTANT: Return ONLY raw JSON without markdown code blocks." else ""}
+        """.trimIndent()
+
+        val schema = mapOf(
+            "type" to "OBJECT",
+            "properties" to mapOf(
+                "entries" to mapOf(
+                    "type" to "ARRAY",
+                    "items" to mapOf(
+                        "type" to "OBJECT",
+                        "properties" to mapOf(
+                            "id" to mapOf("type" to "INTEGER", "description" to "ID of existing entry to update, or 0 if new"),
+                            "title" to mapOf("type" to "STRING", "description" to "Descriptive title of the memory in ${langName}"),
+                            "content" to mapOf("type" to "STRING", "description" to "Polished content or facts of the memory in ${langName}"),
+                            "category" to mapOf("type" to "STRING", "description" to "Category of the memory (e.g., Preference, Instruction, Fact, General)"),
+                            "tags" to mapOf(
+                                "type" to "ARRAY",
+                                "items" to mapOf("type" to "STRING"),
+                                "description" to "List of 3 to 5 tags in ${langName}"
+                            )
+                        ),
+                        "required" to listOf("id", "title", "content", "category", "tags")
+                    )
+                )
+            ),
+            "required" to listOf("entries")
+        )
+
+        val request = GeminiRequest(
+            contents = listOf(GeminiContent(
+                parts = listOf(GeminiPart(text = prompt))
+            )),
+            generationConfig = GeminiGenerationConfig(
+                responseMimeType = if (isGemma) null else "application/json",
+                responseSchema = if (isGemma) null else schema,
+                temperature = 0.3
+            )
+        )
+
+        try {
+            val response = apiService.generateContent(cleanModelName, apiKey, request)
+            val jsonText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            val cleanedJson = cleanJsonText(jsonText)
+            if (cleanedJson != null) {
+                val json = org.json.JSONObject(cleanedJson)
+                val entriesArray = json.optJSONArray("entries")
+                val results = mutableListOf<LlmWikiEntry>()
+                if (entriesArray != null) {
+                    for (i in 0 until entriesArray.length()) {
+                        val item = entriesArray.optJSONObject(i)
+                        if (item != null) {
+                            val tagsArray = item.optJSONArray("tags")
+                            val tagsList = mutableListOf<String>()
+                            if (tagsArray != null) {
+                                for (j in 0 until tagsArray.length()) {
+                                    tagsList.add(tagsArray.optString(j))
+                                }
+                            }
+                            results.add(
+                                LlmWikiEntry(
+                                    id = item.optLong("id", 0L),
+                                    title = item.optString("title", "Imported Entry"),
+                                    content = item.optString("content", ""),
+                                    category = item.optString("category", "General"),
+                                    tags = tagsList
+                                )
+                            )
+                        }
+                    }
+                }
+                results
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("GeminiClient", "importAndStructureWikis failed: ${e.message}", e)
+            emptyList()
+        }
+    }
+
     suspend fun extractWikiEntry(
         userPrompt: String,
         aiAnswer: String,

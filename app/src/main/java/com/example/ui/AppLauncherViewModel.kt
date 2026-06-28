@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.util.Log
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
@@ -781,6 +782,134 @@ class AppLauncherViewModel(
     fun clearAllWikiEntries() {
         viewModelScope.launch {
             repository.clearAllWikiEntries()
+        }
+    }
+
+    private val _isImportingWiki = MutableStateFlow(false)
+    val isImportingWiki: StateFlow<Boolean> = _isImportingWiki.asStateFlow()
+
+    fun importMemoriesFromUri(
+        context: android.content.Context,
+        uri: android.net.Uri,
+        onComplete: (Boolean, Int) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isImportingWiki.value = true
+            try {
+                val mimeType = context.contentResolver.getType(uri) ?: ""
+                val isMedia = mimeType.startsWith("image/") || 
+                              mimeType.startsWith("audio/") || 
+                              mimeType.startsWith("video/") || 
+                              mimeType == "application/pdf"
+
+                val apiKey = settingsManager.getGeminiApiKey()
+                val modelName = settingsManager.getPrimaryModel()
+                val lang = settingsManager.getAiLanguage()
+                val existingWikis = wikiEntries.value
+
+                val parsedEntries = if (isMedia) {
+                    val base64Data = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                            val bytes = inputStream.readBytes()
+                            android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                        }
+                    }
+                    if (base64Data.isNullOrBlank()) {
+                        emptyList()
+                    } else {
+                        com.example.data.GeminiClient.importMediaAndStructureWikis(
+                            base64Data = base64Data,
+                            mimeType = mimeType,
+                            modelName = modelName,
+                            customApiKey = apiKey,
+                            languageCode = lang,
+                            existingWikis = existingWikis
+                        )
+                    }
+                } else {
+                    val rawText = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                            inputStream.bufferedReader().use { it.readText() }
+                        }
+                    }
+                    if (rawText.isNullOrBlank()) {
+                        emptyList()
+                    } else {
+                        com.example.data.GeminiClient.importAndStructureWikis(
+                            rawText = rawText,
+                            modelName = modelName,
+                            customApiKey = apiKey,
+                            languageCode = lang,
+                            existingWikis = existingWikis
+                        )
+                    }
+                }
+
+                if (parsedEntries.isNotEmpty()) {
+                    withContext(Dispatchers.IO) {
+                        parsedEntries.forEach { entry ->
+                            if (entry.id != 0L && existingWikis.any { it.id == entry.id }) {
+                                repository.updateWikiEntry(entry.copy(lastUpdated = System.currentTimeMillis()))
+                            } else {
+                                repository.insertWikiEntry(entry.copy(id = 0L))
+                            }
+                        }
+                    }
+                    withContext(Dispatchers.Main) {
+                        onComplete(true, parsedEntries.size)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        onComplete(false, 0)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error importing memories", e)
+                withContext(Dispatchers.Main) {
+                    onComplete(false, 0)
+                }
+            } finally {
+                _isImportingWiki.value = false
+            }
+        }
+    }
+
+    fun exportMemoriesAsMarkdown(context: android.content.Context, uri: android.net.Uri, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val memories = repository.getAllWikiEntriesDirect()
+                val sb = StringBuilder()
+                sb.append("# AI Launcher Memory (LLM Wiki)\n\n")
+                sb.append("This document contains facts, preferences, and instructions extracted from user conversations.\n\n")
+                sb.append("---\n\n")
+                
+                memories.forEach { memory ->
+                    sb.append("## ${memory.title}\n\n")
+                    sb.append("${memory.content}\n\n")
+                    
+                    if (memory.category.isNotEmpty()) {
+                        sb.append("**Category:** ${memory.category}\n\n")
+                    }
+                    
+                    if (memory.tags.isNotEmpty()) {
+                        sb.append("**Tags:** ${memory.tags.joinToString(", ")}\n\n")
+                    }
+                    
+                    sb.append("---\n\n")
+                }
+
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    outputStream.write(sb.toString().toByteArray())
+                }
+                withContext(Dispatchers.Main) {
+                    onComplete(true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error exporting memories", e)
+                withContext(Dispatchers.Main) {
+                    onComplete(false)
+                }
+            }
         }
     }
 

@@ -105,6 +105,44 @@ fun AiAssistantScreen(
         }
     }
 
+    // Export Memory Markdown Launcher
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/markdown")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportMemoriesAsMarkdown(context, uri) { success ->
+                if (success) {
+                    Toast.makeText(context, if (aiLanguage == "ja") "ダウンロード完了しました" else "Exported successfully", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, if (aiLanguage == "ja") "ダウンロードに失敗しました" else "Export failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val isImportingWiki by viewModel.isImportingWiki.collectAsState()
+
+    // Import Memory Launcher
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importMemoriesFromUri(context, uri) { success, count ->
+                if (success) {
+                    val msg = if (aiLanguage == "ja") {
+                        "アップロードが完了しました。AIが${count}件のWikiエントリーを構築して保存しました。"
+                    } else {
+                        "Import successful. AI processed and saved ${count} wiki entries."
+                    }
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                } else {
+                    val msg = if (aiLanguage == "ja") "アップロード、またはAIによるWiki構築に失敗しました" else "Import or AI reconstruction failed"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     // Suggested starters
     val starters = remember(aiLanguage) {
         if (aiLanguage == "ja") {
@@ -1892,32 +1930,39 @@ fun AiAssistantScreen(
                                 )
                             )
 
-                            // Add Button
-                            Button(
+                            // Download Button
+                            IconButton(
                                 onClick = { 
-                                    pendingWikiEntry = com.example.data.LlmWikiEntry(
-                                        title = "",
-                                        content = "",
-                                        tags = listOf("Tag1", "Tag2", "Tag3", "Tag4", "Tag5")
-                                    ) 
+                                    exportLauncher.launch("ai_launcher_memory.md")
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF5350)),
-                                shape = RoundedCornerShape(24.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp),
-                                modifier = Modifier.height(44.dp)
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x22FFFFFF))
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Add Memory",
+                                    imageVector = Icons.Default.Download,
+                                    contentDescription = "Download Memories",
                                     tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (aiLanguage == "ja") "追加" else "Add",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
+                            }
+
+                            // Upload Button
+                            IconButton(
+                                onClick = { 
+                                    importLauncher.launch("*/*")
+                                },
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x22FFFFFF))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Upload,
+                                    contentDescription = "Upload Memories",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -1960,8 +2005,8 @@ fun AiAssistantScreen(
                                     )
                                     Text(
                                         text = if (aiLanguage == "ja") 
-                                            "チャットの回答カードにある「💡 会話をAIの記憶に登録」を押すか、右上の「追加」ボタンから登録してください。" 
-                                            else "Click '💡 Save this conversation' during chat, or use the 'Add' button to record memories manually.",
+                                            "チャットのカードにある「💡 記憶に登録」を押すか、上部のアップロードボタンからメディア（画像、音声、文書、動画など）をインポートしてAIによる再構築を行ってください。" 
+                                            else "Click '💡 Save to Wiki' on cards, or use the upload button above to import media (images, audio, documents, video) for AI reconstruction.",
                                         color = Color(0x40FFFFFF),
                                         fontSize = 11.sp,
                                         textAlign = TextAlign.Center,
@@ -2581,6 +2626,30 @@ fun AiAssistantScreen(
             containerColor = Color(0xFF212121),
             shape = RoundedCornerShape(20.dp)
         )
+    }
+
+    if (isImportingWiki) {
+        Dialog(onDismissRequest = {}) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(color = Color(0xFFEF5350))
+                    Text(
+                        text = if (aiLanguage == "ja") "AIがWikiを構築・再編中..." else "AI is constructing & structuring Wiki...",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
     }
 }
 }
