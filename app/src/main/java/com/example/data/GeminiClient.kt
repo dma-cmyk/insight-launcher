@@ -1023,11 +1023,59 @@ object GeminiClient {
             }
         } catch (e: Exception) {
             Log.e(TAG, "askAssistant failed: ${e.message}", e)
-            val isRateLimit = e is retrofit2.HttpException && e.code() == 429
+
+            // Extract the HTTP error body for diagnostics
+            var errorBody: String? = null
+            val httpCode = if (e is retrofit2.HttpException) {
+                try {
+                    errorBody = e.response()?.errorBody()?.string()
+                    Log.e(TAG, "askAssistant HTTP ${e.code()} error body: $errorBody")
+                } catch (_: Exception) {}
+                e.code()
+            } else {
+                0
+            }
+
+            // If we got a 400 and we had tools, retry WITHOUT tools as a fallback
+            if (httpCode == 400 && geminiTools != null) {
+                Log.w(TAG, "Retrying askAssistant WITHOUT tools due to 400 error...")
+                try {
+                    val fallbackContents = listOf(GeminiContent(
+                        role = "user",
+                        parts = listOf(GeminiPart(text = finalPrompt))
+                    ))
+                    val fallbackRequest = GeminiRequest(
+                        contents = fallbackContents,
+                        tools = null,
+                        generationConfig = if (!isGemma) GeminiGenerationConfig(
+                            responseMimeType = "application/json",
+                            responseSchema = schema,
+                            temperature = 0.4
+                        ) else GeminiGenerationConfig(temperature = 0.4)
+                    )
+                    val fallbackResponse = apiService.generateContent(cleanModelName, apiKey, fallbackRequest)
+                    val fallbackText = fallbackResponse.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    if (fallbackText != null) {
+                        val cleanedFallback = cleanJsonText(fallbackText) ?: ""
+                        val adapter = moshi.adapter(GeminiAssistantResponse::class.java).lenient()
+                        return@withContext adapter.fromJson(cleanedFallback)
+                    }
+                } catch (fallbackError: Exception) {
+                    Log.e(TAG, "Fallback without tools also failed: ${fallbackError.message}", fallbackError)
+                    if (fallbackError is retrofit2.HttpException) {
+                        try {
+                            val fallbackBody = fallbackError.response()?.errorBody()?.string()
+                            Log.e(TAG, "Fallback HTTP ${fallbackError.code()} error body: $fallbackBody")
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+
+            val isRateLimit = httpCode == 429
             val headline = if (isRateLimit) {
                 if (languageCode == "ja") "⚠️ リクエスト制限に達しました (HTTP 429)" else "⚠️ Rate Limit Exceeded (HTTP 429)"
             } else {
-                if (languageCode == "ja") "エラーが発生しました" else "An error occurred"
+                if (languageCode == "ja") "エラーが発生しました (HTTP $httpCode)" else "An error occurred (HTTP $httpCode)"
             }
             val answer = if (isRateLimit) {
                 if (languageCode == "ja") {
@@ -1046,7 +1094,8 @@ object GeminiClient {
                     "2. **Use your own API Key**: Head over to the Settings screen in this app and input your personal Gemini API Key from Google AI Studio to increase your usage limits."
                 }
             } else {
-                if (languageCode == "ja") "AIの呼び出し中にエラーが発生しました: ${e.localizedMessage}" else "An error occurred while calling the AI: ${e.localizedMessage}"
+                val detail = if (errorBody != null) "\n\n**【詳細】**\n$errorBody" else ""
+                if (languageCode == "ja") "AIの呼び出し中にエラーが発生しました (HTTP $httpCode): ${e.localizedMessage}$detail" else "An error occurred while calling the AI (HTTP $httpCode): ${e.localizedMessage}$detail"
             }
             
             GeminiAssistantResponse(
