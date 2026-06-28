@@ -141,6 +141,20 @@ fun LauncherHomeScreen(
     val launchCounts by viewModel.launchCounts.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
 
+    val colorTheme by viewModel.colorTheme.collectAsState()
+    val isLight = colorTheme.startsWith("light_")
+
+    val textColor = if (isLight) Color(0xFF1E1E2F) else Color.White
+    val subTextColor = if (isLight) Color(0xFF5A5A75) else Color(0xB2FFFFFF)
+    val cardBgColor = if (isLight) Color(0x0C000000) else Color(0x3CFFFFFF)
+    val cardBorderColor = if (isLight) Color(0x1F000000) else Color(0x24FFFFFF)
+    val panelBgColor = if (isLight) Color(0xF0FAF9FD) else Color(0xF0080812)
+    val panelBorderColor = if (isLight) Color(0x1A000000) else Color(0x20FFFFFF)
+    val dividerColor = if (isLight) Color(0x10000000) else Color(0x14FFFFFF)
+    val searchBarBg = if (isLight) Color(0x0A000000) else Color(0x15FFFFFF)
+    val searchBarBorder = if (isLight) Color(0x1A000000) else Color(0x20FFFFFF)
+    val textShadow = if (isLight) Color(0x20000000) else Color.Black
+
     val isVectorSearchEnabled by viewModel.isVectorSearchEnabled.collectAsState()
     val isVectorSearching by viewModel.isVectorSearching.collectAsState()
     val isCorrectingVoice by viewModel.isCorrectingVoice.collectAsState()
@@ -271,8 +285,8 @@ fun LauncherHomeScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(Color(0x15FFFFFF))
-                            .border(1.dp, Color(0x20FFFFFF), RoundedCornerShape(24.dp))
+                            .background(searchBarBg)
+                            .border(1.dp, searchBarBorder, RoundedCornerShape(24.dp))
                             .animateContentSize()
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
@@ -287,10 +301,10 @@ fun LauncherHomeScreen(
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(20.dp).padding(top = if(isSearchExpanded) 2.dp else 0.dp),
                                         strokeWidth = 2.dp,
-                                        color = Color(0xFF90CAF9)
+                                        color = if (isLight) MaterialTheme.colorScheme.primary else Color(0xFF90CAF9)
                                     )
                                 } else {
-                                    Icon(Icons.Default.Search, contentDescription = Localization.get("search_icon_desc", aiLanguage), tint = Color(0x99FFFFFF), modifier = Modifier.size(20.dp).padding(top = if(isSearchExpanded) 2.dp else 0.dp))
+                                    Icon(Icons.Default.Search, contentDescription = Localization.get("search_icon_desc", aiLanguage), tint = subTextColor, modifier = Modifier.size(20.dp).padding(top = if(isSearchExpanded) 2.dp else 0.dp))
                                 }
                                 
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -298,17 +312,17 @@ fun LauncherHomeScreen(
                                 BasicTextField(
                                     value = searchQuery,
                                     onValueChange = { viewModel.onSearchQueryChanged(it) },
-                                    textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 14.sp),
+                                    textStyle = LocalTextStyle.current.copy(color = textColor, fontSize = 14.sp),
                                     singleLine = !isSearchExpanded,
                                     maxLines = if (isSearchExpanded) 10 else 1,
-                                    cursorBrush = SolidColor(Color.White),
+                                    cursorBrush = SolidColor(textColor),
                                     modifier = Modifier
                                         .weight(1f)
                                         .testTag("app_search_input"),
                                     decorationBox = { innerTextField ->
                                         Box(modifier = Modifier.fillMaxWidth()) {
                                             if (searchQuery.isEmpty()) {
-                                                Text(Localization.get("search_placeholder", aiLanguage), color = Color(0x80FFFFFF), fontSize = 14.sp)
+                                                Text(Localization.get("search_placeholder", aiLanguage), color = subTextColor, fontSize = 14.sp)
                                             }
                                             innerTextField()
                                         }
@@ -320,11 +334,11 @@ fun LauncherHomeScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         if (searchQuery.isNotEmpty()) {
                                             IconButton(onClick = { viewModel.onSearchQueryChanged("") }, modifier = Modifier.size(28.dp)) {
-                                                Icon(Icons.Default.Close, contentDescription = Localization.get("clear_btn_desc", aiLanguage), tint = Color.White, modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Default.Close, contentDescription = Localization.get("clear_btn_desc", aiLanguage), tint = textColor, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                         IconButton(onClick = { isSearchExpanded = true }, modifier = Modifier.size(28.dp)) {
-                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand Search", tint = Color.White, modifier = Modifier.size(20.dp))
+                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand Search", tint = textColor, modifier = Modifier.size(20.dp))
                                         }
                                     }
                                 }
@@ -390,9 +404,9 @@ fun LauncherHomeScreen(
                                                         Toast.makeText(context, Localization.get("voice_unsupported", aiLanguage), Toast.LENGTH_SHORT).show()
                                                     }
                                                 },
-                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0x20FFFFFF))
+                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(searchBarBorder)
                                             ) {
-                                                Icon(Icons.Default.Mic, contentDescription = "Voice Search", tint = Color.White, modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Default.Mic, contentDescription = "Voice Search", tint = textColor, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                     }
@@ -407,16 +421,16 @@ fun LauncherHomeScreen(
                                         if (searchQuery.isNotEmpty()) {
                                             IconButton(
                                                 onClick = { viewModel.onSearchQueryChanged("") },
-                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0x20FFFFFF))
+                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(searchBarBorder)
                                             ) {
-                                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White, modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = textColor, modifier = Modifier.size(18.dp))
                                             }
                                         }
                                         IconButton(
                                             onClick = { isSearchExpanded = false },
-                                            modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0x20FFFFFF))
+                                            modifier = Modifier.size(32.dp).clip(CircleShape).background(searchBarBorder)
                                         ) {
-                                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Collapse Search", tint = Color.White, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Collapse Search", tint = textColor, modifier = Modifier.size(18.dp))
                                         }
                                     }
                                 }
@@ -438,17 +452,31 @@ fun LauncherHomeScreen(
                         val isSelected = selectedCategoryFilter == category
                         val isSystem = category == "System" || category == "システム" || category == "ツール" || category == "Tools"
                         
+                        val chipBg = if (isSelected) {
+                            if (isLight) Color(0x1F2196F3) else Color(0x2B3B82F6)
+                        } else {
+                            if (isLight) Color(0x08000000) else Color(0x0DFFFFFF)
+                        }
+
+                        val chipBorder = if (isSelected) {
+                            if (isLight) Color(0x4D2196F3) else Color(0x4D3B82F6)
+                        } else {
+                            if (isLight) Color(0x15000000) else Color(0x08FFFFFF)
+                        }
+
+                        val chipText = if (isSelected) {
+                            if (isLight) Color(0xFF1976D2) else Color(0xFF93C5FD)
+                        } else {
+                            if (isLight) Color(0xFF555065) else Color(0x99FFFFFF)
+                        }
+
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
-                                .background(
-                                    if (isSelected) Color(0x2B3B82F6) // blue-500/17
-                                    else Color(0x0DFFFFFF) // white/5
-                                )
+                                .background(chipBg)
                                 .border(
                                     width = 1.dp,
-                                    color = if (isSelected) Color(0x4D3B82F6) // blue-500/30
-                                            else Color(0x08FFFFFF), // white/3
+                                    color = chipBorder,
                                     shape = RoundedCornerShape(50)
                                 )
                                 .clickable {
@@ -474,8 +502,7 @@ fun LauncherHomeScreen(
                         ) {
                             Text(
                                 text = getCategoryDisplayName(category, aiLanguage),
-                                color = if (isSelected) Color(0xFF93C5FD) // blue-300
-                                        else Color(0x99FFFFFF), // gray-400
+                                color = chipText,
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                             )
@@ -501,8 +528,8 @@ fun LauncherHomeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(Localization.get("unanalyzed_ribbon_title", aiLanguage), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text(Localization.get("unanalyzed_ribbon_desc", aiLanguage), color = Color(0xCCFFFFFF), fontSize = 11.sp)
+                                Text(Localization.get("unanalyzed_ribbon_title", aiLanguage), color = textColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(Localization.get("unanalyzed_ribbon_desc", aiLanguage), color = subTextColor, fontSize = 11.sp)
                             }
                             Button(
                                 onClick = { showAnalysisModeDialog = true },
@@ -612,7 +639,7 @@ fun LauncherHomeScreen(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                        contentPadding = PaddingValues(bottom = 130.dp)
+                        contentPadding = PaddingValues(bottom = 180.dp)
                     ) {
                         item {
                             Text(
@@ -785,7 +812,7 @@ fun LauncherHomeScreen(
                             LazyColumn(
                                 state = listState,
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 130.dp)
+                                contentPadding = PaddingValues(bottom = 180.dp)
                             ) {
                                 if (pageApps.isEmpty() && (currentCategory == "RECENT" || currentCategory == "MOST_USED")) {
                                     item {
@@ -881,11 +908,57 @@ fun LauncherHomeScreen(
 
             // Modern, minimalist, and futuristic glassmorphism floating dock
             // High opacity (95%) to heavily obscure the background text while maintaining a subtle glass feel
-            val targetDockBgColor = if (isBgDark) Color(0xF20F1115) else Color(0xF2181A20) // Deep dark gray, mostly opaque
-            val targetDockBorderTop = if (isBgDark) Color(0x4DFFFFFF) else Color(0x33FFFFFF) // Subtle glow on top
-            val targetDockBorderBottom = if (isBgDark) Color(0x0FFFFFFF) else Color(0x05FFFFFF)
-            val targetDockContentColor = Color(0xFFFFFFFF) // Pure clean white
-            val targetDockSecondaryTint = Color(0xFFFFFFFF) 
+            val targetDockBgColor = when (colorTheme) {
+                "dark_charcoal" -> if (isBgDark) Color(0xF20F1115) else Color(0xF2181A20)
+                "dark_indigo" -> Color(0xF20B0C1E)
+                "dark_emerald" -> Color(0xF206140E)
+                "dark_obsidian" -> Color(0xF2110507)
+                "light_lavender" -> Color(0xF2ECE9F4)
+                "light_mint" -> Color(0xF2E6F4EA)
+                "light_peach" -> Color(0xF2FFF1F2)
+                "light_ocean" -> Color(0xF2E0F2FE)
+                else -> if (isBgDark) Color(0xF20F1115) else Color(0xF2181A20)
+            }
+            val targetDockBorderTop = when (colorTheme) {
+                "dark_charcoal" -> if (isBgDark) Color(0x4DFFFFFF) else Color(0x33FFFFFF)
+                "dark_indigo" -> Color(0x4D38BDF8)
+                "dark_emerald" -> Color(0x4D34D399)
+                "dark_obsidian" -> Color(0x4DF59E0B)
+                "light_lavender" -> Color(0x4D7C3AED)
+                "light_mint" -> Color(0x4D0D9488)
+                "light_peach" -> Color(0x4DE11D48)
+                "light_ocean" -> Color(0x4D0284C7)
+                else -> if (isBgDark) Color(0x4DFFFFFF) else Color(0x33FFFFFF)
+            }
+            val targetDockBorderBottom = when (colorTheme) {
+                "dark_charcoal" -> if (isBgDark) Color(0x0FFFFFFF) else Color(0x05FFFFFF)
+                "dark_indigo" -> Color(0x0F38BDF8)
+                "dark_emerald" -> Color(0x0F34D399)
+                "dark_obsidian" -> Color(0x0FF59E0B)
+                "light_lavender" -> Color(0x0F7C3AED)
+                "light_mint" -> Color(0x0F0D9488)
+                "light_peach" -> Color(0x0FE11D48)
+                "light_ocean" -> Color(0x0F0284C7)
+                else -> if (isBgDark) Color(0x0FFFFFFF) else Color(0x05FFFFFF)
+            }
+            val targetDockContentColor = when (colorTheme) {
+                "light_lavender" -> Color(0xFF1A1523)
+                "light_mint" -> Color(0xFF0A1813)
+                "light_peach" -> Color(0xFF20090C)
+                "light_ocean" -> Color(0xFF051522)
+                else -> Color(0xFFFFFFFF)
+            }
+            val targetDockSecondaryTint = when (colorTheme) {
+                "dark_charcoal" -> Color(0xFF80DEEA)
+                "dark_indigo" -> Color(0xFF38BDF8)
+                "dark_emerald" -> Color(0xFF34D399)
+                "dark_obsidian" -> Color(0xFFF59E0B)
+                "light_lavender" -> Color(0xFF7C3AED)
+                "light_mint" -> Color(0xFF0D9488)
+                "light_peach" -> Color(0xFFE11D48)
+                "light_ocean" -> Color(0xFF0284C7)
+                else -> Color(0xFF80DEEA)
+            }
 
             val dockBgColor by animateColorAsState(targetValue = targetDockBgColor, label = "dock_bg_color")
             val dockBorderTop by animateColorAsState(targetValue = targetDockBorderTop, label = "dock_border_top")
@@ -1087,11 +1160,11 @@ fun CategoryHeader(category: String, count: Int, lang: String, modifier: Modifie
             modifier = Modifier
                 .size(4.dp, 16.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF60A5FA))
+                .background(MaterialTheme.colorScheme.primary)
         )
         Text(
             text = getCategoryDisplayName(category, lang),
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             fontWeight = FontWeight.ExtraBold,
             fontSize = 15.sp,
             letterSpacing = (-0.3).sp,
@@ -1100,12 +1173,12 @@ fun CategoryHeader(category: String, count: Int, lang: String, modifier: Modifie
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
-                .background(Color(0x0DFFFFFF))
+                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
                 .padding(horizontal = 6.dp, vertical = 2.dp)
         ) {
             Text(
                 text = String.format(Localization.get("items_count", lang), count),
-                color = Color(0x80FFFFFF),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -1156,7 +1229,7 @@ fun CompactDashboard(
     // 2. Render inside LazyColumn
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 130.dp)
+        contentPadding = PaddingValues(bottom = 180.dp)
     ) {
         // Section 1: Favorites
         if (favoriteApps.isNotEmpty()) {
@@ -1321,7 +1394,7 @@ fun CompactCategoryGrid(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 130.dp)
+        contentPadding = PaddingValues(bottom = 180.dp)
     ) {
         item {
             CompactSectionHeader(
@@ -1412,7 +1485,7 @@ fun CompactSectionHeader(
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = title,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp
@@ -1422,12 +1495,12 @@ fun CompactSectionHeader(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
-                    .background(Color(0x22FFFFFF))
+                    .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
                     .padding(horizontal = 4.dp, vertical = 1.dp)
             ) {
                 Text(
                     text = badgeText,
-                    color = Color(0xB3FFFFFF),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                     fontSize = 8.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -1478,7 +1551,7 @@ fun CompactAppItem(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = app.label,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -1504,7 +1577,7 @@ fun CompactAppItemWithSummary(
         verticalAlignment = Alignment.Top,
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0x0CFFFFFF))
+            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -1537,7 +1610,7 @@ fun CompactAppItemWithSummary(
         ) {
             Text(
                 text = app.label,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -1546,7 +1619,7 @@ fun CompactAppItemWithSummary(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = summary,
-                color = Color(0xB3FFFFFF),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Normal,
                 lineHeight = 12.sp
@@ -1563,12 +1636,17 @@ fun AppGridItem(
     modifier: Modifier = Modifier,
     isFavorite: Boolean = false
 ) {
+    val isDark = MaterialTheme.colorScheme.background.let { it.red + it.green + it.blue < 1.5f }
+    val cardBg = if (isDark) Color(0x11FFFFFF) else Color(0x08000000)
+    val cardBorder = if (isDark) Color(0x14FFFFFF) else Color(0x15000000)
+    val labelColor = MaterialTheme.colorScheme.onBackground
+
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
             .height(160.dp)
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(16.dp))
+            .border(1.dp, cardBorder, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .testTag("app_grid_item_${app.packageName}")
     ) {
@@ -1605,7 +1683,7 @@ fun AppGridItem(
             ) {
                 Text(
                     text = app.label,
-                    color = Color.White,
+                    color = labelColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center,
@@ -1618,15 +1696,25 @@ fun AppGridItem(
             ) {
                 if (app.similarityScore != null) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        val badgeBg = if (app.isAnalyzed) {
+                            if (isDark) Color(0x2642A5F5) else Color(0x1F2196F3)
+                        } else {
+                            if (isDark) Color(0x26FFA726) else Color(0x1FFF9800)
+                        }
+                        val badgeText = if (app.isAnalyzed) {
+                            if (isDark) Color(0xFF90CAF9) else Color(0xFF1976D2)
+                        } else {
+                            if (isDark) Color(0xFFFFCC80) else Color(0xFFE65100)
+                        }
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (app.isAnalyzed) Color(0x2642A5F5) else Color(0x26FFA726))
+                                .background(badgeBg)
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = String.format(java.util.Locale.getDefault(), Localization.get("similarity_label", aiLanguage), app.similarityScore),
-                                color = if (app.isAnalyzed) Color(0xFF90CAF9) else Color(0xFFFFCC80),
+                                color = badgeText,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1634,7 +1722,7 @@ fun AppGridItem(
                         if (!app.isAnalyzed) {
                             Text(
                                 text = Localization.get("ai_unanalyzed_badge", aiLanguage),
-                                color = Color(0xFFFFB74D),
+                                color = if (isDark) Color(0xFFFFB74D) else Color(0xFFF57C00),
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
@@ -1646,12 +1734,12 @@ fun AppGridItem(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0x3081C784))
+                            .background(if (isDark) Color(0x3081C784) else Color(0x1F4CAF50))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "AI解析済",
-                            color = Color(0xFF81C784),
+                            color = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1660,12 +1748,12 @@ fun AppGridItem(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0x24FFFFFF))
+                            .background(if (isDark) Color(0x24FFFFFF) else Color(0x0D000000))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "未解析",
-                            color = Color(0xB2FFFFFF),
+                            color = if (isDark) Color(0xB2FFFFFF) else Color(0x99000000),
                             fontSize = 9.sp
                         )
                     }
@@ -1683,11 +1771,18 @@ fun AppListItem(
     modifier: Modifier = Modifier,
     isFavorite: Boolean = false
 ) {
+    val isDark = MaterialTheme.colorScheme.background.let { it.red + it.green + it.blue < 1.5f }
+    val cardBg = if (isDark) Color(0x11FFFFFF) else Color(0x08000000)
+    val cardBorder = if (isDark) Color(0x14FFFFFF) else Color(0x15000000)
+    val labelColor = MaterialTheme.colorScheme.onBackground
+    val subTextCol = if (isDark) Color(0xCCFFFFFF) else Color(0xDD000000).copy(alpha = 0.65f)
+    val hintTextCol = if (isDark) Color(0x80FFFFFF) else Color(0x99000000).copy(alpha = 0.5f)
+
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0x11FFFFFF)),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
-            .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(16.dp))
+            .border(1.dp, cardBorder, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .testTag("app_list_item_${app.packageName}")
     ) {
@@ -1716,7 +1811,7 @@ fun AppListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = app.label,
-                    color = Color.White,
+                    color = labelColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     maxLines = 1,
@@ -1726,7 +1821,7 @@ fun AppListItem(
                 if (app.isAnalyzed) {
                     Text(
                         text = app.cachedInfo?.summary ?: "",
-                        color = Color(0xCCFFFFFF),
+                        color = subTextCol,
                         fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -1735,7 +1830,7 @@ fun AppListItem(
                     val promptText = if (aiLanguage == "en") "Tap to perform AI analysis" else "タップしてAI解析を実行"
                     Text(
                         text = promptText,
-                        color = Color(0x80FFFFFF),
+                        color = hintTextCol,
                         fontSize = 11.sp
                     )
                 }
@@ -1743,15 +1838,25 @@ fun AppListItem(
 
             if (app.similarityScore != null) {
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val badgeBg = if (app.isAnalyzed) {
+                        if (isDark) Color(0x2642A5F5) else Color(0x1F2196F3)
+                    } else {
+                        if (isDark) Color(0x26FFA726) else Color(0x1FFF9800)
+                    }
+                    val badgeText = if (app.isAnalyzed) {
+                        if (isDark) Color(0xFF90CAF9) else Color(0xFF1976D2)
+                    } else {
+                        if (isDark) Color(0xFFFFCC80) else Color(0xFFE65100)
+                    }
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (app.isAnalyzed) Color(0x2642A5F5) else Color(0x26FFA726))
+                            .background(badgeBg)
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = String.format(java.util.Locale.getDefault(), Localization.get("similarity_label", aiLanguage), app.similarityScore),
-                            color = if (app.isAnalyzed) Color(0xFF90CAF9) else Color(0xFFFFCC80),
+                            color = badgeText,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1759,7 +1864,7 @@ fun AppListItem(
                     if (!app.isAnalyzed) {
                         Text(
                             text = Localization.get("ai_unanalyzed_badge", aiLanguage),
-                            color = Color(0xFFFFB74D),
+                            color = if (isDark) Color(0xFFFFB74D) else Color(0xFFF57C00),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1769,14 +1874,14 @@ fun AppListItem(
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "Analyzed",
-                    tint = Color(0xFF81C784),
+                    tint = if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32),
                     modifier = Modifier.size(16.dp)
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Details",
-                    tint = Color(0x4DFFFFFF),
+                    tint = if (isDark) Color(0x4DFFFFFF) else Color(0x4D000000),
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -1863,7 +1968,7 @@ fun FavoriteReorderableContent(
                     }
                 )
             }
-            .padding(bottom = 130.dp)
+            .padding(bottom = 180.dp)
     ) {
         if (viewMode == "GRID") {
             Column(
@@ -1989,6 +2094,13 @@ fun AppDetailsDialog(
 ) {
     val context = LocalContext.current
 
+    val isDark = MaterialTheme.colorScheme.background.let { it.red + it.green + it.blue < 1.5f }
+    val dialogBgColor = if (isDark) Color(0xF0080812) else Color(0xFAFCFBFF)
+    val dialogBorderColor = if (isDark) Color(0x20FFFFFF) else Color(0x1F000000)
+    val textCol = MaterialTheme.colorScheme.onBackground
+    val iconBgColor = if (isDark) Color(0x0AFFFFFF) else Color(0x08000000)
+    val iconBorderColor = if (isDark) Color(0x15FFFFFF) else Color(0x12000000)
+
     var customContextText by remember { mutableStateOf("") }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
     var selectedFileMimeType by remember { mutableStateOf<String?>(null) }
@@ -2067,8 +2179,8 @@ fun AppDetailsDialog(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .clip(RoundedCornerShape(28.dp))
-                .background(Color(0xF0080812))
-                .border(1.dp, Color(0x20FFFFFF), RoundedCornerShape(28.dp))
+                .background(dialogBgColor)
+                .border(1.dp, dialogBorderColor, RoundedCornerShape(28.dp))
                 .padding(22.dp)
         ) {
             Column(
@@ -2087,8 +2199,8 @@ fun AppDetailsDialog(
                         modifier = Modifier
                             .size(60.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0x0AFFFFFF))
-                            .border(1.dp, Color(0x15FFFFFF), RoundedCornerShape(16.dp))
+                            .background(iconBgColor)
+                            .border(1.dp, iconBorderColor, RoundedCornerShape(16.dp))
                             .padding(2.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -2098,7 +2210,7 @@ fun AppDetailsDialog(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = app.label,
-                            color = Color.White,
+                            color = textCol,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
                             letterSpacing = (-0.5).sp

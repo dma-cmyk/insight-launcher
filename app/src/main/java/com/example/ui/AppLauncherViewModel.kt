@@ -76,6 +76,7 @@ class AppLauncherViewModel(
     val currentBgUrl: StateFlow<String> = settingsManager.bgImageUrl
     val viewMode: StateFlow<String> = settingsManager.viewMode
     val iconShape: StateFlow<String> = settingsManager.iconShape
+    val colorTheme: StateFlow<String> = settingsManager.colorTheme
     val lastLaunchTimes: StateFlow<Map<String, Long>> = usageTracker.lastLaunchTimes
     val launchCounts: StateFlow<Map<String, Int>> = usageTracker.launchCounts
     val favorites: StateFlow<List<String>> = usageTracker.favorites
@@ -278,6 +279,10 @@ class AppLauncherViewModel(
 
     fun setIconShape(shape: String) {
         settingsManager.setIconShape(shape)
+    }
+
+    fun setColorTheme(theme: String) {
+        settingsManager.setColorTheme(theme)
     }
 
     fun toggleFavorite(packageName: String) {

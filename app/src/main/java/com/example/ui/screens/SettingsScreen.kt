@@ -61,6 +61,16 @@ fun SettingsScreen(
     val viewMode by viewModel.viewMode.collectAsState()
     val includeIconlessSystemApps by viewModel.settingsManager.includeIconlessSystemApps.collectAsState()
     val customCategorizationPrompt by viewModel.settingsManager.customCategorizationPrompt.collectAsState()
+    val colorTheme by viewModel.colorTheme.collectAsState()
+
+    val isLight = colorTheme.startsWith("light_")
+    val textColor = if (isLight) Color(0xFF1E1E2F) else Color.White
+    val subTextColor = if (isLight) Color(0xFF5A5A75) else Color(0xB2FFFFFF)
+    val cardBgColor = if (isLight) Color(0x0C000000) else Color(0x3CFFFFFF)
+    val borderColor = if (isLight) Color(0x1F000000) else Color(0x24FFFFFF)
+    val dividerColor = if (isLight) Color(0x10000000) else Color(0x20FFFFFF)
+    val topBarBgColor = if (isLight) Color(0xF2F6F3FB) else Color(0x900B0B1A)
+
 
     var customUrlInput by remember { mutableStateOf("") }
     var showCustomUrlDialog by remember { mutableStateOf(false) }
@@ -108,14 +118,14 @@ fun SettingsScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(Localization.get("settings_title", aiLanguage), color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text(Localization.get("settings_title", aiLanguage), color = textColor, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = Localization.get("back_btn", aiLanguage), tint = Color.White)
+                        Icon(Icons.Default.ArrowBack, contentDescription = Localization.get("back_btn", aiLanguage), tint = textColor)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0x900B0B1A)
+                    containerColor = topBarBgColor
                 )
             )
         },
@@ -129,13 +139,170 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // 1. AI Model Configuration Card
+            // 0. Color Theme Selection Card (Adaptive and Legible)
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+                    .testTag("color_theme_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Palette, contentDescription = "Color Theme", tint = if (isLight) MaterialTheme.colorScheme.primary else Color(0xFF81C784))
+                        val titleText = if (aiLanguage == "ja") "カラーテーマ設定" else "Color Theme Settings"
+                        Text(titleText, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
+                    }
+
+                    HorizontalDivider(color = dividerColor)
+
+                    // Subtitle: Dark Themes
+                    val darkThemesTitle = if (aiLanguage == "ja") "ダークテーマ系" else "Dark Themes"
+                    Text(darkThemesTitle, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isLight) MaterialTheme.colorScheme.primary else Color(0xFF81C784))
+
+                    val darkThemes = listOf(
+                        "dark_charcoal" to (if (aiLanguage == "ja") "コズミック・チャコール (標準)" else "Cosmic Charcoal (Default)"),
+                        "dark_indigo" to (if (aiLanguage == "ja") "ミッドナイト・インディゴ" else "Midnight Indigo"),
+                        "dark_emerald" to (if (aiLanguage == "ja") "フォレスト・エメラルド" else "Forest Emerald"),
+                        "dark_obsidian" to (if (aiLanguage == "ja") "サンセット・オブシディアン" else "Sunset Obsidian")
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        darkThemes.forEach { (themeKey, themeName) ->
+                            val isSelected = colorTheme == themeKey
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isSelected) (if (isLight) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFF81C784).copy(alpha = 0.25f))
+                                        else if (isLight) Color(0x0A000000) else Color(0x1AFFFFFF)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) (if (isLight) MaterialTheme.colorScheme.primary else Color(0xFF81C784)) else borderColor,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { viewModel.setColorTheme(themeKey) }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    // Theme color mini indicator dot
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                when (themeKey) {
+                                                    "dark_charcoal" -> Color(0xFF80DEEA)
+                                                    "dark_indigo" -> Color(0xFF38BDF8)
+                                                    "dark_emerald" -> Color(0xFF34D399)
+                                                    "dark_obsidian" -> Color(0xFFF59E0B)
+                                                    else -> Color.White
+                                                }
+                                            )
+                                    )
+                                    Text(
+                                        text = themeName,
+                                        color = if (isSelected) textColor else subTextColor,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    HorizontalDivider(color = dividerColor.copy(alpha = 0.5f))
+
+                    // Subtitle: Light Themes
+                    val lightThemesTitle = if (aiLanguage == "ja") "ライトテーマ系" else "Light Themes"
+                    Text(lightThemesTitle, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isLight) MaterialTheme.colorScheme.primary else Color(0xFF81C784))
+
+                    val lightThemes = listOf(
+                        "light_lavender" to (if (aiLanguage == "ja") "スノーウィ・ラベンダー" else "Snowy Lavender"),
+                        "light_mint" to (if (aiLanguage == "ja") "ミント・クリーム" else "Mint Cream"),
+                        "light_peach" to (if (aiLanguage == "ja") "ピーチ・ブロッサム" else "Peach Blossom"),
+                        "light_ocean" to (if (aiLanguage == "ja") "オーシャン・ブリーズ" else "Ocean Breeze")
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        lightThemes.forEach { (themeKey, themeName) ->
+                            val isSelected = colorTheme == themeKey
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isSelected) (if (isLight) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFF81C784).copy(alpha = 0.25f))
+                                        else if (isLight) Color(0x0A000000) else Color(0x1AFFFFFF)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) (if (isLight) MaterialTheme.colorScheme.primary else Color(0xFF81C784)) else borderColor,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { viewModel.setColorTheme(themeKey) }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    // Theme color mini indicator dot
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                when (themeKey) {
+                                                    "light_lavender" -> Color(0xFF7C3AED)
+                                                    "light_mint" -> Color(0xFF0D9488)
+                                                    "light_peach" -> Color(0xFFE11D48)
+                                                    "light_ocean" -> Color(0xFF0284C7)
+                                                    else -> Color.Gray
+                                                }
+                                            )
+                                    )
+                                    Text(
+                                        text = themeName,
+                                        color = if (isSelected) textColor else subTextColor,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 1. AI Model Configuration Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -357,11 +524,11 @@ fun SettingsScreen(
 
             // AI Language Selection Card
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
                     .testTag("language_selection_card")
             ) {
                 Column(
@@ -415,11 +582,11 @@ fun SettingsScreen(
 
             // Display Layout Settings Card
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
                     .testTag("layout_mode_card")
             ) {
                 Column(
@@ -486,11 +653,11 @@ fun SettingsScreen(
 
             // Icon Shape Settings Card
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
                     .testTag("icon_shape_card")
             ) {
                 Column(
@@ -571,11 +738,11 @@ fun SettingsScreen(
 
             // 2. Space Background Wallpaper Card
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),

@@ -20,7 +20,8 @@ class SettingsManager(context: Context) {
         const val KEY_AUTO_CONTRAST = "auto_contrast"
         const val KEY_INCLUDE_ICONLESS_SYSTEM_APPS = "include_iconless_system_apps"
         const val KEY_CUSTOM_CATEGORIZATION_PROMPT = "custom_categorization_prompt"
-
+        const val KEY_COLOR_THEME = "color_theme"
+ 
         const val DEFAULT_PRIMARY_MODEL = "gemini-flash-lite-latest"
         const val DEFAULT_BACKUP_MODEL = "gemini-flash-latest"
         const val DEFAULT_EMBEDDING_MODEL = "gemini-embedding-001"
@@ -29,6 +30,7 @@ class SettingsManager(context: Context) {
         const val DEFAULT_ICON_SHAPE = "ROUNDED_RECT"
         const val DEFAULT_INCLUDE_ICONLESS_SYSTEM_APPS = false
         const val DEFAULT_CUSTOM_CATEGORIZATION_PROMPT = ""
+        const val DEFAULT_COLOR_THEME = "dark_charcoal"
 
         val SPACE_PRESETS = listOf(
             PresetBg("Procedural Nebula (Offline/Battery-Save)", "procedural_nebula"),
@@ -78,12 +80,16 @@ class SettingsManager(context: Context) {
     private val _customCategorizationPrompt = MutableStateFlow(prefs.getString(KEY_CUSTOM_CATEGORIZATION_PROMPT, DEFAULT_CUSTOM_CATEGORIZATION_PROMPT) ?: DEFAULT_CUSTOM_CATEGORIZATION_PROMPT)
     val customCategorizationPrompt: StateFlow<String> = _customCategorizationPrompt
 
+    private val _colorTheme = MutableStateFlow(prefs.getString(KEY_COLOR_THEME, DEFAULT_COLOR_THEME) ?: DEFAULT_COLOR_THEME)
+    val colorTheme: StateFlow<String> = _colorTheme
+
     fun getPrimaryModel(): String = prefs.getString(KEY_PRIMARY_MODEL, DEFAULT_PRIMARY_MODEL) ?: DEFAULT_PRIMARY_MODEL
     fun getBackupModel(): String = prefs.getString(KEY_BACKUP_MODEL, DEFAULT_BACKUP_MODEL) ?: DEFAULT_BACKUP_MODEL
     fun getEmbeddingModel(): String = prefs.getString(KEY_EMBEDDING_MODEL, DEFAULT_EMBEDDING_MODEL) ?: DEFAULT_EMBEDDING_MODEL
     fun getAiLanguage(): String = prefs.getString(KEY_AI_LANGUAGE, null) ?: getInitialAiLanguage()
     fun getGeminiApiKey(): String = prefs.getString(KEY_GEMINI_API_KEY, "") ?: ""
     fun getIconShape(): String = prefs.getString(KEY_ICON_SHAPE, DEFAULT_ICON_SHAPE) ?: DEFAULT_ICON_SHAPE
+    fun getColorThemeValue(): String = prefs.getString(KEY_COLOR_THEME, DEFAULT_COLOR_THEME) ?: DEFAULT_COLOR_THEME
     fun getIncludeIconlessSystemApps(): Boolean = prefs.getBoolean(KEY_INCLUDE_ICONLESS_SYSTEM_APPS, DEFAULT_INCLUDE_ICONLESS_SYSTEM_APPS)
     fun getCustomCategorizationPrompt(): String = prefs.getString(KEY_CUSTOM_CATEGORIZATION_PROMPT, DEFAULT_CUSTOM_CATEGORIZATION_PROMPT) ?: DEFAULT_CUSTOM_CATEGORIZATION_PROMPT
 
@@ -136,5 +142,10 @@ class SettingsManager(context: Context) {
     fun setCustomCategorizationPrompt(prompt: String) {
         prefs.edit().putString(KEY_CUSTOM_CATEGORIZATION_PROMPT, prompt).apply()
         _customCategorizationPrompt.value = prompt
+    }
+
+    fun setColorTheme(theme: String) {
+        prefs.edit().putString(KEY_COLOR_THEME, theme).apply()
+        _colorTheme.value = theme
     }
 }

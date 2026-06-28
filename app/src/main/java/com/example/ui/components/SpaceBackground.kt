@@ -26,7 +26,8 @@ fun SpaceBackground(
     scrollOffsetY: Float = 0f,
     bgLuminance: Float = 0.05f,
     autoContrast: Boolean = true,
-    pageCount: Int = 5
+    pageCount: Int = 5,
+    isLightTheme: Boolean = false
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         if (bgUrl == "procedural_nebula") {
@@ -253,6 +254,13 @@ fun SpaceBackground(
                     }
                 }
             }
+        }
+        if (isLightTheme) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = 0.85f))
+            )
         }
     }
 }

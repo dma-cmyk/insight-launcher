@@ -32,7 +32,9 @@ class MainActivity : ComponentActivity() {
         val settingsManager = SettingsManager(applicationContext)
 
         setContent {
-            MyApplicationTheme {
+            val colorTheme by settingsManager.colorTheme.collectAsState()
+            val isLight = colorTheme.startsWith("light_")
+            MyApplicationTheme(colorTheme = colorTheme) {
                 val viewModel: AppLauncherViewModel = viewModel(
                     factory = AppLauncherViewModelFactory(repository, settingsManager, applicationContext)
                 )
@@ -53,7 +55,8 @@ class MainActivity : ComponentActivity() {
                         scrollOffsetY = bgScrollOffsetY,
                         bgLuminance = bgLuminance,
                         autoContrast = autoContrast,
-                        pageCount = bgPageCount
+                        pageCount = bgPageCount,
+                        isLightTheme = isLight
                     )
 
                     // Smooth sliding content transition

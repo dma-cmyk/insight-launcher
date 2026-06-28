@@ -71,6 +71,14 @@ fun AiAssistantScreen(
     val fdroidAppDetail by viewModel.fdroidAppDetail.collectAsState()
     val isDetailLoading by viewModel.isDetailLoading.collectAsState()
     val detailError by viewModel.detailError.collectAsState()
+
+    val colorTheme by viewModel.colorTheme.collectAsState()
+    val isLight = false
+
+    val textColor = Color.White
+    val subTextColor = Color(0xB2FFFFFF)
+    val topBarBg = Color(0x2B000000)
+    val starTint = Color(0xFF90CAF9)
     
     var textInput by remember { mutableStateOf("") }
     var activeTab by remember { mutableStateOf(0) } // 0 = Chat, 1 = LLM Wiki
@@ -157,12 +165,12 @@ fun AiAssistantScreen(
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
-                            tint = Color(0xFF90CAF9),
+                            tint = starTint,
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
                             text = if (aiLanguage == "ja") "AI アシスタント" else "AI Assistant",
-                            color = Color.White,
+                            color = textColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
                         )
@@ -178,7 +186,7 @@ fun AiAssistantScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = if (aiLanguage == "ja") "戻る" else "Back",
-                            tint = Color.White
+                            tint = textColor
                         )
                     }
                 },
@@ -192,12 +200,12 @@ fun AiAssistantScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = if (aiLanguage == "ja") "クリア" else "Clear",
-                            tint = Color.White
+                            tint = textColor
                         )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0x2B000000)
+                    containerColor = topBarBg
                 )
             )
         }
