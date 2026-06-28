@@ -259,7 +259,7 @@ fun SpaceBackground(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.White.copy(alpha = 0.85f))
+                    .background(Color.White.copy(alpha = 0.45f))
             )
         }
     }

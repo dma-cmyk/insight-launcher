@@ -75,13 +75,13 @@ fun AiAssistantScreen(
     val colorTheme by viewModel.colorTheme.collectAsState()
     val isLight = colorTheme.startsWith("light_")
 
-    val textColor = if (isLight) Color(0xFF1E1E2F) else Color.White
-    val subTextColor = if (isLight) Color(0xFF5A5A75) else Color(0xB2FFFFFF)
-    val topBarBg = if (isLight) Color(0xF2F6F3FB) else Color(0x2B000000)
+    val textColor = if (isLight) Color(0xFF11111F) else Color.White
+    val subTextColor = if (isLight) Color(0xFF454558) else Color(0xB2FFFFFF)
+    val topBarBg = if (isLight) Color(0xFDF8F7FC) else Color(0x2B000000)
     val starTint = if (isLight) Color(0xFF1976D2) else Color(0xFF90CAF9)
     val wikiGreen = if (isLight) Color(0xFF2E7D32) else Color(0xFF81C784)
-    val cardBgColor = if (isLight) Color(0x0C000000) else Color(0x12FFFFFF)
-    val cardBorderColor = if (isLight) Color(0x1A000000) else Color(0x1BFFFFFF)
+    val cardBgColor = if (isLight) Color(0xDDFFFFFF) else Color(0x12FFFFFF)
+    val cardBorderColor = if (isLight) Color(0x2E000000) else Color(0x1BFFFFFF)
     val panelBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0xCD0A0A12)
     val panelBorderColor = if (isLight) Color(0x1A000000) else Color(0x20FFFFFF)
     

@@ -66,7 +66,7 @@ fun SettingsScreen(
     val isLight = colorTheme.startsWith("light_")
     val textColor = if (isLight) Color(0xFF11111F) else Color.White
     val subTextColor = if (isLight) Color(0xFF454558) else Color(0xB2FFFFFF)
-    val cardBgColor = if (isLight) Color(0x14000000) else Color(0x3CFFFFFF)
+    val cardBgColor = if (isLight) Color(0xDDFFFFFF) else Color(0x3CFFFFFF)
     val borderColor = if (isLight) Color(0x2E000000) else Color(0x24FFFFFF)
     val dividerColor = if (isLight) Color(0x1B000000) else Color(0x20FFFFFF)
     val topBarBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0x900B0B1A)
@@ -186,7 +186,7 @@ fun SettingsScreen(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(
                                         if (isSelected) (if (isLight) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFF81C784).copy(alpha = 0.25f))
-                                        else if (isLight) Color(0x0A000000) else Color(0x1AFFFFFF)
+                                        else if (isLight) Color(0x0A000000) else cardBgColor
                                     )
                                     .border(
                                         width = 1.dp,
@@ -253,7 +253,7 @@ fun SettingsScreen(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(
                                         if (isSelected) (if (isLight) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFF81C784).copy(alpha = 0.25f))
-                                        else if (isLight) Color(0x0A000000) else Color(0x1AFFFFFF)
+                                        else if (isLight) Color(0x0A000000) else cardBgColor
                                     )
                                     .border(
                                         width = 1.dp,
@@ -312,14 +312,14 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.AutoAwesome, contentDescription = "AI Model", tint = Color(0xFF81C784))
-                        Text(Localization.get("ai_model_title", aiLanguage), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("ai_model_title", aiLanguage), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
 
-                    HorizontalDivider(color = Color(0x20FFFFFF))
+                    HorizontalDivider(color = dividerColor)
 
                     // Primary model
                     Column {
-                        Text(Localization.get("primary_model_label", aiLanguage), fontSize = 12.sp, color = Color(0xB2FFFFFF))
+                        Text(Localization.get("primary_model_label", aiLanguage), fontSize = 12.sp, color = subTextColor)
                         Spacer(modifier = Modifier.height(4.dp))
                         OutlinedTextField(
                             value = primaryModel,
@@ -327,12 +327,12 @@ fun SettingsScreen(
                                 primaryModel = it
                                 viewModel.settingsManager.setPrimaryModel(it)
                             },
-                            textStyle = LocalTextStyle.current.copy(color = Color.White),
+                            textStyle = LocalTextStyle.current.copy(color = textColor),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF81C784),
-                                unfocusedBorderColor = Color(0x40FFFFFF),
+                                unfocusedBorderColor = borderColor,
                                 focusedLabelColor = Color(0xFF81C784),
-                                unfocusedLabelColor = Color(0xB2FFFFFF)
+                                unfocusedLabelColor = subTextColor
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -354,7 +354,7 @@ fun SettingsScreen(
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(
                                             if (primaryModel == modelOption) Color(0xFF81C784).copy(alpha = 0.25f)
-                                            else Color(0x1AFFFFFF)
+                                            else cardBgColor
                                         )
                                         .border(
                                             width = 1.dp,
@@ -381,7 +381,7 @@ fun SettingsScreen(
 
                     // Backup model
                     Column {
-                        Text(Localization.get("backup_model_label", aiLanguage), fontSize = 12.sp, color = Color(0xB2FFFFFF))
+                        Text(Localization.get("backup_model_label", aiLanguage), fontSize = 12.sp, color = subTextColor)
                         Spacer(modifier = Modifier.height(4.dp))
                         OutlinedTextField(
                             value = backupModel,
@@ -389,12 +389,12 @@ fun SettingsScreen(
                                 backupModel = it
                                 viewModel.settingsManager.setBackupModel(it)
                             },
-                            textStyle = LocalTextStyle.current.copy(color = Color.White),
+                            textStyle = LocalTextStyle.current.copy(color = textColor),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFF64B5F6),
-                                unfocusedBorderColor = Color(0x40FFFFFF),
+                                unfocusedBorderColor = borderColor,
                                 focusedLabelColor = Color(0xFF64B5F6),
-                                unfocusedLabelColor = Color(0xB2FFFFFF)
+                                unfocusedLabelColor = subTextColor
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -414,7 +414,7 @@ fun SettingsScreen(
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(
                                             if (backupModel == modelOption) Color(0xFF64B5F6).copy(alpha = 0.25f)
-                                            else Color(0x1AFFFFFF)
+                                            else cardBgColor
                                         )
                                         .border(
                                             width = 1.dp,
@@ -441,7 +441,7 @@ fun SettingsScreen(
 
                     // Embedding model
                     Column {
-                        Text(Localization.get("embedding_model_label", aiLanguage), fontSize = 12.sp, color = Color(0xB2FFFFFF))
+                        Text(Localization.get("embedding_model_label", aiLanguage), fontSize = 12.sp, color = subTextColor)
                         Spacer(modifier = Modifier.height(4.dp))
                         OutlinedTextField(
                             value = embeddingModel,
@@ -449,12 +449,12 @@ fun SettingsScreen(
                                 embeddingModel = it
                                 viewModel.settingsManager.setEmbeddingModel(it)
                             },
-                            textStyle = LocalTextStyle.current.copy(color = Color.White),
+                            textStyle = LocalTextStyle.current.copy(color = textColor),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFFFFB74D),
-                                unfocusedBorderColor = Color(0x40FFFFFF),
+                                unfocusedBorderColor = borderColor,
                                 focusedLabelColor = Color(0xFFFFB74D),
-                                unfocusedLabelColor = Color(0xB2FFFFFF)
+                                unfocusedLabelColor = subTextColor
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -467,7 +467,7 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(Localization.get("gemini_api_key_label", aiLanguage), fontSize = 12.sp, color = Color(0xB2FFFFFF))
+                            Text(Localization.get("gemini_api_key_label", aiLanguage), fontSize = 12.sp, color = subTextColor)
                             Text(
                                 text = Localization.get("get_api_key_link_text", aiLanguage),
                                 fontSize = 11.sp,
@@ -492,8 +492,8 @@ fun SettingsScreen(
                                 geminiApiKey = it
                                 viewModel.settingsManager.setGeminiApiKey(it)
                             },
-                            placeholder = { Text(Localization.get("gemini_api_key_placeholder", aiLanguage), color = Color(0x66FFFFFF), fontSize = 12.sp) },
-                            textStyle = LocalTextStyle.current.copy(color = Color.White),
+                            placeholder = { Text(Localization.get("gemini_api_key_placeholder", aiLanguage), color = subTextColor.copy(alpha = 0.4f), fontSize = 12.sp) },
+                            textStyle = LocalTextStyle.current.copy(color = textColor),
                             visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             trailingIcon = {
                                 val image = if (isApiKeyVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
@@ -509,9 +509,9 @@ fun SettingsScreen(
                             },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFFEF5350),
-                                unfocusedBorderColor = Color(0x40FFFFFF),
+                                unfocusedBorderColor = borderColor,
                                 focusedLabelColor = Color(0xFFEF5350),
-                                unfocusedLabelColor = Color(0xB2FFFFFF)
+                                unfocusedLabelColor = subTextColor
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -539,15 +539,15 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.Language, contentDescription = "Language", tint = Color(0xFF81C784))
-                        Text(Localization.get("lang_title", aiLanguage), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("lang_title", aiLanguage), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
 
-                    HorizontalDivider(color = Color(0x20FFFFFF))
+                    HorizontalDivider(color = dividerColor)
 
                     Text(
                         Localization.get("lang_desc", aiLanguage),
                         fontSize = 12.sp,
-                        color = Color(0xB2FFFFFF),
+                        color = subTextColor,
                         lineHeight = 16.sp
                     )
 
@@ -570,7 +570,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(name, color = Color.White, fontSize = 14.sp)
+                            Text(name, color = textColor, fontSize = 14.sp)
                             if (isSelected) {
                                 Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color(0xFF81C784))
                             }
@@ -597,15 +597,15 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.GridView, contentDescription = "Layout", tint = Color(0xFF64B5F6))
-                        Text(Localization.get("layout_mode_title", aiLanguage), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("layout_mode_title", aiLanguage), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
 
-                    HorizontalDivider(color = Color(0x20FFFFFF))
+                    HorizontalDivider(color = dividerColor)
 
                     Text(
                         Localization.get("layout_mode_desc", aiLanguage),
                         fontSize = 12.sp,
-                        color = Color(0xB2FFFFFF),
+                        color = subTextColor,
                         lineHeight = 16.sp
                     )
 
@@ -640,7 +640,7 @@ fun SettingsScreen(
                                     contentDescription = null,
                                     tint = if (isSelected) Color(0xFF64B5F6) else Color(0x80FFFFFF)
                                 )
-                                Text(label, color = Color.White, fontSize = 14.sp)
+                                Text(label, color = textColor, fontSize = 14.sp)
                             }
                             if (isSelected) {
                                 Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color(0xFF64B5F6))
@@ -669,10 +669,10 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.Category, contentDescription = "Icon Shape", tint = Color(0xFFA5D6A7))
                         val titleText = if (aiLanguage == "ja") "表示アイコンの形状" else "Icon Shape"
-                        Text(titleText, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(titleText, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
 
-                    HorizontalDivider(color = Color(0x20FFFFFF))
+                    HorizontalDivider(color = dividerColor)
 
                     val descText = if (aiLanguage == "ja") {
                         "ランチャー全体のアプリ表示アイコンの形状をカスタマイズします。"
@@ -682,7 +682,7 @@ fun SettingsScreen(
                     Text(
                         descText,
                         fontSize = 12.sp,
-                        color = Color(0xB2FFFFFF),
+                        color = subTextColor,
                         lineHeight = 16.sp
                     )
 
@@ -725,7 +725,7 @@ fun SettingsScreen(
                                         )
                                         .background(if (isSelected) Color(0xFFA5D6A7) else Color(0x80FFFFFF))
                                 )
-                                Text(shapeLabel, color = Color.White, fontSize = 14.sp)
+                                Text(shapeLabel, color = textColor, fontSize = 14.sp)
                             }
                             if (isSelected) {
                                 Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color(0xFFA5D6A7))
@@ -752,10 +752,10 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.Wallpaper, contentDescription = "Background", tint = Color(0xFFFF8A65))
-                        Text(Localization.get("bg_preset_title", aiLanguage), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("bg_preset_title", aiLanguage), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
 
-                    HorizontalDivider(color = Color(0x20FFFFFF))
+                    HorizontalDivider(color = dividerColor)
 
                     // Preset list
                     SettingsManager.SPACE_PRESETS.forEach { preset ->
@@ -770,7 +770,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(preset.name, color = Color.White, fontSize = 14.sp)
+                            Text(preset.name, color = textColor, fontSize = 14.sp)
                             if (isSelected) {
                                 Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color(0xFFFF8A65))
                             }
@@ -794,14 +794,14 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Icon(Icons.Default.PhotoLibrary, contentDescription = "Gallery", tint = Color(0xFFFF8A65), modifier = Modifier.size(20.dp))
-                            Text(Localization.get("album_select", aiLanguage), color = Color.White, fontSize = 14.sp)
+                            Text(Localization.get("album_select", aiLanguage), color = textColor, fontSize = 14.sp)
                         }
                         if (isCustomFile) {
                             Icon(Icons.Default.Check, contentDescription = "Selected", tint = Color(0xFFFF8A65))
                         }
                     }
 
-                    HorizontalDivider(color = Color(0x14FFFFFF))
+                    HorizontalDivider(color = borderColor)
 
                     // Custom URL button
                     Button(
@@ -811,10 +811,10 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.Link, contentDescription = "Custom URL", tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(Localization.get("bg_custom_url", aiLanguage), color = Color.White)
+                        Text(Localization.get("bg_custom_url", aiLanguage), color = textColor)
                     }
 
-                    HorizontalDivider(color = Color(0x14FFFFFF))
+                    HorizontalDivider(color = borderColor)
 
                     // Auto Contrast Adjustment option
                     Column(
@@ -842,13 +842,13 @@ fun SettingsScreen(
                                 Column {
                                     Text(
                                         Localization.get("auto_contrast_title", aiLanguage),
-                                        color = Color.White,
+                                        color = textColor,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         Localization.get("auto_contrast_desc", aiLanguage),
-                                        color = Color.White.copy(alpha = 0.6f),
+                                        color = textColor.copy(alpha = 0.6f),
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp
                                     )
@@ -867,7 +867,7 @@ fun SettingsScreen(
                         }
 
                         // Include Iconless System Apps toggle
-                        HorizontalDivider(color = Color(0x14FFFFFF), modifier = Modifier.padding(vertical = 4.dp))
+                        HorizontalDivider(color = borderColor, modifier = Modifier.padding(vertical = 4.dp))
                         
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -888,13 +888,13 @@ fun SettingsScreen(
                                 Column {
                                     Text(
                                         Localization.get("include_iconless_system_apps_title", aiLanguage),
-                                        color = Color.White,
+                                        color = textColor,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         Localization.get("include_iconless_system_apps_desc", aiLanguage),
-                                        color = Color.White.copy(alpha = 0.6f),
+                                        color = textColor.copy(alpha = 0.6f),
                                         fontSize = 11.sp,
                                         lineHeight = 14.sp
                                     )
@@ -934,11 +934,11 @@ fun SettingsScreen(
 
             // AI Analysis Instructions & Bulk Re-analyze Card
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
                     .testTag("ai_instructions_card")
             ) {
                 Column(
@@ -950,12 +950,12 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.Edit, contentDescription = "AI Instructions", tint = Color(0xFFFFB74D))
-                        Text(Localization.get("custom_prompt_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("custom_prompt_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
                     Text(
                         Localization.get("custom_prompt_desc", aiLanguage),
                         fontSize = 12.sp,
-                        color = Color(0xB2FFFFFF),
+                        color = subTextColor,
                         lineHeight = 16.sp
                     )
 
@@ -989,7 +989,7 @@ fun SettingsScreen(
                                 .padding(8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(Localization.get("custom_prompt_example1", aiLanguage), color = Color(0xCCFFFFFF), fontSize = 10.sp, textAlign = TextAlign.Center)
+                            Text(Localization.get("custom_prompt_example1", aiLanguage), color = subTextColor, fontSize = 10.sp, textAlign = TextAlign.Center)
                         }
                         Box(
                             modifier = Modifier
@@ -1000,11 +1000,11 @@ fun SettingsScreen(
                                 .padding(8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(Localization.get("custom_prompt_example2", aiLanguage), color = Color(0xCCFFFFFF), fontSize = 10.sp, textAlign = TextAlign.Center)
+                            Text(Localization.get("custom_prompt_example2", aiLanguage), color = subTextColor, fontSize = 10.sp, textAlign = TextAlign.Center)
                         }
                     }
 
-                    HorizontalDivider(color = Color(0x14FFFFFF), modifier = Modifier.padding(vertical = 4.dp))
+                    HorizontalDivider(color = borderColor, modifier = Modifier.padding(vertical = 4.dp))
 
                     // Re-analyze all action
                     Row(
@@ -1058,7 +1058,7 @@ fun SettingsScreen(
                     Column {
                         Text(
                             text = Localization.get("security_warning_title", aiLanguage),
-                            color = Color.White,
+                            color = textColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -1077,11 +1077,11 @@ fun SettingsScreen(
             val mcpServers by viewModel.mcpServers.collectAsState()
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
                     .testTag("mcp_settings_card")
             ) {
                 Column(
@@ -1093,16 +1093,16 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.Build, contentDescription = "MCP Settings", tint = Color(0xFF4CAF50))
-                        Text(Localization.get("mcp_settings_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("mcp_settings_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
                     Text(
                         Localization.get("mcp_settings_desc", aiLanguage),
                         fontSize = 12.sp,
-                        color = Color(0xB2FFFFFF),
+                        color = subTextColor,
                         lineHeight = 16.sp
                     )
                     
-                    HorizontalDivider(color = Color(0x20FFFFFF))
+                    HorizontalDivider(color = dividerColor)
 
                     // 1. Built-in MCP Tools Indicators (Active)
                     Row(
@@ -1119,21 +1119,21 @@ fun SettingsScreen(
                             Icon(Icons.Default.CheckCircle, contentDescription = "Active", tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(Localization.get("mcp_builtin_title", aiLanguage), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(Localization.get("mcp_builtin_title", aiLanguage), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = textColor)
                             Text(Localization.get("mcp_builtin_desc", aiLanguage), fontSize = 11.sp, color = Color(0x99FFFFFF))
                         }
                     }
 
-                    HorizontalDivider(color = Color(0x20FFFFFF))
+                    HorizontalDivider(color = dividerColor)
 
                     // 2. Custom MCP Servers list
-                    Text(Localization.get("mcp_custom_servers", aiLanguage), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(Localization.get("mcp_custom_servers", aiLanguage), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = textColor)
 
                     if (mcpServers.isEmpty()) {
                         Text(
                             Localization.get("mcp_no_custom_servers", aiLanguage),
                             fontSize = 12.sp,
-                            color = Color(0x66FFFFFF),
+                            color = subTextColor.copy(alpha = 0.4f),
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     } else {
@@ -1151,11 +1151,11 @@ fun SettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(server.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                        Text(server.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = textColor)
                                         if (server.description.isNotBlank()) {
-                                            Text(server.description, fontSize = 11.sp, color = Color(0x80FFFFFF))
+                                            Text(server.description, fontSize = 11.sp, color = subTextColor.copy(alpha = 0.5f))
                                         }
-                                        Text(server.endpointUrl, fontSize = 10.sp, color = Color(0x66FFFFFF), maxLines = 1)
+                                        Text(server.endpointUrl, fontSize = 10.sp, color = subTextColor.copy(alpha = 0.4f), maxLines = 1)
                                     }
                                     
                                     // Enabled toggle switch
@@ -1200,7 +1200,7 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Add Server", modifier = Modifier.size(16.dp), tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(Localization.get("mcp_add_server_btn", aiLanguage), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(Localization.get("mcp_add_server_btn", aiLanguage), color = textColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1209,11 +1209,11 @@ fun SettingsScreen(
 
             // AI Category Management Card
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -1224,12 +1224,12 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.Category, contentDescription = "Category", tint = Color(0xFF9575CD))
-                        Text(Localization.get("merge_categories_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("merge_categories_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
                     Text(
                         Localization.get("merge_categories_desc", aiLanguage),
                         fontSize = 12.sp,
-                        color = Color(0xB2FFFFFF),
+                        color = subTextColor,
                         lineHeight = 16.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1242,11 +1242,11 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (isMerging) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = textColor, strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Merging...", color = Color.White)
+                            Text("Merging...", color = textColor)
                         } else {
-                            Text(Localization.get("merge_categories_btn", aiLanguage), fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(Localization.get("merge_categories_btn", aiLanguage), fontWeight = FontWeight.Bold, color = textColor)
                         }
                     }
                 }
@@ -1254,11 +1254,11 @@ fun SettingsScreen(
 
             // Default Launcher Configuration Card
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x3CFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -1269,12 +1269,12 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.Home, contentDescription = "Default Home", tint = Color(0xFF64B5F6))
-                        Text(Localization.get("set_default_home_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("set_default_home_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
                     Text(
                         Localization.get("set_default_home_desc", aiLanguage),
                         fontSize = 12.sp,
-                        color = Color(0xB2FFFFFF),
+                        color = subTextColor,
                         lineHeight = 16.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1297,18 +1297,18 @@ fun SettingsScreen(
                             .fillMaxWidth()
                             .testTag("set_default_home_button")
                     ) {
-                        Text(Localization.get("set_default_home_btn", aiLanguage), fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("set_default_home_btn", aiLanguage), fontWeight = FontWeight.Bold, color = textColor)
                     }
                 }
             }
 
             // 4. Reset & Clear Cache Card (Battery and operation helper)
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0x1AFFFFFF)),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(16.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -1319,12 +1319,12 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.DeleteForever, contentDescription = "Cache Clean", tint = Color(0xFFEF5350))
-                        Text(Localization.get("data_manage_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("data_manage_title", aiLanguage), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textColor)
                     }
                     Text(
                         Localization.get("data_manage_desc", aiLanguage),
                         fontSize = 12.sp,
-                        color = Color(0xB2FFFFFF),
+                        color = subTextColor,
                         lineHeight = 16.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -1335,7 +1335,7 @@ fun SettingsScreen(
                             .fillMaxWidth()
                             .testTag("clear_cache_button")
                     ) {
-                        Text(Localization.get("reset_btn", aiLanguage), fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(Localization.get("reset_btn", aiLanguage), fontWeight = FontWeight.Bold, color = textColor)
                     }
                 }
             }
@@ -1385,7 +1385,7 @@ fun SettingsScreen(
 
         AlertDialog(
             onDismissRequest = { showAddMcpServerDialog = false },
-            title = { Text(Localization.get("mcp_add_dialog_title", aiLanguage), color = Color.White) },
+            title = { Text(Localization.get("mcp_add_dialog_title", aiLanguage), color = textColor) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(

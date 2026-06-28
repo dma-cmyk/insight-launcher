@@ -146,7 +146,7 @@ fun LauncherHomeScreen(
 
     val textColor = if (isLight) Color(0xFF11111F) else Color.White
     val subTextColor = if (isLight) Color(0xFF454558) else Color(0xB2FFFFFF)
-    val cardBgColor = if (isLight) Color(0x14000000) else Color(0x3CFFFFFF)
+    val cardBgColor = if (isLight) Color(0xDDFFFFFF) else Color(0x3CFFFFFF)
     val cardBorderColor = if (isLight) Color(0x2E000000) else Color(0x24FFFFFF)
     val panelBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0xF0080812)
     val panelBorderColor = if (isLight) Color(0x2A000000) else Color(0x20FFFFFF)
