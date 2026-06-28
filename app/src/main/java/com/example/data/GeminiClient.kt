@@ -1066,9 +1066,9 @@ object GeminiClient {
                 0
             }
 
-            // If we got a 400 and we had tools, retry WITHOUT tools as a fallback
-            if (httpCode == 400 && geminiTools != null) {
-                Log.w(TAG, "Retrying askAssistant WITHOUT tools due to 400 error...")
+            // If we got an HTTP error and we had tools, retry WITHOUT tools as a fallback
+            if (httpCode >= 400 && geminiTools != null) {
+                Log.w(TAG, "Retrying askAssistant WITHOUT tools due to HTTP $httpCode error...")
                 try {
                     val fallbackContents = listOf(GeminiContent(
                         role = "user",
@@ -1088,7 +1088,13 @@ object GeminiClient {
                     if (fallbackText != null) {
                         val cleanedFallback = cleanJsonText(fallbackText) ?: ""
                         val adapter = moshi.adapter(GeminiAssistantResponse::class.java).lenient()
-                        return@withContext adapter.fromJson(cleanedFallback)
+                        val parsed = adapter.fromJson(cleanedFallback)
+                        
+                        // Append debug info to the answer so the user can see what failed in the tool call
+                        val debugInfo = "\n\n---\n⚠️ **[MCP Fallback Debug Info]**\nTool request failed with HTTP $httpCode.\nError Body:\n```\n${errorBody ?: "No error body"}\n```"
+                        return@withContext parsed?.copy(
+                            answer = parsed.answer + debugInfo
+                        )
                     }
                 } catch (fallbackError: Exception) {
                     Log.e(TAG, "Fallback without tools also failed: ${fallbackError.message}", fallbackError)
