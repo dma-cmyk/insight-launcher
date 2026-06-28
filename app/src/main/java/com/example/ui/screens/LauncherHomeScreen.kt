@@ -1602,15 +1602,23 @@ fun CompactAppItemWithSummary(
     modifier: Modifier = Modifier
 ) {
     val summary = app.cachedInfo?.summary ?: "未解析"
+    val clickModifier = if (onLongClick != null) {
+        Modifier.combinedClickable(
+            onClick = onClick,
+            onLongClick = onLongClick
+        )
+    } else {
+        Modifier.clickable(
+            onClick = onClick
+        )
+    }
+
     Row(
         verticalAlignment = Alignment.Top,
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
+            .then(clickModifier)
             .padding(horizontal = 8.dp, vertical = 8.dp)
             .testTag("compact_app_summary_item_${app.packageName}")
     ) {
