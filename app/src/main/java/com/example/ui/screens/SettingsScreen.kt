@@ -445,7 +445,8 @@ fun SettingsScreen(
 
                     val modes = listOf(
                         "GRID" to Localization.get("layout_mode_grid", aiLanguage),
-                        "LIST" to Localization.get("layout_mode_list", aiLanguage)
+                        "LIST" to Localization.get("layout_mode_list", aiLanguage),
+                        "COMPACT" to Localization.get("layout_mode_compact", aiLanguage)
                     )
 
                     modes.forEach { (mode, label) ->
@@ -465,7 +466,11 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Icon(
-                                    imageVector = if (mode == "GRID") Icons.Default.GridView else Icons.Default.List,
+                                    imageVector = when (mode) {
+                                        "GRID" -> Icons.Default.GridView
+                                        "COMPACT" -> Icons.Default.Dashboard
+                                        else -> Icons.Default.List
+                                    },
                                     contentDescription = null,
                                     tint = if (isSelected) Color(0xFF64B5F6) else Color(0x80FFFFFF)
                                 )

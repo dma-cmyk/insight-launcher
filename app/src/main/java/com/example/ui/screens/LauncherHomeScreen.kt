@@ -89,6 +89,8 @@ import java.util.Collections
 import kotlin.math.roundToInt
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 
 fun getCategoryDisplayName(category: String, lang: String): String {
     return when (category) {
@@ -659,12 +661,38 @@ fun LauncherHomeScreen(
                         }
                     }
                 } else {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                    ) { absPage ->
+                    if (viewMode == "COMPACT") {
+                        if (selectedCategoryFilter == "すべて") {
+                            CompactDashboard(
+                                apps = apps,
+                                allApps = allApps,
+                                favorites = favorites,
+                                lastLaunchTimes = lastLaunchTimes,
+                                launchCounts = launchCounts,
+                                categories = categories,
+                                aiLanguage = aiLanguage,
+                                viewModel = viewModel,
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            CompactCategoryGrid(
+                                categoryName = selectedCategoryFilter,
+                                apps = apps,
+                                favorites = favorites,
+                                lastLaunchTimes = lastLaunchTimes,
+                                launchCounts = launchCounts,
+                                aiLanguage = aiLanguage,
+                                viewModel = viewModel,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    } else {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        ) { absPage ->
                         val page = if (categories.isNotEmpty()) absPage % categories.size else 0
                         val currentCategory = categories[page]
                         val pageApps = remember(apps, currentCategory, lastLaunchTimes, launchCounts, favorites) {
@@ -836,6 +864,7 @@ fun LauncherHomeScreen(
                     }
                 }
             }
+            }
                // 6. Floating Navigation Dock (Floating Capsule)
             val isBgDark = bgLuminance < 0.45f
             
@@ -930,12 +959,16 @@ fun LauncherHomeScreen(
                         }
 
                         // Option 2: Toggle View Mode (Center)
-                        val layoutLabel = if (viewMode == "GRID") {
-                            if (aiLanguage == "ja") "表示：リスト" else if (aiLanguage == "ko") "보기: 리스트" else if (aiLanguage == "zh") "显示：列表" else "View: List"
-                        } else {
-                            if (aiLanguage == "ja") "表示：グリッド" else if (aiLanguage == "ko") "보기: 그리드" else if (aiLanguage == "zh") "显示：网格" else "View: Grid"
+                        val layoutLabel = when (viewMode) {
+                            "GRID" -> if (aiLanguage == "ja") "表示：リスト" else if (aiLanguage == "ko") "보기: 리스트" else if (aiLanguage == "zh") "显示：列表" else "View: List"
+                            "LIST" -> if (aiLanguage == "ja") "表示：圧縮" else if (aiLanguage == "ko") "보기: 압축" else if (aiLanguage == "zh") "显示：紧凑" else "View: Compact"
+                            else -> if (aiLanguage == "ja") "表示：グリッド" else if (aiLanguage == "ko") "보기: 그리드" else if (aiLanguage == "zh") "显示：网格" else "View: Grid"
                         }
-                        val layoutIcon = if (viewMode == "GRID") Icons.Default.List else Icons.Default.GridView
+                        val layoutIcon = when (viewMode) {
+                            "GRID" -> Icons.Default.List
+                            "LIST" -> Icons.Default.Dashboard
+                            else -> Icons.Default.GridView
+                        }
                         
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -943,7 +976,11 @@ fun LauncherHomeScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(20.dp))
                                 .clickable {
-                                    val nextMode = if (viewMode == "GRID") "LIST" else "GRID"
+                                    val nextMode = when (viewMode) {
+                                        "GRID" -> "LIST"
+                                        "LIST" -> "COMPACT"
+                                        else -> "GRID"
+                                    }
                                     viewModel.setViewMode(nextMode)
                                 }
                                 .padding(vertical = 6.dp)
@@ -1062,6 +1099,445 @@ fun CategoryHeader(category: String, count: Int, lang: String, modifier: Modifie
                 color = Color(0x80FFFFFF),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+fun CompactDashboard(
+    apps: List<InstalledApp>,
+    allApps: List<InstalledApp>,
+    favorites: List<String>,
+    lastLaunchTimes: Map<String, Long>,
+    launchCounts: Map<String, Int>,
+    categories: List<String>,
+    aiLanguage: String,
+    viewModel: AppLauncherViewModel,
+    modifier: Modifier = Modifier
+) {
+    // 1. Pre-calculate all filtered lists and categories at the top level of Composable
+    val favoriteApps = remember(apps, favorites) {
+        apps.filter { favorites.contains(it.packageName) }
+            .sortedBy { favorites.indexOf(it.packageName) }
+    }
+
+    val recentApps = remember(apps, lastLaunchTimes) {
+        apps.filter { (lastLaunchTimes[it.packageName] ?: 0L) > 0L }
+            .sortedByDescending { lastLaunchTimes[it.packageName] ?: 0L }
+            .take(6)
+    }
+
+    val mostUsedApps = remember(apps, launchCounts) {
+        apps.filter { (launchCounts[it.packageName] ?: 0) > 0 }
+            .sortedByDescending { launchCounts[it.packageName] ?: 0 }
+            .take(6)
+    }
+
+    val nonSystemCategories = remember(categories) {
+        categories.filter { it != "すべて" && it != "FAVORITE" && it != "RECENT" && it != "MOST_USED" }
+    }
+
+    val categoryAppsMap = remember(apps, nonSystemCategories) {
+        nonSystemCategories.associateWith { category ->
+            apps.filter { (it.cachedInfo?.category ?: "未解析") == category }
+        }
+    }
+
+    // 2. Render inside LazyColumn
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 130.dp)
+    ) {
+        // Section 1: Favorites
+        if (favoriteApps.isNotEmpty()) {
+            item {
+                CompactSectionHeader(
+                    title = getCategoryDisplayName("FAVORITE", aiLanguage),
+                    icon = Icons.Default.Star,
+                    iconColor = Color(0xFFFFD700)
+                )
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(favoriteApps) { app ->
+                        CompactAppItemWithSummary(
+                            app = app,
+                            onClick = { viewModel.selectApp(app) },
+                            onLongClick = { viewModel.launchApp(app.packageName) },
+                            isFavorite = true,
+                            modifier = Modifier.width(160.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Section 2: Recently Used
+        if (recentApps.isNotEmpty()) {
+            item {
+                CompactSectionHeader(
+                    title = getCategoryDisplayName("RECENT", aiLanguage),
+                    icon = Icons.Default.History,
+                    iconColor = Color(0xFF81C784)
+                )
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(recentApps) { app ->
+                        CompactAppItemWithSummary(
+                            app = app,
+                            onClick = { viewModel.selectApp(app) },
+                            onLongClick = { viewModel.launchApp(app.packageName) },
+                            isFavorite = favorites.contains(app.packageName),
+                            modifier = Modifier.width(160.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Section 3: Most Used
+        if (mostUsedApps.isNotEmpty()) {
+            item {
+                CompactSectionHeader(
+                    title = getCategoryDisplayName("MOST_USED", aiLanguage),
+                    icon = Icons.Default.TrendingUp,
+                    iconColor = Color(0xFFFFB74D)
+                )
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(mostUsedApps) { app ->
+                        CompactAppItemWithSummary(
+                            app = app,
+                            onClick = { viewModel.selectApp(app) },
+                            onLongClick = { viewModel.launchApp(app.packageName) },
+                            isFavorite = favorites.contains(app.packageName),
+                            modifier = Modifier.width(160.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Section 4: All Apps Grouped by Categories
+        nonSystemCategories.forEach { category ->
+            val categoryApps = categoryAppsMap[category] ?: emptyList()
+            if (categoryApps.isNotEmpty()) {
+                item {
+                    CompactSectionHeader(
+                        title = getCategoryDisplayName(category, aiLanguage),
+                        icon = Icons.Default.Apps,
+                        iconColor = Color(0xFF90CAF9),
+                        badgeText = "${categoryApps.size}"
+                    )
+                }
+                
+                // Chunk apps into rows of 2 for a compact layout with summaries
+                val rows = categoryApps.chunked(2)
+                items(rows) { rowApps ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        for (i in 0 until 2) {
+                            if (i < rowApps.size) {
+                                val app = rowApps[i]
+                                Box(modifier = Modifier.weight(1f)) {
+                                    CompactAppItemWithSummary(
+                                        app = app,
+                                        onClick = { viewModel.selectApp(app) },
+                                        onLongClick = { viewModel.launchApp(app.packageName) },
+                                        isFavorite = favorites.contains(app.packageName),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CompactCategoryGrid(
+    categoryName: String,
+    apps: List<InstalledApp>,
+    favorites: List<String>,
+    lastLaunchTimes: Map<String, Long>,
+    launchCounts: Map<String, Int>,
+    aiLanguage: String,
+    viewModel: AppLauncherViewModel,
+    modifier: Modifier = Modifier
+) {
+    val filteredApps = remember(apps, categoryName, favorites, lastLaunchTimes, launchCounts) {
+        when (categoryName) {
+            "FAVORITE" -> {
+                apps.filter { favorites.contains(it.packageName) }
+                    .sortedBy { favorites.indexOf(it.packageName) }
+            }
+            "RECENT" -> {
+                apps.filter { (lastLaunchTimes[it.packageName] ?: 0L) > 0L }
+                    .sortedByDescending { lastLaunchTimes[it.packageName] ?: 0L }
+            }
+            "MOST_USED" -> {
+                apps.filter { (launchCounts[it.packageName] ?: 0) > 0 }
+                    .sortedByDescending { launchCounts[it.packageName] ?: 0 }
+            }
+            else -> {
+                apps.filter { (it.cachedInfo?.category ?: "未解析") == categoryName }
+            }
+        }
+    }
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 130.dp)
+    ) {
+        item {
+            CompactSectionHeader(
+                title = getCategoryDisplayName(categoryName, aiLanguage),
+                icon = when (categoryName) {
+                    "FAVORITE" -> Icons.Default.Star
+                    "RECENT" -> Icons.Default.History
+                    "MOST_USED" -> Icons.Default.TrendingUp
+                    else -> Icons.Default.Apps
+                },
+                iconColor = when (categoryName) {
+                    "FAVORITE" -> Color(0xFFFFD700)
+                    "RECENT" -> Color(0xFF81C784)
+                    "MOST_USED" -> Color(0xFFFFB74D)
+                    else -> Color(0xFF90CAF9)
+                },
+                badgeText = "${filteredApps.size}"
+            )
+        }
+
+        if (filteredApps.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillParentMaxHeight(0.6f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = Localization.get("no_apps", aiLanguage),
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        } else {
+            val rows = filteredApps.chunked(2)
+            items(rows) { rowApps ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    for (i in 0 until 2) {
+                        if (i < rowApps.size) {
+                            val app = rowApps[i]
+                            Box(modifier = Modifier.weight(1f)) {
+                                CompactAppItemWithSummary(
+                                    app = app,
+                                    onClick = { viewModel.selectApp(app) },
+                                    onLongClick = { viewModel.launchApp(app.packageName) },
+                                    isFavorite = favorites.contains(app.packageName),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CompactSectionHeader(
+    title: String,
+    icon: ImageVector,
+    iconColor: Color,
+    badgeText: String? = null,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconColor,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = title,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
+        )
+        if (badgeText != null) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color(0x22FFFFFF))
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
+            ) {
+                Text(
+                    text = badgeText,
+                    color = Color(0xB3FFFFFF),
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CompactAppItem(
+    app: InstalledApp,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    isFavorite: Boolean = false,
+    showLabelBelow: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(vertical = 6.dp, horizontal = 4.dp)
+            .testTag("compact_app_item_${app.packageName}")
+    ) {
+        Box(
+            modifier = Modifier.size(36.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            AppIconImage(packageName = app.packageName, size = 32.dp)
+            if (isFavorite) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = "Favorite",
+                    tint = Color(0xFFFFD700),
+                    modifier = Modifier
+                        .size(12.dp)
+                        .align(Alignment.TopEnd)
+                        .offset(x = 2.dp, y = (-2).dp)
+                )
+            }
+        }
+        if (showLabelBelow) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = app.label,
+                color = Color.White,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CompactAppItemWithSummary(
+    app: InstalledApp,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    isFavorite: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val summary = app.cachedInfo?.summary ?: "未解析"
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0x0CFFFFFF))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .testTag("compact_app_summary_item_${app.packageName}")
+    ) {
+        Box(
+            modifier = Modifier.size(28.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            AppIconImage(packageName = app.packageName, size = 24.dp)
+            if (isFavorite) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = "Favorite",
+                    tint = Color(0xFFFFD700),
+                    modifier = Modifier
+                        .size(10.dp)
+                        .align(Alignment.TopEnd)
+                        .offset(x = 1.dp, y = (-1).dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = app.label,
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = summary,
+                color = Color(0xB3FFFFFF),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 11.sp
             )
         }
     }
@@ -1623,6 +2099,26 @@ fun AppDetailsDialog(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0x1F3B82F6))
+                                    .border(0.5.dp, Color(0x403B82F6), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = getCategoryDisplayName(app.cachedInfo?.category ?: (if (lang == "ja") "未解析" else "Unanalyzed"), lang),
+                                    color = Color(0xFF93C5FD),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
 
                     IconButton(
@@ -1737,13 +2233,13 @@ fun AppDetailsDialog(
                     val customIcons by usageTracker.customIcons.collectAsState()
                     val currentCustomIcon = customIcons[app.packageName]
 
-                    Row(
+                    LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         val presets = listOf("🚀", "🎮", "💬", "🌐", "🎵", "📷", "🛠️", "❤️")
-                        presets.forEach { emoji ->
+                        items(presets) { emoji ->
                             val isSelected = currentCustomIcon == emoji
                             Box(
                                 modifier = Modifier

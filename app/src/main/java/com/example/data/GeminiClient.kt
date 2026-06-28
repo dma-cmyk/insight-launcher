@@ -298,7 +298,7 @@ object GeminiClient {
             
             
             Provide:
-            1. An appropriate standard high-level category in $langName (MUST BE IN $langName, e.g., $categoryExamples).
+            1. An appropriate standard high-level category in $langName (MUST BE IN $langName, e.g., $categoryExamples). You MUST change or override this category if the User Instructions/Corrections, uploaded file content, or your re-analysis suggests a better or different category.
             2. A brief, useful summary of this application in $langName (explaining its core purpose). Use the provided User Instructions or Reference Content if available to guide and correct your understanding.
             3. At least 5 relevant tags or keywords in $langName.
             4. At least 3 relevant high-quality related links or external resources in $langName (e.g., official support site, Wikipedia article, Google Play Store search, documentation, or relevant guides).
@@ -738,7 +738,10 @@ object GeminiClient {
         modelName: String,
         customApiKey: String? = null,
         languageCode: String = "ja",
-        mcpManager: McpManager? = null
+        mcpManager: McpManager? = null,
+        favorites: List<String> = emptyList(),
+        lastLaunchTimes: Map<String, Long> = emptyMap(),
+        launchCounts: Map<String, Int> = emptyMap()
     ): GeminiAssistantResponse? = withContext(Dispatchers.IO) {
         val apiKey = if (!customApiKey.isNullOrBlank()) customApiKey else BuildConfig.GEMINI_API_KEY
         if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
@@ -762,11 +765,16 @@ object GeminiClient {
             else -> "Japanese"
         }
 
-        // Construct simplified apps info to avoid exceeding token limit
+        val currentTimeMs = System.currentTimeMillis()
+
+        // Construct simplified apps info to avoid exceeding token limit, now including usage metrics
         val appsJsonBuilder = StringBuilder("[")
         apps.take(60).forEachIndexed { i, app ->
             if (i > 0) appsJsonBuilder.append(",")
-            appsJsonBuilder.append("""{"name":"${app.label}","pkg":"${app.packageName}","cat":"${app.category}","summary":"${app.summary}","tags":"${app.tags}"}""")
+            val isFav = favorites.contains(app.packageName)
+            val launchCount = launchCounts[app.packageName] ?: 0
+            val lastLaunch = lastLaunchTimes[app.packageName] ?: 0L
+            appsJsonBuilder.append("""{"name":"${app.label}","pkg":"${app.packageName}","cat":"${app.category}","summary":"${app.summary}","tags":"${app.tags}","fav":$isFav,"launches":$launchCount,"last":$lastLaunch}""")
         }
         appsJsonBuilder.append("]")
 
@@ -784,6 +792,8 @@ object GeminiClient {
         val prompt = """
             You are a smart, friendly AI Assistant inside a modern Android launcher called AI App Launcher.
             
+            Current system time: $currentTimeMs milliseconds (epoch timestamp). Use this to calculate how recently an app was launched relative to its "last" launch timestamp.
+            
             $wikiContext
             
             The user gave you this instruction/query:
@@ -791,18 +801,22 @@ object GeminiClient {
 
             Here is a list of the user's installed and analyzed applications:
             ${appsJsonBuilder.toString()}
+            
+            Note on app metrics:
+            - "fav": true if marked as a favorite by the user.
+            - "launches": total launch count (frequency of use).
+            - "last": epoch timestamp in ms of last launch (0 means never launched).
 
             Your tasks:
-            1. Analyze the user's instruction. If they are looking for specific apps, categories, features, or recommendations, search through their installed apps list.
+            1. Analyze the user's instruction. If they are looking for specific apps, categories, features, or recommendations (especially based on favorite status "fav", launch count "launches", or recency of launch "last"), search through their installed apps list and prioritize appropriately.
             2. Produce a "headline" summarizing your recommendation or response (short, punchy, bold title, e.g., "🎯 効率化アプリのご提案！" or "💬 友達とつながるSNSツール").
             3. Produce an "answer" (detailed explanation in $langName. Be friendly and engaging. Support bullet points, paragraphs, and emojis. It will be displayed in a very large and beautiful format, so make sure it's highly readable and structured).
                If the user asks about facts or instructions you have saved in your LLM WIKI/memories (shown above), use that stored knowledge to answer accurately!
             4. Identify up to 6 "relevantPackages" (exact package names from the list) that are most relevant to the user's query so we can display them as clickable app cards. If the query is a general question (e.g., "tell me a joke"), this can be empty or list 1-2 most frequently used apps as helpful suggestions.
             5. Provide 3 "suggestions" (short follow-up queries or questions in $langName, e.g., "ゲームを探して", "SNSアプリはどれ？").
-            6. You have Google Search grounding enabled via the `googleSearchRetrieval` tool. When the user asks for app recommendations, searches for apps, or if they would highly benefit from apps they DO NOT have installed, recommend up to 4 high-quality relevant real apps from the Google Play Store in the "recommendedStoreApps" list.
-               Since you have live Google Search grounding, search the Google Play Store using your search tool to find actual app names, correct package names (e.g. com.instagram.android, com.spotify.music), and actual Play Store URLs. Ensure the "description" explaining why you recommend them is written in $langName.
-            7. If the user's query indicates they are looking for developer templates, open-source projects, Kotlin codebases, libraries, or GitHub projects, provide a relevant concise search keyword in "githubSearchQuery" so the app can perform a real-time live search against GitHub Search API.
-            8. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, or get the weather for a city, or fetch detailed info/images about a specific GitHub repo, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool. DO NOT use any scraping-based Play Store tools or search Play Store apps via regex; instead, rely fully on your Google Search Grounding to get exact and correct Play Store details! If any tool returns an image URL (e.g., avatar_url), output it in the 'headerImageUrl' field.
+            6. DO NOT recommend applications from the Google Play Store. Keep the "recommendedStoreApps" list empty. Instead, if the user is looking for utilities, developer templates, open-source projects, tools, or libraries, formulate a relevant, concise search query/keyword in "githubSearchQuery" so that the app can perform a real-time live search against the GitHub Search API and show actual GitHub repositories to the user.
+            7. If the user's query indicates they are looking for open-source repositories or codebases, make sure "githubSearchQuery" is set to a precise search term.
+            8. You have powerful Model Context Protocol (MCP) tools available. If the user asks about real-time device stats, launch an app, evaluate a mathematical formula, retrieve the current date/time, launcher settings, or get the weather for a city, or fetch detailed info/images about a specific GitHub repo, use the corresponding tool rather than guessing or hallucinating! Always call the appropriate tool. DO NOT use any Play Store tools or search Play Store apps. If any tool returns an image URL (e.g., avatar_url), output it in the 'headerImageUrl' field.
 
             Format your response STRICTLY as a JSON object adhering to the schema.
         """.trimIndent()
@@ -873,10 +887,6 @@ object GeminiClient {
                     parameters = cleanedParams
                 )
             }))
-        }
-        // Always add googleSearchRetrieval tool for grounding on models that support it (not Gemma)
-        if (!isGemma) {
-            geminiToolsList.add(GeminiTool(googleSearchRetrieval = emptyMap()))
         }
         val geminiTools = if (geminiToolsList.isNotEmpty()) geminiToolsList else null
         val hasFunctionDeclarations = geminiTools?.any { it.functionDeclarations != null } == true

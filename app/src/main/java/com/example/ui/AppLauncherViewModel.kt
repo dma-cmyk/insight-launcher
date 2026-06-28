@@ -831,7 +831,10 @@ class AppLauncherViewModel(
                     modelName = modelName,
                     customApiKey = customApiKey,
                     languageCode = lang,
-                    mcpManager = mcpManager
+                    mcpManager = mcpManager,
+                    favorites = favorites.value,
+                    lastLaunchTimes = lastLaunchTimes.value,
+                    launchCounts = launchCounts.value
                 )
                 _assistantResponse.value = response
                 val ghQuery = response?.githubSearchQuery
