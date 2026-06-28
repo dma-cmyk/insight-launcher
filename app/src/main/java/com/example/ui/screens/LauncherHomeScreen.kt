@@ -1929,6 +1929,7 @@ fun FavoriteReorderableContent(
     var dragList by remember { mutableStateOf(pageApps) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var lastReorderTime by remember { mutableStateOf(0L) }
 
     LaunchedEffect(pageApps) {
         if (draggingIndex == null) {
@@ -1962,20 +1963,24 @@ fun FavoriteReorderableContent(
                             val originalBounds = itemPositions[draggingIndex]
                             if (originalBounds != null) {
                                 val currentCenter = originalBounds.center + dragOffset
-                                val targetIndex = itemPositions.entries.firstOrNull { (index, bounds) ->
-                                    index != draggingIndex && bounds.contains(currentCenter)
-                                }?.key
-                                if (targetIndex != null && targetIndex < dragList.size) {
-                                    val mutable = dragList.toMutableList()
-                                    val temp = mutable.removeAt(draggingIndex!!)
-                                    mutable.add(targetIndex, temp)
-                                    dragList = mutable
+                                val now = System.currentTimeMillis()
+                                if (now - lastReorderTime > 150L) {
+                                    val targetIndex = itemPositions.entries.firstOrNull { (index, bounds) ->
+                                        index != draggingIndex && bounds.contains(currentCenter)
+                                    }?.key
+                                    if (targetIndex != null && targetIndex < dragList.size) {
+                                        val mutable = dragList.toMutableList()
+                                        val temp = mutable.removeAt(draggingIndex!!)
+                                        mutable.add(targetIndex, temp)
+                                        dragList = mutable
 
-                                    val targetBounds = itemPositions[targetIndex]
-                                    if (targetBounds != null) {
-                                        dragOffset += originalBounds.center - targetBounds.center
+                                        val targetBounds = itemPositions[targetIndex]
+                                        if (targetBounds != null) {
+                                            dragOffset += originalBounds.center - targetBounds.center
+                                        }
+                                        draggingIndex = targetIndex
+                                        lastReorderTime = now
                                     }
-                                    draggingIndex = targetIndex
                                 }
                             }
                         }
