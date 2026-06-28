@@ -43,13 +43,12 @@ class McpManager(
         .readTimeout(8, TimeUnit.SECONDS)
         .build()
 
-    // 1. Define built-in tools
     private val builtinTools = listOf(
         McpTool(
             name = "get_current_time_and_date",
             description = "Retrieve the precise current system date, time, day of the week, and timezone. Use this to ensure accuracy when answering time/scheduling queries.",
             inputSchema = mapOf(
-                "type" to "OBJECT",
+                "type" to "object",
                 "properties" to emptyMap<String, Any>(),
                 "required" to emptyList<String>()
             )
@@ -58,7 +57,7 @@ class McpManager(
             name = "get_device_status",
             description = "Get current hardware and system metrics including battery percentage, remaining/total storage, free RAM, OS version, and active network type.",
             inputSchema = mapOf(
-                "type" to "OBJECT",
+                "type" to "object",
                 "properties" to emptyMap<String, Any>(),
                 "required" to emptyList<String>()
             )
@@ -67,10 +66,10 @@ class McpManager(
             name = "search_installed_apps",
             description = "Search through the launcher's installed applications using a keyword to find matching apps, their package names, categories, and tags.",
             inputSchema = mapOf(
-                "type" to "OBJECT",
+                "type" to "object",
                 "properties" to mapOf(
                     "query" to mapOf(
-                        "type" to "STRING",
+                        "type" to "string",
                         "description" to "The search term (e.g. 'Browser', 'Social', 'com.android')"
                     )
                 ),
@@ -81,10 +80,10 @@ class McpManager(
             name = "launch_installed_app",
             description = "Launch an installed Android application using its exact package name.",
             inputSchema = mapOf(
-                "type" to "OBJECT",
+                "type" to "object",
                 "properties" to mapOf(
                     "packageName" to mapOf(
-                        "type" to "STRING",
+                        "type" to "string",
                         "description" to "The exact package name of the app to launch (e.g., 'com.android.chrome')"
                     )
                 ),
@@ -95,18 +94,18 @@ class McpManager(
             name = "launcher_settings_control",
             description = "Read or modify launcher UI settings such as current background wallpaper URL, auto-contrast toggle, view-mode (LIST vs GRID), and icon shape.",
             inputSchema = mapOf(
-                "type" to "OBJECT",
+                "type" to "object",
                 "properties" to mapOf(
                     "action" to mapOf(
-                        "type" to "STRING",
+                        "type" to "string",
                         "description" to "The action to perform: 'read' (to get current config) or 'write' (to update a setting value)"
                     ),
                     "key" to mapOf(
-                        "type" to "STRING",
+                        "type" to "string",
                         "description" to "The setting key to modify: 'bgImageUrl', 'autoContrast', 'iconShape', 'aiLanguage', 'viewMode' (only used for 'write' action)"
                     ),
                     "value" to mapOf(
-                        "type" to "STRING",
+                        "type" to "string",
                         "description" to "The new value to assign (only used for 'write' action)"
                     )
                 ),
@@ -117,10 +116,10 @@ class McpManager(
             name = "evaluate_math_expression",
             description = "Evaluate a mathematical expression accurately to prevent LLM calculation errors. Supports +, -, *, /, ^, parentheses, sqrt(), sin(), cos(), tan(), and logs.",
             inputSchema = mapOf(
-                "type" to "OBJECT",
+                "type" to "object",
                 "properties" to mapOf(
                     "expression" to mapOf(
-                        "type" to "STRING",
+                        "type" to "string",
                         "description" to "The mathematical expression to evaluate, e.g., '(45 * 12) + sqrt(144)'"
                     )
                 ),
@@ -131,10 +130,10 @@ class McpManager(
             name = "get_weather_info",
             description = "Query current weather conditions and temperature for a specified city or location in real-time.",
             inputSchema = mapOf(
-                "type" to "OBJECT",
+                "type" to "object",
                 "properties" to mapOf(
                     "city" to mapOf(
-                        "type" to "STRING",
+                        "type" to "string",
                         "description" to "City or region name"
                     )
                 ),
@@ -145,10 +144,10 @@ class McpManager(
             name = "get_github_repo_details",
             description = "Get detailed information about a specific GitHub repository, including its description, stars, forks, language, and owner avatar image URL.",
             inputSchema = mapOf(
-                "type" to "OBJECT",
+                "type" to "object",
                 "properties" to mapOf(
-                    "owner" to mapOf("type" to "STRING", "description" to "The owner of the repository"),
-                    "repo" to mapOf("type" to "STRING", "description" to "The name of the repository")
+                    "owner" to mapOf("type" to "string", "description" to "The owner of the repository"),
+                    "repo" to mapOf("type" to "string", "description" to "The name of the repository")
                 ),
                 "required" to listOf("owner", "repo")
             )

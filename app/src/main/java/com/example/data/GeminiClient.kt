@@ -11,6 +11,7 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
+import java.util.Locale
 import android.util.Log
 import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -202,6 +203,24 @@ object GeminiClient {
             }
         }
         return sb.toString()
+    }
+
+    private fun lowercaseSchemaTypes(schema: Any?): Any? {
+        return when (schema) {
+            is Map<*, *> -> {
+                schema.map { (key, value) ->
+                    if (key == "type" && value is String) {
+                        key to value.lowercase(Locale.US)
+                    } else {
+                        key to lowercaseSchemaTypes(value)
+                    }
+                }.toMap()
+            }
+            is List<*> -> {
+                schema.map { lowercaseSchemaTypes(it) }
+            }
+            else -> schema
+        }
     }
 
     private fun cleanJsonText(raw: String?): String? {
@@ -877,16 +896,23 @@ object GeminiClient {
             ),
             "required" to listOf("headline", "answer", "relevantPackages", "suggestions")
         )
+        val normalizedSchema = lowercaseSchemaTypes(schema) as? Map<String, Any>
 
         // Prep tools (disable MCP tools for Gemma as it doesn't support tools/function calling over standard payload)
         val mcpTools = if (isGemma) emptyList() else (mcpManager?.getAvailableTools() ?: emptyList())
         val geminiToolsList = mutableListOf<GeminiTool>()
         if (mcpTools.isNotEmpty()) {
             geminiToolsList.add(GeminiTool(functionDeclarations = mcpTools.map {
+                val properties = it.inputSchema["properties"] as? Map<*, *>
+                val parametersSchema = if (properties.isNullOrEmpty()) {
+                    null
+                } else {
+                    lowercaseSchemaTypes(it.inputSchema) as? Map<String, Any>
+                }
                 GeminiFunctionDeclaration(
                     name = it.name,
                     description = it.description,
-                    parameters = it.inputSchema
+                    parameters = parametersSchema
                 )
             }))
         }
@@ -917,20 +943,23 @@ object GeminiClient {
                 val response = apiService.generateContent(cleanModelName, apiKey, request)
                 val candidate = response.candidates?.firstOrNull()
                 val candidateContent = candidate?.content
-                val part = candidateContent?.parts?.firstOrNull()
+                val parts = candidateContent?.parts
 
-                if (part == null) {
+                if (parts.isNullOrEmpty()) {
                     break
                 }
 
-                val functionCall = part.functionCall
+                // Check if there is any function call in the parts list
+                val functionCallPart = parts.firstOrNull { it.functionCall != null }
+                val functionCall = functionCallPart?.functionCall
+
                 if (functionCall != null) {
                     Log.d(TAG, "Gemini requested function call: ${functionCall.name} with args: ${functionCall.args}")
                     
-                    // Add the model turn with functionCall
+                    // Add the entire model turn with all parts (including any text the model wrote before the function call)
                     contents.add(GeminiContent(
                         role = "model",
-                        parts = listOf(part)
+                        parts = parts
                     ))
 
                     // Execute MCP tool
@@ -958,7 +987,8 @@ object GeminiClient {
 
                     loopCount++
                 } else {
-                    responseText = part.text
+                    // No function call — concatenate all text parts
+                    responseText = parts.mapNotNull { it.text }.joinToString("\n")
                     break
                 }
             }
@@ -974,7 +1004,7 @@ object GeminiClient {
                     tools = null,
                     generationConfig = GeminiGenerationConfig(
                         responseMimeType = "application/json",
-                        responseSchema = schema,
+                        responseSchema = normalizedSchema,
                         temperature = 0.4
                     )
                 )
@@ -994,7 +1024,7 @@ object GeminiClient {
                     tools = null,
                     generationConfig = GeminiGenerationConfig(
                         responseMimeType = "application/json",
-                        responseSchema = schema,
+                        responseSchema = normalizedSchema,
                         temperature = 0.4
                     )
                 )
@@ -1049,7 +1079,7 @@ object GeminiClient {
                         tools = null,
                         generationConfig = if (!isGemma) GeminiGenerationConfig(
                             responseMimeType = "application/json",
-                            responseSchema = schema,
+                            responseSchema = normalizedSchema,
                             temperature = 0.4
                         ) else GeminiGenerationConfig(temperature = 0.4)
                     )
