@@ -123,7 +123,12 @@ fun CompactDraggableFavoritesDashboardGrid(
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .onGloballyPositioned { coords ->
-                                        itemPositions[itemIndex] = coords.boundsInWindow()
+                                        val bounds = coords.boundsInWindow()
+                                        itemPositions[itemIndex] = if (isCurrentDragging) {
+                                            bounds.translate(-dragOffset)
+                                        } else {
+                                            bounds
+                                        }
                                     }
                                     .zIndex(if (isCurrentDragging) 10f else 1f)
                                     .offset {

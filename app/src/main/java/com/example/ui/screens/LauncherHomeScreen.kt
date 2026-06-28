@@ -2028,7 +2028,12 @@ fun FavoriteReorderableContent(
                                         modifier = Modifier
                                             .weight(1f)
                                             .onGloballyPositioned { coords ->
-                                                itemPositions[itemIndex] = coords.boundsInWindow()
+                                                val bounds = coords.boundsInWindow()
+                                                itemPositions[itemIndex] = if (isCurrentDragging) {
+                                                    bounds.translate(-dragOffset)
+                                                } else {
+                                                    bounds
+                                                }
                                             }
                                             .zIndex(if (isCurrentDragging) 10f else 1f)
                                             .offset {
@@ -2077,7 +2082,12 @@ fun FavoriteReorderableContent(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
                                 .onGloballyPositioned { coords ->
-                                    itemPositions[itemIndex] = coords.boundsInWindow()
+                                    val bounds = coords.boundsInWindow()
+                                    itemPositions[itemIndex] = if (isCurrentDragging) {
+                                        bounds.translate(-dragOffset)
+                                    } else {
+                                        bounds
+                                    }
                                 }
                                 .zIndex(if (isCurrentDragging) 10f else 1f)
                                 .offset {
