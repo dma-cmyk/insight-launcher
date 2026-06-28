@@ -1409,68 +1409,77 @@ fun CompactCategoryGrid(
         }
     }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 180.dp)
-    ) {
-        item {
-            CompactSectionHeader(
-                title = getCategoryDisplayName(categoryName, aiLanguage),
-                icon = when (categoryName) {
-                    "FAVORITE" -> Icons.Default.Star
-                    "RECENT" -> Icons.Default.History
-                    "MOST_USED" -> Icons.Default.TrendingUp
-                    else -> Icons.Default.Apps
-                },
-                iconColor = when (categoryName) {
-                    "FAVORITE" -> Color(0xFFFFD700)
-                    "RECENT" -> Color(0xFF81C784)
-                    "MOST_USED" -> Color(0xFFFFB74D)
-                    else -> Color(0xFF90CAF9)
-                },
-                badgeText = "${filteredApps.size}"
-            )
-        }
-
-        if (filteredApps.isEmpty()) {
+    if (categoryName == "FAVORITE") {
+        CompactDraggableFavoritesGrid(
+            favoriteApps = filteredApps,
+            viewModel = viewModel,
+            aiLanguage = aiLanguage,
+            modifier = modifier
+        )
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 180.dp)
+        ) {
             item {
-                Box(
-                    modifier = Modifier
-                        .fillParentMaxHeight(0.6f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = Localization.get("no_apps", aiLanguage),
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
-                }
+                CompactSectionHeader(
+                    title = getCategoryDisplayName(categoryName, aiLanguage),
+                    icon = when (categoryName) {
+                        "FAVORITE" -> Icons.Default.Star
+                        "RECENT" -> Icons.Default.History
+                        "MOST_USED" -> Icons.Default.TrendingUp
+                        else -> Icons.Default.Apps
+                    },
+                    iconColor = when (categoryName) {
+                        "FAVORITE" -> Color(0xFFFFD700)
+                        "RECENT" -> Color(0xFF81C784)
+                        "MOST_USED" -> Color(0xFFFFB74D)
+                        else -> Color(0xFF90CAF9)
+                    },
+                    badgeText = "${filteredApps.size}"
+                )
             }
-        } else {
-            val rows = filteredApps.chunked(2)
-            items(rows) { rowApps ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min)
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    for (i in 0 until 2) {
-                        if (i < rowApps.size) {
-                            val app = rowApps[i]
-                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                                CompactAppItemWithSummary(
-                                    app = app,
-                                    onClick = { viewModel.selectApp(app) },
-                                    onLongClick = { },
-                                    isFavorite = favorites.contains(app.packageName),
-                                    modifier = Modifier.fillMaxSize()
-                                )
+
+            if (filteredApps.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillParentMaxHeight(0.6f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = Localization.get("no_apps", aiLanguage),
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            } else {
+                val rows = filteredApps.chunked(2)
+                items(rows) { rowApps ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min)
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        for (i in 0 until 2) {
+                            if (i < rowApps.size) {
+                                val app = rowApps[i]
+                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                    CompactAppItemWithSummary(
+                                        app = app,
+                                        onClick = { viewModel.selectApp(app) },
+                                        onLongClick = { },
+                                        isFavorite = favorites.contains(app.packageName),
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
                             }
-                        } else {
-                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
