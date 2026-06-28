@@ -71,7 +71,6 @@ fun SettingsScreen(
     val dividerColor = if (isLight) Color(0x10000000) else Color(0x20FFFFFF)
     val topBarBgColor = if (isLight) Color(0xF2F6F3FB) else Color(0x900B0B1A)
 
-
     var customUrlInput by remember { mutableStateOf("") }
     var showCustomUrlDialog by remember { mutableStateOf(false) }
     var showAddMcpServerDialog by remember { mutableStateOf(false) }

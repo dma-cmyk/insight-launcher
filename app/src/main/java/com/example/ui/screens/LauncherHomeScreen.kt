@@ -674,6 +674,34 @@ fun LauncherHomeScreen(
                                     }
                                 }
                             }
+                        } else if (viewMode == "COMPACT") {
+                            val rows = apps.chunked(2)
+                            items(rows) { rowApps ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(IntrinsicSize.Min)
+                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    for (i in 0 until 2) {
+                                        if (i < rowApps.size) {
+                                            val app = rowApps[i]
+                                            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                                CompactAppItemWithSummary(
+                                                    app = app,
+                                                    onClick = { viewModel.selectApp(app) },
+                                                    onLongClick = { },
+                                                    isFavorite = favorites.contains(app.packageName),
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                        } else {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             items(apps) { app ->
                                 AppListItem(
@@ -1241,21 +1269,10 @@ fun CompactDashboard(
                 )
             }
             item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(favoriteApps) { app ->
-                        CompactAppItemWithSummary(
-                            app = app,
-                            onClick = { viewModel.selectApp(app) },
-                            onLongClick = { viewModel.launchApp(app.packageName) },
-                            isFavorite = true,
-                            modifier = Modifier.width(160.dp)
-                        )
-                    }
-                }
+                CompactDraggableFavoritesRow(
+                    favoriteApps = favoriteApps,
+                    viewModel = viewModel
+                )
             }
         }
 
@@ -1278,7 +1295,7 @@ fun CompactDashboard(
                         CompactAppItemWithSummary(
                             app = app,
                             onClick = { viewModel.selectApp(app) },
-                            onLongClick = { viewModel.launchApp(app.packageName) },
+                            onLongClick = { },
                             isFavorite = favorites.contains(app.packageName),
                             modifier = Modifier.width(160.dp)
                         )
@@ -1306,7 +1323,7 @@ fun CompactDashboard(
                         CompactAppItemWithSummary(
                             app = app,
                             onClick = { viewModel.selectApp(app) },
-                            onLongClick = { viewModel.launchApp(app.packageName) },
+                            onLongClick = { },
                             isFavorite = favorites.contains(app.packageName),
                             modifier = Modifier.width(160.dp)
                         )
@@ -1345,7 +1362,7 @@ fun CompactDashboard(
                                     CompactAppItemWithSummary(
                                         app = app,
                                         onClick = { viewModel.selectApp(app) },
-                                        onLongClick = { viewModel.launchApp(app.packageName) },
+                                        onLongClick = { },
                                         isFavorite = favorites.contains(app.packageName),
                                         modifier = Modifier.fillMaxSize()
                                     )
@@ -1447,7 +1464,7 @@ fun CompactCategoryGrid(
                                 CompactAppItemWithSummary(
                                     app = app,
                                     onClick = { viewModel.selectApp(app) },
-                                    onLongClick = { viewModel.launchApp(app.packageName) },
+                                    onLongClick = { },
                                     isFavorite = favorites.contains(app.packageName),
                                     modifier = Modifier.fillMaxSize()
                                 )
