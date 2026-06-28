@@ -134,7 +134,7 @@ class McpManager(
                 "properties" to mapOf(
                     "city" to mapOf(
                         "type" to "string",
-                        "description" to "City or region name"
+                        "description" to "City or region name in English (e.g. 'Okinawa' for '沖縄', 'Tokyo' for '東京', 'Yokohama' for '横浜') to ensure precise coordinate geocoding."
                     )
                 ),
                 "required" to listOf("city")
@@ -406,6 +406,11 @@ class McpManager(
                                 "kyoto", "京都" -> Pair(35.0116, 135.7681)
                                 "sapporo", "札幌" -> Pair(43.0621, 141.3544)
                                 "fukuoka", "福岡" -> Pair(33.5902, 130.4017)
+                                "okinawa", "沖縄", "沖縄県" -> Pair(26.2124, 127.6809)
+                                "yokohama", "横浜", "横浜市" -> Pair(35.4437, 139.6380)
+                                "nagoya", "名古屋", "名古屋市" -> Pair(35.1815, 136.9066)
+                                "kobe", "神戸", "神戸市" -> Pair(34.6901, 135.1955)
+                                "hiroshima", "広島", "広島市" -> Pair(34.3853, 132.4553)
                                 "seoul", "ソウル", "서울" -> Pair(37.5665, 126.9780)
                                 "busan", "釜山", "부산" -> Pair(35.1796, 129.0756)
                                 "beijing", "北京" -> Pair(39.9042, 116.4074)
@@ -429,6 +434,11 @@ class McpManager(
                         "kyoto", "京都" -> Pair(35.0116, 135.7681)
                         "sapporo", "札幌" -> Pair(43.0621, 141.3544)
                         "fukuoka", "福岡" -> Pair(33.5902, 130.4017)
+                        "okinawa", "沖縄", "沖縄県" -> Pair(26.2124, 127.6809)
+                        "yokohama", "横浜", "横浜市" -> Pair(35.4437, 139.6380)
+                        "nagoya", "名古屋", "名古屋市" -> Pair(35.1815, 136.9066)
+                        "kobe", "神戸", "神戸市" -> Pair(34.6901, 135.1955)
+                        "hiroshima", "広島", "広島市" -> Pair(34.3853, 132.4553)
                         "seoul", "ソウル", "서울" -> Pair(37.5665, 126.9780)
                         "busan", "釜山", "부산" -> Pair(35.1796, 129.0756)
                         "beijing", "北京" -> Pair(39.9042, 116.4074)
