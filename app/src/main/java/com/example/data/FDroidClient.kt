@@ -25,9 +25,14 @@ data class FDroidDetails(
 )
 
 object FDroidClient {
-    suspend fun search(query: String): List<FDroidPackage> = withContext(Dispatchers.IO) {
+    suspend fun search(query: String, page: Int = 1): List<FDroidPackage> = withContext(Dispatchers.IO) {
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
-        val url = URL("https://search.f-droid.org/?q=$encodedQuery")
+        val urlString = if (page > 1) {
+            "https://search.f-droid.org/?q=$encodedQuery&page=$page"
+        } else {
+            "https://search.f-droid.org/?q=$encodedQuery"
+        }
+        val url = URL(urlString)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.setRequestProperty("User-Agent", "Mozilla/5.0")

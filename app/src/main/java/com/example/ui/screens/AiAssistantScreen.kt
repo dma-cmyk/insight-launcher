@@ -66,8 +66,10 @@ fun AiAssistantScreen(
     val wikiEntries by viewModel.wikiEntries.collectAsState()
     val githubRepos by viewModel.githubRepos.collectAsState()
     val isGithubLoading by viewModel.isGithubLoading.collectAsState()
+    val isMoreGithubLoading by viewModel.isMoreGithubLoading.collectAsState()
     val fdroidRepos by viewModel.fdroidRepos.collectAsState()
     val isFDroidLoading by viewModel.isFDroidLoading.collectAsState()
+    val isMoreFDroidLoading by viewModel.isMoreFDroidLoading.collectAsState()
     val githubRepoDetail by viewModel.githubRepoDetail.collectAsState()
     val fdroidAppDetail by viewModel.fdroidAppDetail.collectAsState()
     val isDetailLoading by viewModel.isDetailLoading.collectAsState()
@@ -1516,6 +1518,39 @@ fun AiAssistantScreen(
                                                 }
                                             }
                                         }
+                                        if (githubRepos.isNotEmpty()) {
+                                            item {
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                if (isMoreGithubLoading) {
+                                                    Box(
+                                                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        CircularProgressIndicator(
+                                                            color = starTint,
+                                                            modifier = Modifier.size(20.dp),
+                                                            strokeWidth = 2.dp
+                                                        )
+                                                    }
+                                                } else {
+                                                    Button(
+                                                        onClick = { viewModel.searchGitHub(ghQuery ?: "", isLoadMore = true) },
+                                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0x2290CAF9)),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .border(1.dp, Color(0x3390CAF9), RoundedCornerShape(12.dp))
+                                                    ) {
+                                                        Text(
+                                                            text = if (aiLanguage == "ja") "更に検索する (次のページ)" else "Load More (Next Page)",
+                                                            color = starTint,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
 
@@ -1750,6 +1785,39 @@ fun AiAssistantScreen(
                                                 }
                                             }
                                             Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                        if (fdroidRepos.isNotEmpty()) {
+                                            item {
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                if (isMoreFDroidLoading) {
+                                                    Box(
+                                                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        CircularProgressIndicator(
+                                                            color = wikiGreen,
+                                                            modifier = Modifier.size(20.dp),
+                                                            strokeWidth = 2.dp
+                                                        )
+                                                    }
+                                                } else {
+                                                    Button(
+                                                        onClick = { viewModel.searchFDroid(fdQuery ?: "", isLoadMore = true) },
+                                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0x2281C784)),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .border(1.dp, Color(0x3381C784), RoundedCornerShape(12.dp))
+                                                    ) {
+                                                        Text(
+                                                            text = if (aiLanguage == "ja") "更に検索する (次のページ)" else "Load More (Next Page)",
+                                                            color = wikiGreen,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                         item {
                                             Text(

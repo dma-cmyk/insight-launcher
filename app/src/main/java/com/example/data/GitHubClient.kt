@@ -57,7 +57,8 @@ interface GitHubService {
         @Query("q") query: String,
         @Query("sort") sort: String = "stars",
         @Query("order") order: String = "desc",
-        @Query("per_page") perPage: Int = 5
+        @Query("per_page") perPage: Int = 20,
+        @Query("page") page: Int = 1
     ): GitHubSearchResponse
 }
 

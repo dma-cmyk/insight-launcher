@@ -630,6 +630,21 @@ class AppLauncherViewModel(
     private val _isFDroidLoading = MutableStateFlow(false)
     val isFDroidLoading: StateFlow<Boolean> = _isFDroidLoading.asStateFlow()
 
+    private val _githubPage = MutableStateFlow(1)
+    val githubPage: StateFlow<Int> = _githubPage.asStateFlow()
+
+    private val _fdroidPage = MutableStateFlow(1)
+    val fdroidPage: StateFlow<Int> = _fdroidPage.asStateFlow()
+
+    private val _isMoreGithubLoading = MutableStateFlow(false)
+    val isMoreGithubLoading: StateFlow<Boolean> = _isMoreGithubLoading.asStateFlow()
+
+    private val _isMoreFDroidLoading = MutableStateFlow(false)
+    val isMoreFDroidLoading: StateFlow<Boolean> = _isMoreFDroidLoading.asStateFlow()
+
+    private var lastGithubQuery = ""
+    private var lastFdroidQuery = ""
+
     private val _githubRepoDetail = MutableStateFlow<com.example.data.GitHubRepoDetails?>(null)
     val githubRepoDetail: StateFlow<com.example.data.GitHubRepoDetails?> = _githubRepoDetail.asStateFlow()
 
@@ -699,55 +714,95 @@ class AppLauncherViewModel(
         _detailError.value = null
     }
 
-    fun searchGitHub(query: String) {
+    fun searchGitHub(query: String, isLoadMore: Boolean = false) {
         if (query.isBlank()) return
         viewModelScope.launch {
-            _isGithubLoading.value = true
+            if (isLoadMore) {
+                _isMoreGithubLoading.value = true
+            } else {
+                _isGithubLoading.value = true
+                _githubPage.value = 1
+                lastGithubQuery = query
+            }
             try {
-                val searchResult = com.example.data.GitHubClient.service.searchRepositories(query)
+                val currentPage = if (isLoadMore) _githubPage.value + 1 else 1
+                val searchResult = com.example.data.GitHubClient.service.searchRepositories(
+                    query = query,
+                    page = currentPage,
+                    perPage = 20
+                )
                 val targetLang = settingsManager.getAiLanguage()
-                val topRepos = searchResult.items.take(10)
+                val newRepos = searchResult.items
                 val translatedRepos = com.example.data.GeminiClient.translateGitHubRepos(
-                    repos = topRepos,
+                    repos = newRepos,
                     targetLanguageCode = targetLang,
                     modelName = settingsManager.getPrimaryModel(),
                     customApiKey = settingsManager.getGeminiApiKey()
                 )
-                _githubRepos.value = translatedRepos
+                
+                if (isLoadMore) {
+                    _githubRepos.value = _githubRepos.value + translatedRepos
+                    _githubPage.value = currentPage
+                } else {
+                    _githubRepos.value = translatedRepos
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "GitHub search failed: ${e.message}", e)
-                _githubRepos.value = emptyList()
+                if (!isLoadMore) {
+                    _githubRepos.value = emptyList()
+                }
             } finally {
-                _isGithubLoading.value = false
+                if (isLoadMore) {
+                    _isMoreGithubLoading.value = false
+                } else {
+                    _isGithubLoading.value = false
+                }
             }
         }
     }
 
-    fun searchFDroid(query: String) {
+    fun searchFDroid(query: String, isLoadMore: Boolean = false) {
         if (query.isBlank()) return
         viewModelScope.launch {
-            _isFDroidLoading.value = true
+            if (isLoadMore) {
+                _isMoreFDroidLoading.value = true
+            } else {
+                _isFDroidLoading.value = true
+                _fdroidPage.value = 1
+                lastFdroidQuery = query
+            }
             try {
-                val topPackages = com.example.data.FDroidClient.search(query).take(10)
-                // F-Droid search doesn't strictly need LLM translation since it's mostly english and simple, 
-                // but we can translate descriptions or just use as-is to save latency
+                val currentPage = if (isLoadMore) _fdroidPage.value + 1 else 1
+                val newPackages = com.example.data.FDroidClient.search(query, page = currentPage)
                 val targetLang = settingsManager.getAiLanguage()
-                val translated = if (targetLang != "en") {
+                val translated = if (targetLang != "en" && newPackages.isNotEmpty()) {
                     com.example.data.GeminiClient.translateFDroidPackages(
-                         packages = topPackages,
+                         packages = newPackages,
                          targetLanguageCode = targetLang,
                          modelName = settingsManager.getPrimaryModel(),
                          customApiKey = settingsManager.getGeminiApiKey()
                     )
                 } else {
-                    topPackages
+                    newPackages
                 }
-                _fdroidRepos.value = translated
+                
+                if (isLoadMore) {
+                    _fdroidRepos.value = _fdroidRepos.value + translated
+                    _fdroidPage.value = currentPage
+                } else {
+                    _fdroidRepos.value = translated
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "F-Droid search failed: ${e.message}", e)
-                _fdroidRepos.value = emptyList()
+                if (!isLoadMore) {
+                    _fdroidRepos.value = emptyList()
+                }
             } finally {
-                _isFDroidLoading.value = false
+                if (isLoadMore) {
+                    _isMoreFDroidLoading.value = false
+                } else {
+                    _isFDroidLoading.value = false
+                }
             }
         }
     }
@@ -1111,6 +1166,9 @@ class AppLauncherViewModel(
         _assistantResponse.value = null
         _isAssistantLoading.value = false
         _githubRepos.value = emptyList()
+        _fdroidRepos.value = emptyList()
+        _githubPage.value = 1
+        _fdroidPage.value = 1
     }
 
     private fun startBgLuminanceAnalysis() {
