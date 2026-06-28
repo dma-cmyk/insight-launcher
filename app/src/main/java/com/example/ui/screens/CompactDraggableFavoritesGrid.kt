@@ -161,11 +161,8 @@ fun CompactDraggableFavoritesGrid(
                                         .weight(1f)
                                         .fillMaxHeight()
                                         .onGloballyPositioned { coords ->
-                                            val bounds = coords.boundsInWindow()
-                                            itemPositions[itemIndex] = if (isCurrentDragging) {
-                                                bounds.translate(-dragOffset)
-                                            } else {
-                                                bounds
+                                            if (!isCurrentDragging) {
+                                                itemPositions[itemIndex] = coords.boundsInWindow()
                                             }
                                         }
                                         .zIndex(if (isCurrentDragging) 10f else 1f)
