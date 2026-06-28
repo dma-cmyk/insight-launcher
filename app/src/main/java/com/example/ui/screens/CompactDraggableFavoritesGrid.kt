@@ -178,7 +178,7 @@ fun CompactDraggableFavoritesGrid(
                                     CompactAppItemWithSummary(
                                         app = app,
                                         onClick = { viewModel.selectApp(app) },
-                                        onLongClick = { }, // Long click is used for dragging
+                                        onLongClick = null,
                                         isFavorite = true,
                                         modifier = Modifier.fillMaxSize()
                                     )

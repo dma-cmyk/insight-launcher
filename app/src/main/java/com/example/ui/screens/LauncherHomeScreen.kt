@@ -1540,7 +1540,7 @@ fun CompactSectionHeader(
 fun CompactAppItem(
     app: InstalledApp,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     isFavorite: Boolean = false,
     showLabelBelow: Boolean = true,
     modifier: Modifier = Modifier
@@ -1594,7 +1594,7 @@ fun CompactAppItem(
 fun CompactAppItemWithSummary(
     app: InstalledApp,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     isFavorite: Boolean = false,
     modifier: Modifier = Modifier
 ) {

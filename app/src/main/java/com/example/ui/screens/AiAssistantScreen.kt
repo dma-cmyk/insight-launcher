@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -448,13 +449,12 @@ fun AiAssistantScreen(
                                                 color = starTint,
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(bottom = 8.dp)
+                                                modifier = Modifier.padding(bottom = 12.dp)
                                             )
-                                            Text(
+                                            MarkdownText(
                                                 text = repo.summaryExplanation,
-                                                color = textColor,
-                                                fontSize = 15.sp,
-                                                lineHeight = 24.sp
+                                                textColor = textColor,
+                                                modifier = Modifier.fillMaxWidth()
                                             )
                                         }
                                     }
@@ -645,13 +645,12 @@ fun AiAssistantScreen(
                                                 color = wikiGreen,
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(bottom = 8.dp)
+                                                modifier = Modifier.padding(bottom = 12.dp)
                                             )
-                                            Text(
+                                            MarkdownText(
                                                 text = app.summaryExplanation,
-                                                color = textColor,
-                                                fontSize = 15.sp,
-                                                lineHeight = 24.sp
+                                                textColor = textColor,
+                                                modifier = Modifier.fillMaxWidth()
                                             )
                                         }
                                     }
@@ -2657,5 +2656,103 @@ fun AiAssistantScreen(
         }
     }
 }
+}
+
+@Composable
+fun MarkdownText(
+    text: String,
+    textColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        val lines = text.split("\n")
+        lines.forEach { rawLine ->
+            val line = rawLine.trim()
+            if (line.isEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                return@forEach
+            }
+            
+            // 1. Header (###, ##, #)
+            if (line.startsWith("###")) {
+                Text(
+                    text = line.removePrefix("###").trim(),
+                    color = textColor,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+            } else if (line.startsWith("##")) {
+                Text(
+                    text = line.removePrefix("##").trim(),
+                    color = textColor,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
+                )
+            } else if (line.startsWith("#")) {
+                Text(
+                    text = line.removePrefix("#").trim(),
+                    color = textColor,
+                    fontSize = 21.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 6.dp)
+                )
+            }
+            // 2. Bullet list (- or *)
+            else if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("• ")) {
+                val bulletContent = when {
+                    line.startsWith("- ") -> line.removePrefix("- ").trim()
+                    line.startsWith("* ") -> line.removePrefix("* ").trim()
+                    else -> line.removePrefix("• ").trim()
+                }
+                Row(
+                    modifier = Modifier.padding(start = 12.dp).padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "•",
+                        color = textColor.copy(alpha = 0.7f),
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = parseBoldText(bulletContent, textColor),
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            // 3. Regular Paragraph (Supports **bold**)
+            else {
+                Text(
+                    text = parseBoldText(line, textColor),
+                    fontSize = 15.sp,
+                    lineHeight = 24.sp
+                )
+            }
+        }
+    }
+}
+
+fun parseBoldText(text: String, defaultColor: Color): androidx.compose.ui.text.AnnotatedString {
+    return androidx.compose.ui.text.buildAnnotatedString {
+        val parts = text.split("**")
+        parts.forEachIndexed { index, part ->
+            if (index % 2 == 1) {
+                withStyle(style = androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold, color = defaultColor)) {
+                    append(part)
+                }
+            } else {
+                withStyle(style = androidx.compose.ui.text.SpanStyle(color = defaultColor.copy(alpha = 0.9f))) {
+                    append(part)
+                }
+            }
+        }
+    }
 }
 

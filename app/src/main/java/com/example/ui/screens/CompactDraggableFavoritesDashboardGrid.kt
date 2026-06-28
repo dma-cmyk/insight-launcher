@@ -140,7 +140,7 @@ fun CompactDraggableFavoritesDashboardGrid(
                                 CompactAppItemWithSummary(
                                     app = app,
                                     onClick = { viewModel.selectApp(app) },
-                                    onLongClick = { },
+                                    onLongClick = null,
                                     isFavorite = true,
                                     modifier = Modifier.fillMaxSize()
                                 )
