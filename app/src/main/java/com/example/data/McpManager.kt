@@ -382,7 +382,7 @@ class McpManager(
                 
                 // Fetch coordinates using Open-Meteo Geocoding API (completely free, no API key required)
                 try {
-                    val geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=${java.net.URLEncoder.encode(city, "UTF-8")}&count=1"
+                    val geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?name=${java.net.URLEncoder.encode(city, "UTF-8")}&count=10"
                     val geoRequest = Request.Builder().url(geocodeUrl).build()
                     val geoResponseStr = withContext(Dispatchers.IO) {
                         httpClient.newCall(geoRequest).execute().use { response ->
@@ -393,7 +393,16 @@ class McpManager(
                         val geoJson = JSONObject(geoResponseStr)
                         val results = geoJson.optJSONArray("results")
                         if (results != null && results.length() > 0) {
-                            val firstResult = results.getJSONObject(0)
+                            // Prioritize Japan results to avoid phonetic mismatches in other countries
+                            var selectedIndex = 0
+                            for (i in 0 until results.length()) {
+                                val item = results.getJSONObject(i)
+                                if (item.optString("country_code").equals("JP", ignoreCase = true)) {
+                                    selectedIndex = i
+                                    break
+                                }
+                            }
+                            val firstResult = results.getJSONObject(selectedIndex)
                             val lat = firstResult.optDouble("latitude", 35.6895)
                             val lon = firstResult.optDouble("longitude", 139.6917)
                             resolvedCity = firstResult.optString("name", city)
