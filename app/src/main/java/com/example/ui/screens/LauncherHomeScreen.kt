@@ -143,16 +143,17 @@ fun LauncherHomeScreen(
 
     val colorTheme by viewModel.colorTheme.collectAsState()
     val isLight = colorTheme.startsWith("light_")
+    val primaryColor = MaterialTheme.colorScheme.primary
 
     val textColor = if (isLight) Color(0xFF11111F) else Color.White
     val subTextColor = if (isLight) Color(0xFF454558) else Color(0xB2FFFFFF)
     val cardBgColor = if (isLight) Color(0xDDFFFFFF) else Color(0x3CFFFFFF)
-    val cardBorderColor = if (isLight) Color(0x2E000000) else Color(0x24FFFFFF)
+    val cardBorderColor = if (isLight) Color(0x2E000000) else primaryColor.copy(alpha = 0.25f)
     val panelBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0xF0080812)
-    val panelBorderColor = if (isLight) Color(0x2A000000) else Color(0x20FFFFFF)
-    val dividerColor = if (isLight) Color(0x1B000000) else Color(0x14FFFFFF)
+    val panelBorderColor = if (isLight) Color(0x2A000000) else primaryColor.copy(alpha = 0.2f)
+    val dividerColor = if (isLight) Color(0x1B000000) else primaryColor.copy(alpha = 0.12f)
     val searchBarBg = if (isLight) Color(0x10000000) else Color(0x15FFFFFF)
-    val searchBarBorder = if (isLight) Color(0x33000000) else Color(0x20FFFFFF)
+    val searchBarBorder = if (isLight) Color(0x33000000) else primaryColor.copy(alpha = 0.35f)
     val textShadow = if (isLight) Color(0x15000000) else Color.Black
 
     val isVectorSearchEnabled by viewModel.isVectorSearchEnabled.collectAsState()
@@ -357,20 +358,19 @@ fun LauncherHomeScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        // Vector Search Button
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier
                                                 .weight(1f, fill = false)
                                                 .clip(RoundedCornerShape(50))
                                                 .clickable { viewModel.executeVectorSearch() }
-                                                .background(if (isVectorSearchEnabled) Color(0x3342A5F5) else Color(0x1AFFFFFF))
+                                                .background(if (isVectorSearchEnabled) primaryColor.copy(alpha = 0.2f) else Color(0x1AFFFFFF))
                                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.AutoAwesome,
                                                 contentDescription = Localization.get("vector_search_label", aiLanguage),
-                                                tint = if (isVectorSearchEnabled) Color(0xFF90CAF9) else Color(0x80FFFFFF),
+                                                tint = if (isVectorSearchEnabled) primaryColor else Color(0x80FFFFFF),
                                                 modifier = Modifier.size(16.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
@@ -379,7 +379,7 @@ fun LauncherHomeScreen(
                                                 fontSize = 11.sp,
                                                 maxLines = 1,
                                                 softWrap = false,
-                                                color = if (isVectorSearchEnabled) Color(0xFF90CAF9) else Color(0xB3FFFFFF)
+                                                color = if (isVectorSearchEnabled) primaryColor else Color(0xB3FFFFFF)
                                             )
                                         }
 
@@ -453,19 +453,19 @@ fun LauncherHomeScreen(
                         val isSystem = category == "System" || category == "システム" || category == "ツール" || category == "Tools"
                         
                         val chipBg = if (isSelected) {
-                            if (isLight) Color(0x1F2196F3) else Color(0x2B3B82F6)
+                            primaryColor.copy(alpha = 0.2f)
                         } else {
                             if (isLight) Color(0x08000000) else Color(0x0DFFFFFF)
                         }
 
                         val chipBorder = if (isSelected) {
-                            if (isLight) Color(0x4D2196F3) else Color(0x4D3B82F6)
+                            primaryColor.copy(alpha = 0.5f)
                         } else {
                             if (isLight) Color(0x15000000) else Color(0x08FFFFFF)
                         }
 
                         val chipText = if (isSelected) {
-                            if (isLight) Color(0xFF1976D2) else Color(0xFF93C5FD)
+                            primaryColor
                         } else {
                             if (isLight) Color(0xFF555065) else Color(0x99FFFFFF)
                         }
@@ -2119,6 +2119,9 @@ fun AppDetailsDialog(
     onToggleFavorite: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val offsetX = remember { androidx.compose.animation.core.Animatable(0f) }
+    val swipeThreshold = 180f
 
     val isDark = MaterialTheme.colorScheme.background.let { it.red + it.green + it.blue < 1.5f }
     val dialogBgColor = if (isDark) Color(0xF0080812) else Color(0xFAFCFBFF)
@@ -2197,6 +2200,14 @@ fun AppDetailsDialog(
         }
     }
 
+    LaunchedEffect(app.packageName) {
+        customContextText = ""
+        selectedFileName = null
+        selectedFileMimeType = null
+        selectedFileBytes = null
+        offsetX.snapTo(0f)
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -2204,9 +2215,63 @@ fun AppDetailsDialog(
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
+                .graphicsLayer {
+                    translationX = offsetX.value
+                    alpha = (1f - (kotlin.math.abs(offsetX.value) / 600f)).coerceIn(0.6f, 1f)
+                }
                 .clip(RoundedCornerShape(28.dp))
                 .background(dialogBgColor)
                 .border(1.dp, dialogBorderColor, RoundedCornerShape(28.dp))
+                .pointerInput(app.packageName) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            coroutineScope.launch {
+                                val currentOffset = offsetX.value
+                                if (currentOffset > swipeThreshold) {
+                                    val currentIndex = apps.indexOfFirst { it.packageName == app.packageName }
+                                    val prevApp = if (currentIndex > 0) {
+                                        apps[currentIndex - 1]
+                                    } else if (apps.isNotEmpty()) {
+                                        apps.last()
+                                    } else null
+                                    
+                                    if (prevApp != null) {
+                                        offsetX.animateTo(500f)
+                                        onSelectApp(prevApp)
+                                    } else {
+                                        offsetX.animateTo(0f)
+                                    }
+                                } else if (currentOffset < -swipeThreshold) {
+                                    val currentIndex = apps.indexOfFirst { it.packageName == app.packageName }
+                                    val nextApp = if (currentIndex != -1 && currentIndex < apps.size - 1) {
+                                        apps[currentIndex + 1]
+                                    } else if (apps.isNotEmpty()) {
+                                        apps.first()
+                                    } else null
+
+                                    if (nextApp != null) {
+                                        offsetX.animateTo(-500f)
+                                        onSelectApp(nextApp)
+                                    } else {
+                                        offsetX.animateTo(0f)
+                                    }
+                                } else {
+                                    offsetX.animateTo(0f)
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            coroutineScope.launch {
+                                offsetX.animateTo(0f)
+                            }
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            coroutineScope.launch {
+                                offsetX.snapTo(offsetX.value + dragAmount)
+                            }
+                        }
+                    )
+                }
                 .padding(22.dp)
         ) {
             Column(

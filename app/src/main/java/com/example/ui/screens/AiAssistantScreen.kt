@@ -76,15 +76,16 @@ fun AiAssistantScreen(
     val colorTheme by viewModel.colorTheme.collectAsState()
     val isLight = colorTheme.startsWith("light_")
 
+    val primaryColor = MaterialTheme.colorScheme.primary
     val textColor = if (isLight) Color(0xFF11111F) else Color.White
     val subTextColor = if (isLight) Color(0xFF454558) else Color(0xB2FFFFFF)
     val topBarBg = if (isLight) Color(0xFDF8F7FC) else Color(0x2B000000)
-    val starTint = if (isLight) Color(0xFF1976D2) else Color(0xFF90CAF9)
-    val wikiGreen = if (isLight) Color(0xFF2E7D32) else Color(0xFF81C784)
+    val starTint = if (isLight) Color(0xFF1976D2) else primaryColor
+    val wikiGreen = if (isLight) Color(0xFF2E7D32) else primaryColor
     val cardBgColor = if (isLight) Color(0xDDFFFFFF) else Color(0x12FFFFFF)
-    val cardBorderColor = if (isLight) Color(0x2E000000) else Color(0x1BFFFFFF)
+    val cardBorderColor = if (isLight) Color(0x2E000000) else primaryColor.copy(alpha = 0.25f)
     val panelBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0xCD0A0A12)
-    val panelBorderColor = if (isLight) Color(0x1A000000) else Color(0x20FFFFFF)
+    val panelBorderColor = if (isLight) Color(0x1A000000) else primaryColor.copy(alpha = 0.2f)
     
     var textInput by remember { mutableStateOf("") }
     var activeTab by remember { mutableStateOf(0) } // 0 = Chat, 1 = LLM Wiki
@@ -365,6 +366,16 @@ fun AiAssistantScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .border(1.dp, Color(0x3390CAF9), RoundedCornerShape(20.dp))
+                                            .clickable {
+                                                try {
+                                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(repo.htmlUrl)).apply {
+                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    // ignore
+                                                }
+                                            }
                                     ) {
                                         Row(
                                             modifier = Modifier
@@ -561,6 +572,17 @@ fun AiAssistantScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .border(1.dp, Color(0x3381C784), RoundedCornerShape(20.dp))
+                                            .clickable {
+                                                try {
+                                                    val url = "https://f-droid.org/packages/${app.packageName}/"
+                                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).apply {
+                                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (e: Exception) {
+                                                    // ignore
+                                                }
+                                            }
                                     ) {
                                         Row(
                                             modifier = Modifier
@@ -911,16 +933,17 @@ fun AiAssistantScreen(
                         }
                     } else {
                         // --- AI RESPONSE VIEW (GIANT DISPLAY) ---
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            assistantResponse?.let { response ->
-                                // 1. Headline - DEKADEKA / GIANT Text
-                                item {
-                                    Card(
-                                        colors = CardDefaults.cardColors(containerColor = Color(0x2B42A5F5)),
+                        androidx.compose.foundation.text.selection.SelectionContainer {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp),
+                                verticalArrangement = Arrangement.spacedBy(20.dp)
+                            ) {
+                                assistantResponse?.let { response ->
+                                    // 1. Headline - DEKADEKA / GIANT Text
+                                    item {
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = Color(0x2B42A5F5)),
                                         shape = RoundedCornerShape(20.dp),
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -969,11 +992,9 @@ fun AiAssistantScreen(
                                                         .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                                                 )
                                             }
-                                            Text(
+                                            MarkdownText(
                                                 text = response.answer,
-                                                color = textColor,
-                                                fontSize = 16.sp,
-                                                lineHeight = 26.sp,
+                                                textColor = textColor,
                                                 modifier = Modifier.padding(20.dp)
                                             )
                                         }
@@ -1800,6 +1821,7 @@ fun AiAssistantScreen(
                             }
                         }
                     }
+                    }
 
                     // --- PULSING THINKING/LOADING SCREEN Overlay ---
                     if (isAssistantLoading) {
@@ -2373,7 +2395,10 @@ fun AiAssistantScreen(
             onDismissRequest = { pendingWikiEntry = null },
             title = { Text(if (aiLanguage == "ja") "記憶を追加" else "Add Memory", color = textColor) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
@@ -2432,8 +2457,11 @@ fun AiAssistantScreen(
                     }
                     if (wikiEntries.isNotEmpty()) {
                         Text(text = if (aiLanguage == "ja") "関連リンク" else "Related Links", color = subTextColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        LazyColumn(modifier = Modifier.heightIn(max = 120.dp).fillMaxWidth()) {
-                            items(wikiEntries) { w ->
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            wikiEntries.forEach { w ->
                                 val isSelected = selectedRelatedIds.contains(w.id)
                                 Row(
                                     modifier = Modifier
@@ -2441,7 +2469,7 @@ fun AiAssistantScreen(
                                         .clickable { 
                                             if (isSelected) selectedRelatedIds.remove(w.id) else selectedRelatedIds.add(w.id) 
                                         }
-                                        .padding(vertical = 6.dp),
+                                        .padding(vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     androidx.compose.material3.Checkbox(
@@ -2500,7 +2528,10 @@ fun AiAssistantScreen(
             onDismissRequest = { editingEntry = null },
             title = { Text(if (aiLanguage == "ja") "記憶を編集" else "Edit Memory", color = textColor) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
@@ -2560,8 +2591,11 @@ fun AiAssistantScreen(
                     val otherWikis = wikiEntries.filter { it.id != editingEntry!!.id }
                     if (otherWikis.isNotEmpty()) {
                         Text(text = if (aiLanguage == "ja") "関連リンク" else "Related Links", color = subTextColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        LazyColumn(modifier = Modifier.heightIn(max = 120.dp).fillMaxWidth()) {
-                            items(otherWikis) { w ->
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            otherWikis.forEach { w ->
                                 val isSelected = selectedRelatedIds.contains(w.id)
                                 Row(
                                     modifier = Modifier
@@ -2569,7 +2603,7 @@ fun AiAssistantScreen(
                                         .clickable { 
                                             if (isSelected) selectedRelatedIds.remove(w.id) else selectedRelatedIds.add(w.id) 
                                         }
-                                        .padding(vertical = 6.dp),
+                                        .padding(vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     androidx.compose.material3.Checkbox(

@@ -64,11 +64,12 @@ fun SettingsScreen(
     val colorTheme by viewModel.colorTheme.collectAsState()
 
     val isLight = colorTheme.startsWith("light_")
+    val primaryColor = MaterialTheme.colorScheme.primary
     val textColor = if (isLight) Color(0xFF11111F) else Color.White
     val subTextColor = if (isLight) Color(0xFF454558) else Color(0xB2FFFFFF)
     val cardBgColor = if (isLight) Color(0xDDFFFFFF) else Color(0x3CFFFFFF)
-    val borderColor = if (isLight) Color(0x2E000000) else Color(0x24FFFFFF)
-    val dividerColor = if (isLight) Color(0x1B000000) else Color(0x20FFFFFF)
+    val borderColor = if (isLight) Color(0x2E000000) else primaryColor.copy(alpha = 0.25f)
+    val dividerColor = if (isLight) Color(0x1B000000) else primaryColor.copy(alpha = 0.12f)
     val topBarBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0x900B0B1A)
     val panelBgColor = if (isLight) Color(0xFDF8F7FC) else Color(0xCD0A0A12)
 
