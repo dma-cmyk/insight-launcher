@@ -386,7 +386,8 @@ class AppRepository(private val appDao: AppDao) {
     suspend fun mergeCategories(
         modelName: String,
         customApiKey: String? = null,
-        languageCode: String = "ja"
+        languageCode: String = "ja",
+        userContextText: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val distinctCategories = appDao.getDistinctCategories()
@@ -396,7 +397,8 @@ class AppRepository(private val appDao: AppDao) {
                 categories = distinctCategories,
                 modelName = modelName,
                 customApiKey = customApiKey,
-                languageCode = languageCode
+                languageCode = languageCode,
+                userContextText = userContextText
             )
 
             if (mergeMap != null && mergeMap.isNotEmpty()) {

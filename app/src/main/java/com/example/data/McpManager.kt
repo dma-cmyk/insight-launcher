@@ -34,7 +34,8 @@ data class McpTool(
 class McpManager(
     private val context: Context,
     private val repository: AppRepository,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val usageTracker: UsageTracker? = null
 ) {
     private val TAG = "McpManager"
     
@@ -290,6 +291,7 @@ class McpManager(
                 val pkg = args["packageName"]?.toString() ?: ""
                 val intent = context.packageManager.getLaunchIntentForPackage(pkg)
                 if (intent != null) {
+                    usageTracker?.recordLaunch(pkg)
                     intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(intent)
                     JSONObject().apply {

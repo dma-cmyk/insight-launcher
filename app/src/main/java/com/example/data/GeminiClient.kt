@@ -319,10 +319,12 @@ object GeminiClient {
             
             
             Provide:
-            1. An appropriate standard high-level category in $langName (MUST BE IN $langName, e.g., $categoryExamples). You MUST change or override this category if the User Instructions/Corrections, uploaded file content, or your re-analysis suggests a better or different category.
+            1. An appropriate standard high-level category in $langName. (e.g., $categoryExamples). IMPORTANT: If the User Instructions/Corrections suggest a different categorization strategy (like using specific genres instead of broad categories), you MUST prioritize the user's instructions over these examples. The category MUST BE IN $langName.
             2. A brief, useful summary of this application in $langName (explaining its core purpose). Use the provided User Instructions or Reference Content if available to guide and correct your understanding.
             3. At least 5 relevant tags or keywords in $langName.
             4. At least 3 relevant high-quality related links or external resources in $langName (e.g., official support site, Wikipedia article, Google Play Store search, documentation, or relevant guides).
+            
+            CRITICAL LANGUAGE RULE: ALL output text (category, summary, tags, and link titles) MUST be written in the specified language ($langName). If $langName is NOT English, you MUST NOT output in English unless the app's proper noun itself is English.
             
             Format your response STRICTLY as a JSON object adhering to the schema.
         """.trimIndent())
@@ -485,10 +487,12 @@ object GeminiClient {
             
             Provide the following information for EACH of the applications in the list:
             1. The exact same packageName (must match the input exactly).
-            2. An appropriate standard high-level category in $langName (MUST BE IN $langName, e.g., $categoryExamples). If user instructions are provided, use them to guide your categorization.
+            2. An appropriate standard high-level category in $langName (e.g., $categoryExamples). IMPORTANT: If User Instructions are provided (like requesting specific sub-genres), you MUST prioritize the user's instructions over these examples. The category MUST BE IN $langName.
             3. A brief, useful summary of this application in $langName (explaining its core purpose).
             4. At least 5 relevant tags or keywords in $langName.
             5. At least 3 relevant high-quality related links or external resources in $langName (e.g., official support site, Wikipedia article, Google Play Store search, documentation, or relevant guides).
+            
+            CRITICAL LANGUAGE RULE: ALL output text (category, summary, tags, and link titles) MUST be written in the specified language ($langName). If $langName is NOT English, you MUST NOT output in English unless the app's proper noun itself is English.
             
             Format your response STRICTLY as a JSON object matching the responseSchema. It must have a top-level "results" array where each item contains the fields: "packageName", "category", "summary", "tags", "relatedLinks".
         """.trimIndent())
@@ -678,7 +682,8 @@ object GeminiClient {
         categories: List<String>,
         modelName: String,
         customApiKey: String? = null,
-        languageCode: String = "ja"
+        languageCode: String = "ja",
+        userContextText: String? = null
     ): Map<String, String>? = withContext(Dispatchers.IO) {
         if (categories.isEmpty()) return@withContext emptyMap()
         
@@ -697,13 +702,21 @@ object GeminiClient {
             else -> "Japanese"
         }
 
+        val categoryExamples = when (languageCode) {
+            "en" -> "\"Productivity\", \"Social\", \"Utility\", \"Game\", \"Entertainment\", \"Finance\", \"Education\", \"System\""
+            "ko" -> "\"생산성\", \"소셜\", \"유틸리티\", \"게임\", \"엔터테인먼트\", \"금융\", \"교육\", \"시스템\""
+            "zh" -> "\"生产力\", \"社交\", \"实用工具\", \"游戏\", \"娱乐\", \"金融\", \"教育\", \"系统\""
+            else -> "\"生産性\", \"ソーシャル\", \"ユーティリティ\", \"ゲーム\", \"エンターテイメント\", \"ファイナンス\", \"教育\", \"システム\""
+        }
+
         val prompt = """
             You are an AI assistant that organizes app categories.
             The user has provided a list of categories that might be fragmented or too specific.
-            Your task is to group semantically similar categories into broader, standard categories in $langName (e.g., "Productivity", "Social", "Utility", "Game", "Entertainment", "Finance", "Education", "System", etc.).
+            Your task is to group semantically similar categories into broader, standard categories in $langName (e.g., $categoryExamples, etc.).
             If a category is already good, keep it as is.
             Output a JSON list where each object has 'oldCategory' and 'newCategory'.
             
+            ${if (!userContextText.isNullOrBlank()) "IMPORTANT USER INSTRUCTIONS/CORRECTIONS TO FOLLOW DURING MERGING:\n$userContextText\n" else ""}
             Categories to process:
             ${categories.joinToString(", ")}
             ${if (isGemma) "\n\nIMPORTANT: Return ONLY a raw JSON string of format {\"merges\":[{\"oldCategory\":\"...\",\"newCategory\":\"...\"}]}. Do not include markdown blocks or extra text." else ""}

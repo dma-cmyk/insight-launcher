@@ -42,7 +42,7 @@ class AppLauncherViewModel(
     private val TAG = "AppLauncherViewModel"
     private var isAnalysisCancelled = false
     val usageTracker = UsageTracker(context)
-    val mcpManager = McpManager(context, repository, settingsManager)
+    val mcpManager = McpManager(context, repository, settingsManager, usageTracker)
 
     private val _analysisProgressPercent = MutableStateFlow(0f)
     val analysisProgressPercent: StateFlow<Float> = _analysisProgressPercent.asStateFlow()
@@ -308,7 +308,8 @@ class AppLauncherViewModel(
             val success = repository.mergeCategories(
                 modelName = settingsManager.getPrimaryModel(),
                 customApiKey = settingsManager.getGeminiApiKey(),
-                languageCode = settingsManager.getAiLanguage()
+                languageCode = settingsManager.getAiLanguage(),
+                userContextText = settingsManager.getCustomCategorizationPrompt()
             )
             _isMergingCategories.value = false
             if (success) {
@@ -453,7 +454,8 @@ class AppLauncherViewModel(
                     repository.mergeCategories(
                         modelName = settingsManager.getPrimaryModel(),
                         customApiKey = settingsManager.getGeminiApiKey(),
-                        languageCode = settingsManager.getAiLanguage()
+                        languageCode = settingsManager.getAiLanguage(),
+                        userContextText = settingsManager.getCustomCategorizationPrompt()
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed auto merge categories after batch analysis", e)
@@ -548,7 +550,8 @@ class AppLauncherViewModel(
                     repository.mergeCategories(
                         modelName = settingsManager.getPrimaryModel(),
                         customApiKey = settingsManager.getGeminiApiKey(),
-                        languageCode = settingsManager.getAiLanguage()
+                        languageCode = settingsManager.getAiLanguage(),
+                        userContextText = settingsManager.getCustomCategorizationPrompt()
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed auto merge categories after batch analysis", e)
