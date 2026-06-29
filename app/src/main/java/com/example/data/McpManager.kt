@@ -569,6 +569,9 @@ class McpManager(
                         JSONObject().apply {
                             put("name", app.label)
                             put("packageName", pkg)
+                            put("category", app.category)
+                            put("summary", app.summary)
+                            put("tags", app.tags)
                         }
                     }
                 }
@@ -582,6 +585,9 @@ class McpManager(
                             JSONObject().apply {
                                 put("name", app.label)
                                 put("packageName", entry.key)
+                                put("category", app.category)
+                                put("summary", app.summary)
+                                put("tags", app.tags)
                                 put("lastLaunchTime", entry.value)
                             }
                         }
@@ -596,6 +602,9 @@ class McpManager(
                             JSONObject().apply {
                                 put("name", app.label)
                                 put("packageName", entry.key)
+                                put("category", app.category)
+                                put("summary", app.summary)
+                                put("tags", app.tags)
                                 put("launchCount", entry.value)
                             }
                         }
