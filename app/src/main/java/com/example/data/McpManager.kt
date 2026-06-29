@@ -152,6 +152,15 @@ class McpManager(
                 ),
                 "required" to listOf("owner", "repo")
             )
+        ),
+        McpTool(
+            name = "get_app_usage_stats",
+            description = "Retrieve the user's favorite apps, recently used apps, and most frequently used apps.",
+            inputSchema = mapOf(
+                "type" to "object",
+                "properties" to emptyMap<String, Any>(),
+                "required" to emptyList<String>()
+            )
         )
     )
 
@@ -543,6 +552,61 @@ class McpManager(
                         "Error: ${e.localizedMessage}"
                     }
                 }
+            }
+            "get_app_usage_stats" -> {
+                if (usageTracker == null) {
+                    return JSONObject().apply {
+                        put("status", "error")
+                        put("message", "UsageTracker is not available.")
+                    }.toString()
+                }
+
+                val allApps = repository.getAllAppInfosDirect(context, settingsManager.getIncludeIconlessSystemApps())
+                val appMap = allApps.associateBy { it.packageName }
+
+                val favorites = usageTracker.favorites.value.mapNotNull { pkg ->
+                    appMap[pkg]?.let { app ->
+                        JSONObject().apply {
+                            put("name", app.label)
+                            put("packageName", pkg)
+                        }
+                    }
+                }
+
+                val lastLaunchTimes = usageTracker.lastLaunchTimes.value
+                val recentApps = lastLaunchTimes.entries
+                    .sortedByDescending { it.value }
+                    .take(15)
+                    .mapNotNull { entry ->
+                        appMap[entry.key]?.let { app ->
+                            JSONObject().apply {
+                                put("name", app.label)
+                                put("packageName", entry.key)
+                                put("lastLaunchTime", entry.value)
+                            }
+                        }
+                    }
+
+                val launchCounts = usageTracker.launchCounts.value
+                val frequentApps = launchCounts.entries
+                    .sortedByDescending { it.value }
+                    .take(15)
+                    .mapNotNull { entry ->
+                        appMap[entry.key]?.let { app ->
+                            JSONObject().apply {
+                                put("name", app.label)
+                                put("packageName", entry.key)
+                                put("launchCount", entry.value)
+                            }
+                        }
+                    }
+
+                JSONObject().apply {
+                    put("favorites", JSONArray(favorites))
+                    put("recentApps", JSONArray(recentApps))
+                    put("frequentApps", JSONArray(frequentApps))
+                    put("status", "success")
+                }.toString()
             }
             else -> "Error: Unknown built-in tool '$name'."
         }
